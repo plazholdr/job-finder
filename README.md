@@ -2,6 +2,10 @@
 
 A full-stack application for finding jobs, built with Next.js and FeathersJS.
 
+## Project Overview
+
+This project aims to create a comprehensive job finding platform with a modern tech stack.
+
 ## Project Structure
 
 This is a monorepo managed with Turborepo and Yarn workspaces, containing:
