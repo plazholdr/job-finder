@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Frontend service
+  frontend:
+    environment:
+      - NODE_ENV=production
+    command: yarn start
+    
+  # Backend service
+  backend:
+    environment:
+      - NODE_ENV=production
+    command: yarn start
+    
+  # Restrict port exposure in production
+  mongodb:
+    ports: []
+      
+  redis:
+    ports: []
+      
+  mailhog:
+    ports: []
+      
+  minio:
+    ports: []

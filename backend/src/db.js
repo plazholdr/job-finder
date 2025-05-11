@@ -1,18 +1,19 @@
 const { MongoClient } = require('mongodb');
 const logger = require('./logger');
+const config = require('./config');
 
 let client;
 let db;
 
 async function connectToMongoDB() {
   try {
-    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/job-finder';
-    client = new MongoClient(uri);
-    
+    const { uri, options } = config.db.mongodb;
+    client = new MongoClient(uri, options);
+
     await client.connect();
     db = client.db();
-    
-    logger.info('Connected to MongoDB');
+
+    logger.info(`Connected to MongoDB (${config.app.env})`);
     return db;
   } catch (error) {
     logger.error('Failed to connect to MongoDB', error);

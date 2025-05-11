@@ -1,9 +1,21 @@
-require('dotenv').config();
+// Load environment-specific .env file based on NODE_ENV
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Load environment variables from .env.{NODE_ENV} file
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const envPath = path.resolve(process.cwd(), `.env.${NODE_ENV}`);
+dotenv.config({ path: envPath });
+
+// Fallback to .env if environment-specific file doesn't exist
+dotenv.config();
+
 const express = require('@feathersjs/express');
 const feathers = require('@feathersjs/feathers');
 const socketio = require('@feathersjs/socketio');
 const cors = require('cors');
 const helmet = require('helmet');
+const config = require('./config');
 const logger = require('./logger');
 const services = require('./services');
 const middleware = require('./middleware');
@@ -17,9 +29,12 @@ const app = express(feathers());
 app.use(helmet({
   contentSecurityPolicy: false
 }));
-app.use(cors());
+app.use(cors(config.cors));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Make config available throughout the application
+app.set('config', config);
 
 // Set up Plugins and providers
 app.configure(express.rest());
@@ -39,6 +54,8 @@ app.get('/health', async (req, res) => {
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
+      environment: config.app.env,
+      version: config.app.version,
       services: {
         mongodb: dbStatus,
         redis: redisStatus
@@ -49,6 +66,7 @@ app.get('/health', async (req, res) => {
     res.status(500).json({
       status: 'error',
       timestamp: new Date().toISOString(),
+      environment: config.app.env,
       message: error.message
     });
   }
@@ -70,11 +88,11 @@ async function start() {
     app.set('redisConnected', true);
 
     // Start the server
-    const port = process.env.PORT || 3030;
-    const server = app.listen(port);
+    const { port, host } = config.app;
+    const server = app.listen(port, host);
 
     server.on('listening', () => {
-      logger.info(`Feathers application started on http://localhost:${port}`);
+      logger.info(`${config.app.name} started on http://${host}:${port} in ${config.app.env} mode`);
     });
 
     return app;

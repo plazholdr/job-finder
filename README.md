@@ -41,7 +41,7 @@ This is a monorepo managed with Turborepo and Yarn workspaces, containing:
 
 ## Docker Setup
 
-The project is configured to run entirely in Docker containers. We provide a convenient script to manage the Docker environment.
+The project is configured to run entirely in Docker containers. We provide convenient scripts to manage the Docker environment.
 
 ### Using the run script
 
@@ -67,6 +67,39 @@ View logs:
 
 ```bash
 ./run.sh logs
+```
+
+### Running in Different Environments
+
+We provide a special script to run the application in different environments:
+
+```bash
+chmod +x run-env.sh
+```
+
+Start in development environment:
+```bash
+./run-env.sh dev start
+```
+
+Start in staging environment:
+```bash
+./run-env.sh staging start
+```
+
+Start in UAT environment:
+```bash
+./run-env.sh uat start
+```
+
+Start in production environment:
+```bash
+./run-env.sh prod start
+```
+
+View help:
+```bash
+./run-env.sh help
 ```
 
 ### Manual Docker commands
@@ -107,6 +140,43 @@ The Docker setup includes:
 - `yarn start`: Start all applications in production mode
 - `yarn lint`: Run linting on all applications
 - `yarn test`: Run tests on all applications
+
+## Environment Configuration
+
+The application supports multiple environments:
+
+- **Development**: Local development environment
+- **Staging**: Pre-production testing environment
+- **UAT**: User Acceptance Testing environment
+- **Production**: Live production environment
+
+### Backend Configuration
+
+Backend configuration is managed through environment-specific `.env` files:
+
+- `.env.development`: Development environment settings
+- `.env.staging`: Staging environment settings
+- `.env.uat`: UAT environment settings
+- `.env.production`: Production environment settings
+
+The configuration is loaded in `backend/src/config/index.js` and made available throughout the application.
+
+### Frontend Configuration
+
+Frontend configuration is managed through:
+
+- Environment-specific `.env` files (`.env.development`, `.env.staging`, etc.)
+- Configuration in `frontend/src/config/index.ts`
+
+The environment is automatically detected and the appropriate configuration is loaded.
+
+### Visual Environment Indicators
+
+The application includes visual indicators to help identify which environment you're working in:
+
+1. Environment badge in the bottom-right corner of the screen
+2. Environment tags on the home page
+3. Configuration debug panel in non-production environments
 
 ## Test-Driven Development (TDD)
 

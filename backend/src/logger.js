@@ -1,8 +1,9 @@
 const { createLogger, format, transports } = require('winston');
+const config = require('./config');
 
 // Configure the Winston logger
 const logger = createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: config.logging.level,
   format: format.combine(
     format.timestamp({
       format: 'YYYY-MM-DD HH:mm:ss'
@@ -11,7 +12,10 @@ const logger = createLogger({
     format.splat(),
     format.json()
   ),
-  defaultMeta: { service: 'backend' },
+  defaultMeta: {
+    service: config.app.name,
+    environment: config.app.env
+  },
   transports: [
     new transports.Console({
       format: format.combine(
