@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # Frontend service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3030
+    depends_on:
+      - backend
+    networks:
+      - job-finder-network
+
+  # Backend service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3030:3030"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3030
+      - MONGODB_URI=mongodb://mongodb:27017/job-finder
+      - REDIS_URI=redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+      - mailhog
+      - minio
+    networks:
+      - job-finder-network
+
+  # MongoDB service
+  mongodb:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - job-finder-network
+
+  # Redis service
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - job-finder-network
+
+  # Mailhog service for email testing
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025" # SMTP port
+      - "8025:8025" # Web UI port
+    networks:
+      - job-finder-network
+
+  # MinIO service for S3-compatible storage
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000" # API port
+      - "9001:9001" # Console port
+    volumes:
+      - minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    networks:
+      - job-finder-network
+
+networks:
+  job-finder-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+  redis-data:
+  minio-data:
