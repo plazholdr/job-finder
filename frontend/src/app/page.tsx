@@ -1,38 +1,32 @@
-'use client';
-
-import { Button, Typography, Tag } from 'antd';
-import config from '@/config';
-
-const { Title } = Typography;
+import Link from 'next/link';
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <Title level={1}>{config.app.name}</Title>
-      <p className="mb-4">Find your dream job with {config.app.name}</p>
-
-      {/* Environment indicator */}
-      <div className="mb-6">
-        <Tag color={
-          config.app.env === 'development' ? 'blue' :
-          config.app.env === 'staging' ? 'orange' :
-          config.app.env === 'uat' ? 'green' : 'default'
-        }>
-          {config.app.env.toUpperCase()}
-        </Tag>
-        <Tag color="purple">API: {config.api.baseUrl}</Tag>
-        {config.features.debugMode && <Tag color="cyan">Debug Mode</Tag>}
-      </div>
-
-      <Button type="primary">Get Started</Button>
-
-      {/* Show additional debug info in non-production environments */}
-      {config.features.debugMode && (
-        <div className="mt-8 p-4 bg-gray-100 rounded text-xs">
-          <h3 className="font-bold mb-2">Configuration:</h3>
-          <pre>{JSON.stringify(config, null, 2)}</pre>
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="w-full max-w-md space-y-8 p-10">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900">
+            Job Finder Portal
+          </h1>
+          <p className="mt-3 text-lg text-gray-600">
+            Find your dream job today
+          </p>
         </div>
-      )}
-    </main>
+        <div className="mt-8 space-y-4">
+          <Link 
+            href="/auth/login" 
+            className="group relative flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          >
+            Sign in
+          </Link>
+          <Link 
+            href="/auth/register" 
+            className="group relative flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-blue-600 ring-1 ring-inset ring-blue-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          >
+            Create an account
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
