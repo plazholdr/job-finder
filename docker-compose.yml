@@ -32,24 +32,31 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3030
-      - MONGODB_URI=mongodb+srv://aaronriang99:<db_password>@cluster0.mm8mypo.mongodb.net/job-finder?retryWrites=true&w=majority&appName=Cluster0
+      - MONGODB_URI=mongodb://mongodb:27017/job-finder
       - REDIS_URI=redis://redis:6379
     depends_on:
+      - mongodb
       - redis
       - mailhog
       - minio
     networks:
       - job-finder-network
 
-  # MongoDB service - Using MongoDB Atlas instead
-  # mongodb:
-  #   image: mongo:6
-  #   ports:
-  #     - "27017:27017"
-  #   volumes:
-  #     - mongodb-data:/data/db
-  #   networks:
-  #     - job-finder-network
+  # MongoDB service
+  mongodb:
+    image: mongo:7.0
+    container_name: job-finder-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=job-finder
+    networks:
+      - job-finder-network
 
   # Redis service
   redis:
@@ -90,6 +97,6 @@ networks:
     driver: bridge
 
 volumes:
-  # mongodb-data:  # Not needed when using MongoDB Atlas
+  mongodb_data:
   redis-data:
   minio-data:

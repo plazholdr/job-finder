@@ -7,6 +7,13 @@ let redisClient;
 async function connectToRedis() {
   try {
     const { uri, options } = config.db.redis;
+
+    // Skip Redis connection if URI is not provided
+    if (!uri) {
+      logger.info('Redis URI not provided, skipping Redis connection');
+      return null;
+    }
+
     redisClient = createClient({
       url: uri,
       socket: {

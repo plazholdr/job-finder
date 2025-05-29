@@ -29,7 +29,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  
+
   const {
     register,
     handleSubmit,
@@ -46,33 +46,40 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     setLoginError(null);
-  
+
     try {
-      // Simulate delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-  
-      // Get dummy users from localStorage
-      const storedUsers = JSON.parse(localStorage.getItem('dummyUsers') || '[]');
-  
-      const foundUser = storedUsers.find(
-        (user: any) => user.email === data.email && user.password === data.password
-      );
-  
-      if (!foundUser) {
-        throw new Error('Invalid credentials');
+      const { login } = await import('@/contexts/auth-context');
+      // This is a workaround since we can't use hooks in this context
+      // We'll need to refactor this component to use the useAuth hook properly
+
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed');
       }
-  
-      localStorage.setItem('userRole', foundUser.role);
-  
+
+      const { user, accessToken } = await response.json();
+
+      // Store auth data
+      localStorage.setItem('authToken', accessToken);
+      localStorage.setItem('authUser', JSON.stringify(user));
+
       // Redirect to role-based dashboard
-      if (foundUser.role === 'student') {
+      if (user.role === 'student') {
         router.push('/pages/student-dashboard');
       } else {
         router.push('/pages/company-dashboard');
       }
-  
-    } catch (error) {
-      setLoginError('Invalid email or password. Please try again.');
+
+    } catch (error: any) {
+      setLoginError(error.message || 'Invalid email or password. Please try again.');
     } finally {
       setIsLoading(false);
     }

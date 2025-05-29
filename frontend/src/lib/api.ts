@@ -11,10 +11,18 @@ export async function fetchApi<T>(
   const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
   // Set default headers
-  const headers = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  // Add authorization header if token exists
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
 
   // Create AbortController for timeout
   const controller = new AbortController();

@@ -15,7 +15,8 @@ import { Separator } from '@/components/ui/separator';
 import SocialLoginButtons from '@/components/auth/social-login-buttons';
 
 const registerSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
+  firstName: z.string().min(2, { message: 'First name must be at least 2 characters' }),
+  lastName: z.string().min(2, { message: 'Last name must be at least 2 characters' }),
   email: z.string().email({ message: 'Please enter a valid email address' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
 });
@@ -34,7 +35,8 @@ export default function RegisterPage() {
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      name: '',
+      firstName: '',
+      lastName: '',
       email: '',
       password: '',
     },
@@ -43,40 +45,46 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     setRegisterError(null);
-  
+
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-  
-      // Fetch current users from localStorage
-      const storedUsers = JSON.parse(localStorage.getItem('dummyUsers') || '[]');
-  
-      // Check if email already exists
-      const existing = storedUsers.find((u: any) => u.email === data.email);
-      if (existing) {
-        setRegisterError('Email is already registered.');
-        setIsLoading(false);
-        return;
+      // Determine role based on email (you can add a dropdown later)
+      const role = data.email.includes('company') ? 'company' : 'student';
+
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          role,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Registration failed');
       }
-  
-      // Assign a dummy role (you can add a dropdown later)
-      const newUser = {
-        ...data,
-        role: data.email.includes('company') ? 'company' : 'student', // just for now
-      };
-  
-      const updatedUsers = [...storedUsers, newUser];
-      localStorage.setItem('dummyUsers', JSON.stringify(updatedUsers));
-      localStorage.setItem('userRole', newUser.role);
-  
-      // Redirect to role-based dashboard
-      if (newUser.role === 'student') {
-        router.push('/pages/student-dashboard');
+
+      const result = await response.json();
+
+      // If auto-login was successful, store auth data
+      if (result.accessToken && result.user) {
+        localStorage.setItem('authToken', result.accessToken);
+        localStorage.setItem('authUser', JSON.stringify(result.user));
+
+        // Redirect to role-based dashboard
+        if (result.user.role === 'student') {
+          router.push('/pages/student-dashboard');
+        } else {
+          router.push('/pages/company-dashboard');
+        }
       } else {
-        router.push('/pages/company-dashboard');
+        // Registration successful but need to login manually
+        router.push('/auth/login?message=Registration successful. Please login.');
       }
-    } catch (error) {
-      setRegisterError('An error occurred during registration. Please try again.');
+    } catch (error: any) {
+      setRegisterError(error.message || 'An error occurred during registration. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +92,7 @@ export default function RegisterPage() {
 
   return (
     <div className="w-full flex items-center justify-center p-8 md:p-16 bg-gradient-to-br from-blue-50 via-white to-blue-50">
-      <motion.div 
+      <motion.div
         className="w-full max-w-md space-y-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -92,7 +100,7 @@ export default function RegisterPage() {
       >
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            
+
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create your account</h1>
           <p className="mt-2 text-sm text-gray-600">
@@ -101,7 +109,7 @@ export default function RegisterPage() {
         </div>
 
         {registerError && (
-          <motion.div 
+          <motion.div
             className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -114,19 +122,36 @@ export default function RegisterPage() {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="relative">
-                <User className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Full name"
-                  className={`pl-10 h-12 ${errors.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                  {...register('name')}
-                />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="relative">
+                  <User className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="First name"
+                    className={`pl-10 h-12 ${errors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                    {...register('firstName')}
+                  />
+                </div>
+                {errors.firstName && (
+                  <p className="text-sm text-red-500">{errors.firstName.message}</p>
+                )}
               </div>
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name.message}</p>
-              )}
+
+              <div className="space-y-2">
+                <div className="relative">
+                  <User className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Last name"
+                    className={`pl-10 h-12 ${errors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                    {...register('lastName')}
+                  />
+                </div>
+                {errors.lastName && (
+                  <p className="text-sm text-red-500">{errors.lastName.message}</p>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
