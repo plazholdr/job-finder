@@ -7,7 +7,14 @@ let redisClient;
 async function connectToRedis() {
   try {
     const { uri, options } = config.db.redis;
-    redisClient = createClient({ url: uri, ...options });
+    redisClient = createClient({
+      url: uri,
+      socket: {
+        connectTimeout: 2000,
+        lazyConnect: true
+      },
+      ...options
+    });
 
     redisClient.on('error', (err) => logger.error('Redis Client Error', err));
 

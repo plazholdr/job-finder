@@ -29,6 +29,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
+  
   const {
     register,
     handleSubmit,
@@ -45,16 +46,31 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     setLoginError(null);
-
+  
     try {
-      // Simulate API call
+      // Simulate delay
       await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // In a real application, you would call your authentication API here
-      console.log('Login data:', data);
-
-      // Redirect to dashboard after successful login
-      router.push('/dashboard');
+  
+      // Get dummy users from localStorage
+      const storedUsers = JSON.parse(localStorage.getItem('dummyUsers') || '[]');
+  
+      const foundUser = storedUsers.find(
+        (user: any) => user.email === data.email && user.password === data.password
+      );
+  
+      if (!foundUser) {
+        throw new Error('Invalid credentials');
+      }
+  
+      localStorage.setItem('userRole', foundUser.role);
+  
+      // Redirect to role-based dashboard
+      if (foundUser.role === 'student') {
+        router.push('/pages/student-dashboard');
+      } else {
+        router.push('/pages/company-dashboard');
+      }
+  
     } catch (error) {
       setLoginError('Invalid email or password. Please try again.');
     } finally {

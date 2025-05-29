@@ -43,16 +43,38 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     setRegisterError(null);
-    
+  
     try {
-      // Simulate API call
+      // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // In a real application, you would call your registration API here
-      console.log('Register data:', data);
-      
-      // Redirect to dashboard after successful registration
-      router.push('/dashboard');
+  
+      // Fetch current users from localStorage
+      const storedUsers = JSON.parse(localStorage.getItem('dummyUsers') || '[]');
+  
+      // Check if email already exists
+      const existing = storedUsers.find((u: any) => u.email === data.email);
+      if (existing) {
+        setRegisterError('Email is already registered.');
+        setIsLoading(false);
+        return;
+      }
+  
+      // Assign a dummy role (you can add a dropdown later)
+      const newUser = {
+        ...data,
+        role: data.email.includes('company') ? 'company' : 'student', // just for now
+      };
+  
+      const updatedUsers = [...storedUsers, newUser];
+      localStorage.setItem('dummyUsers', JSON.stringify(updatedUsers));
+      localStorage.setItem('userRole', newUser.role);
+  
+      // Redirect to role-based dashboard
+      if (newUser.role === 'student') {
+        router.push('/pages/student-dashboard');
+      } else {
+        router.push('/pages/company-dashboard');
+      }
     } catch (error) {
       setRegisterError('An error occurred during registration. Please try again.');
     } finally {

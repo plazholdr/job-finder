@@ -83,15 +83,18 @@ async function start() {
     await connectToMongoDB();
     app.set('mongoConnected', true);
 
-    // Connect to Redis
-    await connectToRedis();
-    app.set('redisConnected', true);
+    // Connect to Redis (optional) - temporarily disabled
+    // try {
+    //   await connectToRedis();
+    //   app.set('redisConnected', true);
+    // } catch (error) {
+    //   logger.warn('Redis connection failed, continuing without Redis', error);
+      app.set('redisConnected', false);
+    // }
 
     // Start the server
     const { port, host } = config.app;
-    const server = app.listen(port, host);
-
-    server.on('listening', () => {
+    const server = app.listen(port, host, () => {
       logger.info(`${config.app.name} started on http://${host}:${port} in ${config.app.env} mode`);
     });
 
