@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import SocialLoginButtons from '@/components/auth/social-login-buttons';
+import { useAuth } from '@/contexts/auth-context';
 
 const registerSchema = z.object({
   firstName: z.string().min(2, { message: 'First name must be at least 2 characters' }),
@@ -25,6 +26,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register: registerUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
 
@@ -50,39 +52,36 @@ export default function RegisterPage() {
       // Determine role based on email (you can add a dropdown later)
       const role = data.email.includes('company') ? 'company' : 'student';
 
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...data,
-          role,
-        }),
+      // Use the auth context register method
+      await registerUser({
+        ...data,
+        role: role as 'student' | 'company',
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Registration failed');
-      }
+      // The auth context will handle auto-login and storing tokens
+      // We need to wait a bit for the auth context to update
+      setTimeout(() => {
+        // Get user from localStorage to determine redirect
+        const userStr = localStorage.getItem('authUser');
+        if (userStr) {
+          const user = JSON.parse(userStr);
 
-      const result = await response.json();
-
-      // If auto-login was successful, store auth data
-      if (result.accessToken && result.user) {
-        localStorage.setItem('authToken', result.accessToken);
-        localStorage.setItem('authUser', JSON.stringify(result.user));
-
-        // Redirect to role-based dashboard
-        if (result.user.role === 'student') {
-          router.push('/pages/student-dashboard');
+          // Redirect to role-based dashboard
+          if (user.role === 'student') {
+            router.push('/pages/student-dashboard');
+          } else if (user.role === 'company') {
+            router.push('/pages/company-dashboard');
+          } else if (user.role === 'admin') {
+            router.push('/pages/admin-dashboard');
+          } else {
+            router.push('/dashboard');
+          }
         } else {
-          router.push('/pages/company-dashboard');
+          // Registration successful but need to login manually
+          router.push('/auth/login?message=Registration successful. Please login.');
         }
-      } else {
-        // Registration successful but need to login manually
-        router.push('/auth/login?message=Registration successful. Please login.');
-      }
+      }, 100);
+
     } catch (error: any) {
       setRegisterError(error.message || 'An error occurred during registration. Please try again.');
     } finally {

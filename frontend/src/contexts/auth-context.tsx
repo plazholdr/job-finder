@@ -80,13 +80,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const response = await api.post<{ accessToken: string; user: User }>('/authentication', {
-        email,
-        password,
-        strategy: 'local',
+
+      // Call the Next.js API route instead of backend directly
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      const { accessToken, user: userData } = response;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed');
+      }
+
+      const { accessToken, user: userData } = await response.json();
 
       setToken(accessToken);
       setUser(userData);
@@ -105,12 +114,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (userData: RegisterData) => {
     try {
       setIsLoading(true);
-      
-      // Create user
-      const newUser = await api.post<User>('/users', userData);
 
-      // Auto-login after registration
-      await login(userData.email, userData.password);
+      // Call the Next.js API route instead of backend directly
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Registration failed');
+      }
+
+      const result = await response.json();
+
+      // If auto-login was successful, store auth data
+      if (result.accessToken && result.user) {
+        setToken(result.accessToken);
+        setUser(result.user);
+        localStorage.setItem('authToken', result.accessToken);
+        localStorage.setItem('authUser', JSON.stringify(result.user));
+      }
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -125,14 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
 
-    // Optional: Call logout endpoint
-    if (token) {
-      api.delete('/authentication', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }).catch(console.error);
-    }
+    // For now, we'll just do local logout
+    // Backend logout can be added later if needed
   };
 
   const updateUser = async (userData: Partial<User>) => {
@@ -203,7 +224,7 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>) {
 // Hook for role-based access
 export function useRole() {
   const { user } = useAuth();
-  
+
   return {
     role: user?.role,
     isStudent: user?.role === 'student',

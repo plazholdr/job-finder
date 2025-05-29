@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { Users, Briefcase, BarChart as ChartBar, Settings, Plus, Search, Filter, MoreVertical } from 'lucide-react';
+import UserProfile from '@/components/UserProfile';
+import { withAuth } from '@/contexts/auth-context';
 
 interface JobPosting {
   id: number;
@@ -12,7 +14,7 @@ interface JobPosting {
   views: number;
 }
 
-export default function CompanyDashboard() {
+function CompanyDashboard() {
   const [activeTab, setActiveTab] = useState('jobs');
 
   const jobPostings: JobPosting[] = [
@@ -90,10 +92,13 @@ export default function CompanyDashboard() {
       <div className="ml-64 p-8">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-bold text-gray-900">Job Postings</h2>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            <Plus className="h-5 w-5" />
-            Post New Job
-          </button>
+          <div className="flex items-center gap-4">
+            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <Plus className="h-5 w-5" />
+              Post New Job
+            </button>
+            <UserProfile />
+          </div>
         </div>
 
         {/* Search and Filters */}
@@ -157,3 +162,5 @@ export default function CompanyDashboard() {
     </div>
   );
 }
+
+export default withAuth(CompanyDashboard);

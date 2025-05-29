@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import SocialLoginButtons from '@/components/auth/social-login-buttons';
 import LoginIllustration from '@/components/auth/login-illustration';
+import { useAuth } from '@/contexts/auth-context';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address' }),
@@ -26,6 +27,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -48,35 +50,29 @@ export default function LoginPage() {
     setLoginError(null);
 
     try {
-      const { login } = await import('@/contexts/auth-context');
-      // This is a workaround since we can't use hooks in this context
-      // We'll need to refactor this component to use the useAuth hook properly
+      // Use the auth context login method
+      await login(data.email, data.password);
 
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+      // The auth context will handle storing tokens and user data
+      // We need to wait a bit for the auth context to update
+      setTimeout(() => {
+        // Get user from localStorage to determine redirect
+        const userStr = localStorage.getItem('authUser');
+        if (userStr) {
+          const user = JSON.parse(userStr);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
-      }
-
-      const { user, accessToken } = await response.json();
-
-      // Store auth data
-      localStorage.setItem('authToken', accessToken);
-      localStorage.setItem('authUser', JSON.stringify(user));
-
-      // Redirect to role-based dashboard
-      if (user.role === 'student') {
-        router.push('/pages/student-dashboard');
-      } else {
-        router.push('/pages/company-dashboard');
-      }
+          // Redirect to role-based dashboard
+          if (user.role === 'student') {
+            router.push('/pages/student-dashboard');
+          } else if (user.role === 'company') {
+            router.push('/pages/company-dashboard');
+          } else if (user.role === 'admin') {
+            router.push('/pages/admin-dashboard');
+          } else {
+            router.push('/dashboard');
+          }
+        }
+      }, 100);
 
     } catch (error: any) {
       setLoginError(error.message || 'Invalid email or password. Please try again.');
