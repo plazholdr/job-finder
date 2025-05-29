@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   output: 'standalone',
 
   // Environment-specific configuration
@@ -12,11 +11,7 @@ const nextConfig = {
 
   // Enable environment-specific configuration files
   // This allows us to use .env.development, .env.staging, etc.
-  experimental: {
-    // Enable environment variables based on NODE_ENV
-    // This is actually the default behavior, but we're being explicit
-    environmentVariables: true,
-  },
+  // Environment variables are enabled by default in Next.js
 };
 
 module.exports = nextConfig;
