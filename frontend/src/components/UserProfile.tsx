@@ -141,7 +141,7 @@ export default function UserProfile() {
               <button
                 onClick={() => {
                   setIsDropdownOpen(false);
-                  // TODO: Navigate to profile page
+                  router.push(`/profile/${user._id}`);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
               >
@@ -152,7 +152,7 @@ export default function UserProfile() {
               <button
                 onClick={() => {
                   setIsDropdownOpen(false);
-                  // TODO: Navigate to settings page
+                  router.push('/settings');
                 }}
                 className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
               >

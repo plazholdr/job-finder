@@ -4,11 +4,18 @@ import config from '@/config';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, firstName, lastName, role = 'student' } = body;
+    const { email, password, firstName, lastName, role } = body;
 
-    if (!email || !password || !firstName || !lastName) {
+    if (!email || !password || !firstName || !lastName || !role) {
       return NextResponse.json(
-        { error: 'Email, password, first name, and last name are required' },
+        { error: 'Email, password, first name, last name, and role are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!['student', 'company'].includes(role)) {
+      return NextResponse.json(
+        { error: 'Role must be either "student" or "company"' },
         { status: 400 }
       );
     }

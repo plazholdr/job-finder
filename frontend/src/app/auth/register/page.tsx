@@ -20,6 +20,7 @@ const registerSchema = z.object({
   lastName: z.string().min(2, { message: 'Last name must be at least 2 characters' }),
   email: z.string().email({ message: 'Please enter a valid email address' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
+  role: z.enum(['student', 'company'], { message: 'Please select your role' }),
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -29,10 +30,13 @@ export default function RegisterPage() {
   const { register: registerUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<'student' | 'company' | null>(null);
 
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -41,22 +45,19 @@ export default function RegisterPage() {
       lastName: '',
       email: '',
       password: '',
+      role: undefined,
     },
   });
+
+  const watchedRole = watch('role');
 
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     setRegisterError(null);
 
     try {
-      // Determine role based on email (you can add a dropdown later)
-      const role = data.email.includes('company') ? 'company' : 'student';
-
-      // Use the auth context register method
-      await registerUser({
-        ...data,
-        role: role as 'student' | 'company',
-      });
+      // Use the selected role from the form
+      await registerUser(data);
 
       // The auth context will handle auto-login and storing tokens
       // We need to wait a bit for the auth context to update
@@ -182,16 +183,73 @@ export default function RegisterPage() {
                 <p className="text-sm text-red-500">{errors.password.message}</p>
               )}
             </div>
+
+            {/* Role Selection */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-gray-700">
+                I want to:
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedRole('student');
+                    setValue('role', 'student');
+                  }}
+                  className={`relative flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${
+                    watchedRole === 'student'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                  }`}
+                >
+                  <User className="h-6 w-6 mb-2" />
+                  <span className="text-sm font-medium">Find Jobs</span>
+                  <span className="text-xs text-gray-500 mt-1">I'm looking for work</span>
+                  {watchedRole === 'student' && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle className="h-4 w-4 text-blue-500" />
+                    </div>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedRole('company');
+                    setValue('role', 'company');
+                  }}
+                  className={`relative flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${
+                    watchedRole === 'company'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                  }`}
+                >
+                  <Briefcase className="h-6 w-6 mb-2" />
+                  <span className="text-sm font-medium">Hire Talent</span>
+                  <span className="text-xs text-gray-500 mt-1">I'm looking to hire</span>
+                  {watchedRole === 'company' && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle className="h-4 w-4 text-blue-500" />
+                    </div>
+                  )}
+                </button>
+              </div>
+              {errors.role && (
+                <p className="text-sm text-red-500">{errors.role.message}</p>
+              )}
+            </div>
           </div>
 
           <div>
             <Button
               type="submit"
-              className="relative w-full h-12 bg-blue-600 hover:bg-blue-500"
-              disabled={isLoading}
+              className="relative w-full h-12 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading || !watchedRole}
             >
               <span className={`${isLoading ? 'opacity-0' : 'opacity-100'}`}>
-                Create account
+                {watchedRole === 'student' ? 'Create Job Seeker Account' :
+                 watchedRole === 'company' ? 'Create Employer Account' :
+                 'Create Account'}
               </span>
               {isLoading && (
                 <span className="absolute inset-0 flex items-center justify-center">
