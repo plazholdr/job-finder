@@ -2,23 +2,24 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
+      <nav className="bg-gray-900/95 backdrop-blur-md border-b border-gray-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="bg-blue-600 rounded-lg p-2">
-                <span className="text-white font-bold text-sm">🎯</span>
+              <div className="bg-white rounded-lg p-2">
+                <span className="text-gray-900 font-bold text-sm">Hi</span>
               </div>
-              <span className="ml-3 text-xl font-bold text-gray-900">Hire</span>
+              <span className="ml-3 text-xl font-bold text-white">hireup</span>
             </div>
             <div className="hidden md:flex items-center space-x-8">
-              <a href="/jobs" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Jobs</a>
-              <a href="/companies" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Companies</a>
-              <a href="/candidates" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Candidates</a>
-              <a href="/pricing" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Pricing</a>
-              <a href="/auth/login" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Login</a>
-              <a href="/auth/register" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium">
-                Sign up
+              <a href="/jobs" className="text-gray-300 hover:text-white transition-colors font-medium">Jobs</a>
+              <a href="/companies" className="text-gray-300 hover:text-white transition-colors font-medium">Companies</a>
+              <a href="/community" className="text-gray-300 hover:text-white transition-colors font-medium">Community</a>
+              <a href="/pricing" className="text-gray-300 hover:text-white transition-colors font-medium">Pricing</a>
+              <a href="/blog" className="text-gray-300 hover:text-white transition-colors font-medium">Blog</a>
+              <a href="/auth/login" className="text-gray-300 hover:text-white transition-colors font-medium">Login</a>
+              <a href="/auth/register" className="bg-white hover:bg-gray-100 text-gray-900 px-4 py-2 rounded-lg transition-colors font-medium">
+                Post a job
               </a>
             </div>
           </div>
@@ -26,51 +27,190 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-50 via-white to-indigo-50 pt-20 pb-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-              The future of working is{' '}
-              <span className="text-blue-600">remote</span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Push back turn requires you to murder your darlings we've bootstrapped the
-              model, nor we need to build it so that it scales.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              <a href="/jobs" className="bg-blue-600 hover:bg-blue-700 text-white text-lg px-8 py-4 rounded-lg transition-colors inline-flex items-center">
-                Get started
-              </a>
-              <a href="/about" className="border border-gray-300 hover:bg-gray-50 text-gray-700 text-lg px-8 py-4 rounded-lg transition-colors">
-                Contact
-              </a>
+      <section className="relative bg-gray-900 pt-20 pb-32 overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(139,92,246,0.1),transparent_50%)]"></div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            {/* Badge */}
+            <div className="mb-8 inline-flex items-center bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-full px-4 py-2 text-sm text-gray-300">
+              <span className="mr-2">✨</span>
+              Introducing hireup v1.3
+              <span className="ml-2">→</span>
             </div>
 
-            {/* Feature Cards */}
-            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 shadow-sm">
-                <div className="bg-blue-100 rounded-lg w-12 h-12 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-blue-600 text-xl">💼</span>
+            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+              The future of working is remote
+            </h1>
+            <p className="text-xl text-gray-400 mb-8 max-w-3xl mx-auto leading-relaxed">
+              Push back turn require you to murder your children we've bootstrapped the
+              model, nor we need to build it so that it scales.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-20">
+              <a href="/jobs" className="bg-green-500 hover:bg-green-600 text-black text-lg px-8 py-4 rounded-lg transition-colors inline-flex items-center font-medium">
+                <span className="mr-2">🔍</span>
+                Find a job
+              </a>
+              <a href="/companies" className="bg-gray-700 hover:bg-gray-600 text-white text-lg px-8 py-4 rounded-lg transition-colors font-medium">
+                Hire talent
+              </a>
+            </div>
+          </div>
+
+          {/* Floating Job Cards */}
+          <div className="relative">
+            {/* Left Column */}
+            <div className="absolute left-0 top-0 space-y-6">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-700 w-80">
+                <div className="flex items-center mb-4">
+                  <div className="bg-blue-600 rounded-lg p-2 mr-3">
+                    <span className="text-white text-sm">🔄</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">Linear user flow</h3>
+                    <div className="flex items-center text-sm text-gray-400 mt-1">
+                      <span className="mr-4">👥 3 roles available</span>
+                      <span>💰 7 benefits</span>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Remote Jobs</h3>
-                <p className="text-gray-600 text-sm">Find the best remote opportunities from top companies worldwide</p>
+                <p className="text-gray-400 text-sm mb-4">
+                  Reinvigorate the team knowledge process outsourcing. Fire up your browser both the dog...
+                </p>
+                <div className="flex gap-2">
+                  <span className="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-xs">productivity</span>
+                  <span className="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-xs">management</span>
+                </div>
               </div>
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 shadow-sm">
-                <div className="bg-green-100 rounded-lg w-12 h-12 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-green-600 text-xl">⚡</span>
+
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-700 w-80">
+                <div className="flex items-center mb-4">
+                  <div className="bg-blue-500 rounded-lg p-2 mr-3">
+                    <span className="text-white text-sm">⚡</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">Typefully</h3>
+                    <div className="flex items-center text-sm text-gray-400 mt-1">
+                      <span className="mr-4">👥 2 roles available</span>
+                      <span>💰 6 benefits</span>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Fast Hiring</h3>
-                <p className="text-gray-600 text-sm">Get hired faster with our streamlined application process</p>
+                <p className="text-gray-400 text-sm">
+                  Reinvigorate the team knowledge process outsourcing. Fire up your browser both the dog...
+                </p>
               </div>
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 shadow-sm">
-                <div className="bg-purple-100 rounded-lg w-12 h-12 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-purple-600 text-xl">🎯</span>
+            </div>
+
+            {/* Center Cards */}
+            <div className="flex justify-center space-x-6">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-700 w-80">
+                <div className="flex items-center mb-4">
+                  <div className="bg-gray-600 rounded-lg p-2 mr-3">
+                    <span className="text-white text-sm">🎨</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-blue-400 text-lg">🔷</span>
+                    <span className="text-blue-500 text-lg">💎</span>
+                    <span className="text-blue-600 text-lg">🔹</span>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Perfect Match</h3>
-                <p className="text-gray-600 text-sm">AI-powered matching to find your ideal role and company</p>
+                <h3 className="text-white font-semibold text-lg mb-2">211 Designer Jobs</h3>
+                <p className="text-gray-400 text-sm">
+                  Reinvigorate the team knowledge process outsourcing. Fire up your browser both th...
+                </p>
+              </div>
+
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-700 w-80">
+                <div className="flex items-center mb-4">
+                  <div className="bg-gray-600 rounded-lg p-2 mr-3">
+                    <span className="text-white text-sm">💻</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-red-400 text-lg">🔴</span>
+                    <span className="text-yellow-400 text-lg">🟡</span>
+                    <span className="text-blue-400 text-lg">🔵</span>
+                  </div>
+                </div>
+                <h3 className="text-white font-semibold text-lg mb-2">89 Developer Jobs</h3>
+                <p className="text-gray-400 text-sm">
+                  Reinvigorate the team knowledge process outsourcing. Fire up your browser both th...
+                </p>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="absolute right-0 top-0 space-y-6">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-700 w-80">
+                <div className="flex items-center mb-4">
+                  <div className="bg-purple-600 rounded-lg p-2 mr-3">
+                    <span className="text-white text-sm">🎬</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">Loom, video recording</h3>
+                    <div className="flex items-center text-sm text-gray-400 mt-1">
+                      <span className="mr-4">👥 5 roles available</span>
+                      <span>💰 7 benefits</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-sm mb-4">
+                  Reinvigorate the team knowledge process outsourcing. Fire up your browser both the dog...
+                </p>
+                <div className="flex gap-2">
+                  <span className="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-xs">productivity</span>
+                  <span className="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-xs">meeting</span>
+                </div>
+              </div>
+
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-700 w-80">
+                <div className="flex items-center mb-4">
+                  <div className="bg-orange-500 rounded-lg p-2 mr-3">
+                    <span className="text-white text-sm">🎯</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">Hubspot</h3>
+                    <div className="flex items-center text-sm text-gray-400 mt-1">
+                      <span className="mr-4">👥 5 roles available</span>
+                      <span>💰 7 benefits</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-sm">
+                  Reinvigorate the team knowledge process outsourcing. Fire up your browser both the dog...
+                </p>
+              </div>
+            </div>
+
+            {/* Bottom Center - Afterpay */}
+            <div className="flex justify-center mt-20">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-700 w-96">
+                <div className="flex items-center mb-4">
+                  <div className="bg-green-500 rounded-lg p-2 mr-3">
+                    <span className="text-white text-sm">💳</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">Afterpay</h3>
+                    <div className="flex items-center text-sm text-gray-400 mt-1">
+                      <span className="mr-4">👥 7 roles available</span>
+                      <span className="mr-4">💰 9 benefits</span>
+                      <span>👥 100-500 employees</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Bottom Text */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+          <p className="text-gray-400 text-lg font-medium">
+            World's best companies are hiring on hireup
+          </p>
         </div>
       </section>
 
