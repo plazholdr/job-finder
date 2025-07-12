@@ -2,47 +2,121 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
+console.log('🔧 Loading environment configuration...');
+
 // Load environment variables from .env.{NODE_ENV} file
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const envPath = path.resolve(process.cwd(), `.env.${NODE_ENV}`);
+console.log(`📁 Environment file: ${envPath}`);
+
 dotenv.config({ path: envPath });
 
 // Fallback to .env if environment-specific file doesn't exist
 dotenv.config();
 
-const express = require('@feathersjs/express');
-const feathers = require('@feathersjs/feathers');
-const socketio = require('@feathersjs/socketio');
-const cors = require('cors');
-const helmet = require('helmet');
-const config = require('./config');
-const logger = require('./logger');
-const services = require('./services');
-const middleware = require('./middleware');
-const { connectToMongoDB } = require('./db');
-const { connectToRedis } = require('./redis');
+console.log(`🌍 Environment: ${NODE_ENV}`);
+console.log(`🚪 Port: ${process.env.PORT || 'not set'}`);
 
-// Create an Express compatible Feathers application
-const app = express(feathers());
+// Add error handling for uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  process.exit(1);
+});
 
-// Enable security, CORS, compression, and body parsing
-app.use(helmet({
-  contentSecurityPolicy: false
-}));
-app.use(cors(config.cors));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
 
-// Make config available throughout the application
-app.set('config', config);
+console.log('📦 Loading dependencies...');
 
-// Set up Plugins and providers
-app.configure(express.rest());
-app.configure(socketio());
+// Declare app variable outside try block
+let app;
 
-// Configure services and middleware
-app.configure(services);
-app.configure(middleware);
+try {
+  const express = require('@feathersjs/express');
+  console.log('✅ Feathers Express loaded');
+
+  const feathers = require('@feathersjs/feathers');
+  console.log('✅ Feathers core loaded');
+
+  const socketio = require('@feathersjs/socketio');
+  console.log('✅ Socket.IO loaded');
+
+  const cors = require('cors');
+  console.log('✅ CORS loaded');
+
+  const helmet = require('helmet');
+  console.log('✅ Helmet loaded');
+
+  console.log('📋 Loading application modules...');
+
+  const config = require('./config');
+  console.log('✅ Config loaded');
+
+  const logger = require('./logger');
+  console.log('✅ Logger loaded');
+
+  const services = require('./services');
+  console.log('✅ Services loaded');
+
+  const middleware = require('./middleware');
+  console.log('✅ Middleware loaded');
+
+  const { connectToMongoDB } = require('./db');
+  console.log('✅ Database module loaded');
+
+  const { connectToRedis } = require('./redis');
+  console.log('✅ Redis module loaded');
+
+  console.log('🚀 Creating Feathers application...');
+
+  // Create an Express compatible Feathers application
+  app = express(feathers());
+  console.log('✅ Feathers app created');
+
+  // Enable security, CORS, compression, and body parsing
+  console.log('🔒 Setting up security and middleware...');
+
+  app.use(helmet({
+    contentSecurityPolicy: false
+  }));
+  console.log('✅ Helmet configured');
+
+  app.use(cors(config.cors));
+  console.log('✅ CORS configured');
+
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  console.log('✅ Body parsing configured');
+
+  // Make config available throughout the application
+  app.set('config', config);
+  console.log('✅ Config set on app');
+
+  // Set up Plugins and providers
+  console.log('🔌 Configuring plugins...');
+
+  app.configure(express.rest());
+  console.log('✅ REST API configured');
+
+  app.configure(socketio());
+  console.log('✅ Socket.IO configured');
+
+  // Configure services and middleware
+  console.log('⚙️ Configuring services and middleware...');
+
+  app.configure(services);
+  console.log('✅ Services configured');
+
+  app.configure(middleware);
+  console.log('✅ Middleware configured');
+
+} catch (error) {
+  console.error('❌ Error during application setup:', error);
+  console.error('Stack trace:', error.stack);
+  process.exit(1);
+}
 
 // Health check endpoint
 app.get('/health', async (req, res) => {

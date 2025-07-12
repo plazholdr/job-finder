@@ -59,28 +59,9 @@ export default function RegisterPage() {
       // Use the selected role from the form
       await registerUser(data);
 
-      // The auth context will handle auto-login and storing tokens
-      // We need to wait a bit for the auth context to update
+      // Show success message and redirect to email verification notice
       setTimeout(() => {
-        // Get user from localStorage to determine redirect
-        const userStr = localStorage.getItem('authUser');
-        if (userStr) {
-          const user = JSON.parse(userStr);
-
-          // Redirect to role-based dashboard
-          if (user.role === 'student') {
-            router.push('/pages/student-dashboard');
-          } else if (user.role === 'company') {
-            router.push('/pages/company-dashboard');
-          } else if (user.role === 'admin') {
-            router.push('/pages/admin-dashboard');
-          } else {
-            router.push('/dashboard');
-          }
-        } else {
-          // Registration successful but need to login manually
-          router.push('/auth/login?message=Registration successful. Please login.');
-        }
+        router.push(`/auth/registration-success?email=${encodeURIComponent(data.email)}`);
       }, 100);
 
     } catch (error: any) {

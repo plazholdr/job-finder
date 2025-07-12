@@ -36,14 +36,26 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (data: ForgotPasswordFormValues) => {
     setIsLoading(true);
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // In a real application, you would call your password reset API here
-      console.log('Reset password for:', data.email);
-      
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setIsSubmitted(true);
+      } else {
+        throw new Error(result.error || 'Failed to send reset email');
+      }
+    } catch (error) {
+      console.error('Password reset error:', error);
+      // Still show success message for security (don't reveal if email exists)
       setIsSubmitted(true);
     } finally {
       setIsLoading(false);
@@ -52,7 +64,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="w-full flex items-center justify-center p-8 md:p-16 bg-gradient-to-br from-blue-50 via-white to-blue-50">
-      <motion.div 
+      <motion.div
         className="w-full max-w-md space-y-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -64,7 +76,7 @@ export default function ForgotPasswordPage() {
               <Briefcase className="h-8 w-8 text-blue-600" />
             </div>
           </div>
-          
+
           {!isSubmitted ? (
             <>
               <h1 className="text-3xl font-bold tracking-tight text-gray-900">Reset your password</h1>

@@ -49,11 +49,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const isAuthenticated = !!user && !!token;
 
-  // Load token from localStorage on mount
+  // Handle hydration
   useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  // Load token from localStorage on mount (only after hydration)
+  useEffect(() => {
+    if (!isHydrated) return;
+
     const savedToken = localStorage.getItem('authToken');
     const savedUser = localStorage.getItem('authUser');
 
@@ -68,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setIsLoading(false);
-  }, []);
+  }, [isHydrated]);
 
   // Set authorization header when token changes
   useEffect(() => {
@@ -100,9 +108,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(accessToken);
       setUser(userData);
 
-      // Save to localStorage
-      localStorage.setItem('authToken', accessToken);
-      localStorage.setItem('authUser', JSON.stringify(userData));
+      // Save to localStorage (only on client side)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('authToken', accessToken);
+        localStorage.setItem('authUser', JSON.stringify(userData));
+      }
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -135,8 +145,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.accessToken && result.user) {
         setToken(result.accessToken);
         setUser(result.user);
-        localStorage.setItem('authToken', result.accessToken);
-        localStorage.setItem('authUser', JSON.stringify(result.user));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('authToken', result.accessToken);
+          localStorage.setItem('authUser', JSON.stringify(result.user));
+        }
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -149,8 +161,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('authUser');
+
+    // Remove from localStorage (only on client side)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('authUser');
+    }
 
     // For now, we'll just do local logout
     // Backend logout can be added later if needed
@@ -169,7 +185,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       setUser(updatedUser);
-      localStorage.setItem('authUser', JSON.stringify(updatedUser));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('authUser', JSON.stringify(updatedUser));
+      }
     } catch (error) {
       console.error('Update user error:', error);
       throw error;
@@ -212,8 +230,10 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>) {
     }
 
     if (!isAuthenticated) {
-      // Redirect to login or show login form
-      window.location.href = '/auth/login';
+      // Redirect to login or show login form (only on client side)
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth/login';
+      }
       return null;
     }
 

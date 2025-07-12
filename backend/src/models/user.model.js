@@ -87,6 +87,26 @@ class UserModel {
         headquarters: null,
         website: null,
         logo: null,
+        verificationStatus: 'pending', // pending, verified, rejected
+        verificationDocuments: [],
+        verificationNotes: null,
+        verifiedAt: null,
+        verifiedBy: null,
+        businessRegistration: null,
+        taxId: null,
+        contactPerson: {
+          name: null,
+          title: null,
+          email: null,
+          phone: null
+        }
+      };
+    } else if (role === 'admin') {
+      user.admin = {
+        permissions: ['read', 'write'], // read, write, delete, super_admin
+        department: null,
+        lastLoginAt: null,
+        actionsLog: []
       };
     } else if (role === 'student') {
       user.student = {
@@ -102,10 +122,68 @@ class UserModel {
           remote: false,
         },
       };
+
+      // Add intern data structure for internship management
+      user.internship = {
+        profile: {
+          profileInformation: {
+            firstName: firstName,
+            lastName: lastName,
+            email: email.toLowerCase(),
+            phone: null,
+            location: null,
+            bio: null,
+            linkedin: null,
+            github: null,
+            portfolio: null
+          },
+          educationBackground: [],
+          certifications: [],
+          interests: [],
+          workExperience: []
+        },
+        details: {
+          duration: {
+            startDate: null,
+            endDate: null,
+            isFlexible: true,
+            minimumWeeks: null,
+            maximumWeeks: null
+          },
+          preferredIndustry: [],
+          preferredLocations: [],
+          salaryRange: {
+            min: 0,
+            max: 0,
+            currency: 'USD',
+            period: 'hour',
+            isNegotiable: true
+          },
+          skills: [],
+          languages: [],
+          availability: {
+            hoursPerWeek: 40,
+            flexibleSchedule: true,
+            preferredStartTime: null,
+            preferredEndTime: null,
+            availableDays: []
+          },
+          workPreferences: {
+            remote: false,
+            hybrid: false,
+            onSite: true,
+            travelWillingness: 'Local'
+          }
+        },
+        courses: [],
+        assignments: [],
+        applications: [],
+        isSetupComplete: false
+      };
     }
 
     const result = await this.collection.insertOne(user);
-    
+
     // Return user without password
     const { password: _, ...userWithoutPassword } = user;
     return { ...userWithoutPassword, _id: result.insertedId };
@@ -129,12 +207,111 @@ class UserModel {
     return await bcrypt.compare(plainPassword, hashedPassword);
   }
 
+  async updateEmailVerification(userId, verified = true) {
+    const objectId = typeof userId === 'string' ? new ObjectId(userId) : userId;
+    const result = await this.collection.updateOne(
+      { _id: objectId },
+      {
+        $set: {
+          emailVerified: verified,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      throw new Error('User not found');
+    }
+
+    return await this.findById(userId);
+  }
+
+  async createEmailVerificationToken(userId) {
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    const objectId = typeof userId === 'string' ? new ObjectId(userId) : userId;
+    await this.collection.updateOne(
+      { _id: objectId },
+      {
+        $set: {
+          emailVerificationToken: token,
+          emailVerificationExpires: expiresAt,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    return token;
+  }
+
+  async findByEmailVerificationToken(token) {
+    return await this.collection.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: new Date() }
+    });
+  }
+
+  async createPasswordResetToken(userId) {
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    const objectId = typeof userId === 'string' ? new ObjectId(userId) : userId;
+    await this.collection.updateOne(
+      { _id: objectId },
+      {
+        $set: {
+          passwordResetToken: token,
+          passwordResetExpires: expiresAt,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    return token;
+  }
+
+  async findByPasswordResetToken(token) {
+    return await this.collection.findOne({
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: new Date() }
+    });
+  }
+
+  async updatePassword(userId, newPassword) {
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    const objectId = typeof userId === 'string' ? new ObjectId(userId) : userId;
+    const result = await this.collection.updateOne(
+      { _id: objectId },
+      {
+        $set: {
+          password: hashedPassword,
+          updatedAt: new Date()
+        },
+        $unset: {
+          passwordResetToken: 1,
+          passwordResetExpires: 1
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      throw new Error('User not found');
+    }
+
+    return await this.findById(userId);
+  }
+
   async updateById(id, updateData) {
     const objectId = typeof id === 'string' ? new ObjectId(id) : id;
-    
+
     // Remove sensitive fields that shouldn't be updated directly
     const { password, email, _id, createdAt, ...safeUpdateData } = updateData;
-    
+
     safeUpdateData.updatedAt = new Date();
 
     const result = await this.collection.updateOne(
@@ -156,8 +333,8 @@ class UserModel {
 
     const result = await this.collection.updateOne(
       { _id: objectId },
-      { 
-        $set: { 
+      {
+        $set: {
           password: hashedPassword,
           updatedAt: new Date()
         }
@@ -179,7 +356,7 @@ class UserModel {
 
   async find(query = {}, options = {}) {
     const { limit = 50, skip = 0, sort = { createdAt: -1 } } = options;
-    
+
     const users = await this.collection
       .find(query, { projection: { password: 0 } })
       .sort(sort)

@@ -51,7 +51,7 @@ export default function ProfilePage() {
     try {
       setLoading(true);
       const response = await fetch(`/api/users/${userId}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch profile');
       }
@@ -114,22 +114,29 @@ export default function ProfilePage() {
                   <User className="h-6 w-6 text-blue-600" />
                 )}
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {profileUser.role === 'company' 
+                  {profileUser.role === 'company'
                     ? profileUser.company?.name || `${profileUser.firstName} ${profileUser.lastName}`
                     : `${profileUser.firstName} ${profileUser.lastName}`
                   }
                 </h1>
               </div>
             </div>
-            
+
             {isOwnProfile && (
               <div className="flex items-center gap-2">
+                <Link
+                  href="/profile/update"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Edit className="h-4 w-4" />
+                  Update Profile
+                </Link>
                 <Link
                   href="/profile/edit"
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Edit className="h-4 w-4" />
-                  Edit Profile
+                  Advanced Edit
                 </Link>
                 <Link
                   href="/settings"
@@ -147,14 +154,14 @@ export default function ProfilePage() {
       {/* Profile Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {profileUser.role === 'student' ? (
-          <StudentProfile 
-            user={profileUser} 
+          <StudentProfile
+            user={profileUser}
             isOwnProfile={isOwnProfile}
             currentUser={currentUser}
           />
         ) : profileUser.role === 'company' ? (
-          <CompanyProfile 
-            user={profileUser} 
+          <CompanyProfile
+            user={profileUser}
             isOwnProfile={isOwnProfile}
             currentUser={currentUser}
           />

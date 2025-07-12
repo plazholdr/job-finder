@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Briefcase,
@@ -16,43 +16,199 @@ import {
   Search,
   Filter,
   Plus,
-  AlertTriangle
+  AlertTriangle,
+  Clock,
+  TrendingUp,
+  UserCheck,
+  UserX,
+  FileText,
+  Activity
 } from 'lucide-react';
 import UserProfile from '@/components/UserProfile';
 import { withAuth } from '@/contexts/auth-context';
 
 interface User {
-  id: string;
-  name: string;
+  _id: string;
+  firstName: string;
+  lastName: string;
   email: string;
   role: 'student' | 'company' | 'admin';
-  status: 'active' | 'pending' | 'suspended';
-  joinDate: string;
-  lastActive: string;
+  isActive: boolean;
+  emailVerified: boolean;
+  createdAt: string;
+  lastLoginAt?: string;
+  company?: {
+    name: string;
+    verificationStatus: 'pending' | 'verified' | 'rejected';
+  };
 }
 
-interface JobPosting {
-  id: string;
-  title: string;
-  company: string;
-  status: 'pending' | 'approved' | 'rejected';
-  applications: number;
-  posted: string;
-  salary: string;
+interface SystemStats {
+  users: {
+    students: number;
+    companies: number;
+    admins: number;
+    total: number;
+  };
+  verification: {
+    pending: number;
+    verified: number;
+  };
+  activity: {
+    recentRegistrations: number;
+    activeUsers: number;
+  };
+}
+
+interface AdminLog {
+  adminId: string;
+  adminName: string;
+  adminEmail: string;
+  action: string;
+  details: any;
+  timestamp: string;
 }
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [users, setUsers] = useState<User[]>([]);
+  const [pendingCompanies, setPendingCompanies] = useState<User[]>([]);
+  const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
+  const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  // Mock data - replace with real API calls
-  const stats = {
-    totalUsers: 1247,
-    totalStudents: 892,
-    totalCompanies: 156,
-    totalJobs: 234,
-    pendingApprovals: 23,
-    activeJobs: 189
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      fetchSystemStats();
+    } else if (activeTab === 'users') {
+      fetchUsers();
+    } else if (activeTab === 'companies') {
+      fetchPendingCompanies();
+    } else if (activeTab === 'logs') {
+      fetchAdminLogs();
+    }
+  }, [activeTab, searchTerm, roleFilter, statusFilter]);
+
+  const fetchSystemStats = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/stats', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSystemStats(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching system stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (roleFilter !== 'all') params.append('role', roleFilter);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+
+      const response = await fetch(`/api/admin/users?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setUsers(data.data.users);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPendingCompanies = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/companies/pending', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setPendingCompanies(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching pending companies:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAdminLogs = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/logs', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAdminLogs(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching admin logs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateUserStatus = async (userId: string, status: string, reason?: string) => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status, reason })
+      });
+
+      if (response.ok) {
+        fetchUsers(); // Refresh the users list
+      }
+    } catch (error) {
+      console.error('Error updating user status:', error);
+    }
+  };
+
+  const verifyCompany = async (companyId: string, status: string, notes?: string) => {
+    try {
+      const response = await fetch(`/api/admin/companies/${companyId}/verify`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status, notes })
+      });
+
+      if (response.ok) {
+        fetchPendingCompanies(); // Refresh the pending companies list
+      }
+    } catch (error) {
+      console.error('Error verifying company:', error);
+    }
   };
 
   const recentUsers: User[] = [
@@ -185,6 +341,16 @@ function AdminDashboard() {
           <a
             href="#"
             className={`flex items-center gap-3 px-6 py-3 text-gray-700 hover:bg-gray-50 ${
+              activeTab === 'logs' ? 'bg-purple-50 text-purple-600' : ''
+            }`}
+            onClick={() => setActiveTab('logs')}
+          >
+            <Activity className="h-5 w-5" />
+            Activity Logs
+          </a>
+          <a
+            href="#"
+            className={`flex items-center gap-3 px-6 py-3 text-gray-700 hover:bg-gray-50 ${
               activeTab === 'settings' ? 'bg-purple-50 text-purple-600' : ''
             }`}
             onClick={() => setActiveTab('settings')}
@@ -212,63 +378,91 @@ function AdminDashboard() {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Users</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
-                  </div>
-                  <Users className="h-8 w-8 text-blue-600" />
-                </div>
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
               </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Students</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.totalStudents}</p>
+            ) : (
+              <>
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Users</p>
+                        <p className="text-2xl font-bold text-gray-900">{systemStats?.users.total || 0}</p>
+                      </div>
+                      <Users className="h-8 w-8 text-blue-600" />
+                    </div>
                   </div>
-                  <GraduationCap className="h-8 w-8 text-green-600" />
-                </div>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Companies</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.totalCompanies}</p>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Students</p>
+                        <p className="text-2xl font-bold text-gray-900">{systemStats?.users.students || 0}</p>
+                      </div>
+                      <GraduationCap className="h-8 w-8 text-green-600" />
+                    </div>
                   </div>
-                  <Building2 className="h-8 w-8 text-purple-600" />
-                </div>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Jobs</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.totalJobs}</p>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Companies</p>
+                        <p className="text-2xl font-bold text-gray-900">{systemStats?.users.companies || 0}</p>
+                      </div>
+                      <Building2 className="h-8 w-8 text-purple-600" />
+                    </div>
                   </div>
-                  <Briefcase className="h-8 w-8 text-orange-600" />
-                </div>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Pending Approvals</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.pendingApprovals}</p>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Pending Verifications</p>
+                        <p className="text-2xl font-bold text-gray-900">{systemStats?.verification.pending || 0}</p>
+                      </div>
+                      <Clock className="h-8 w-8 text-yellow-600" />
+                    </div>
                   </div>
-                  <AlertTriangle className="h-8 w-8 text-yellow-600" />
-                </div>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Active Jobs</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.activeJobs}</p>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Verified Companies</p>
+                        <p className="text-2xl font-bold text-gray-900">{systemStats?.verification.verified || 0}</p>
+                      </div>
+                      <UserCheck className="h-8 w-8 text-green-600" />
+                    </div>
                   </div>
-                  <CheckCircle className="h-8 w-8 text-green-600" />
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Recent Registrations</p>
+                        <p className="text-2xl font-bold text-gray-900">{systemStats?.activity.recentRegistrations || 0}</p>
+                        <p className="text-xs text-gray-500">Last 30 days</p>
+                      </div>
+                      <TrendingUp className="h-8 w-8 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Active Users</p>
+                        <p className="text-2xl font-bold text-gray-900">{systemStats?.activity.activeUsers || 0}</p>
+                        <p className="text-xs text-gray-500">Last 7 days</p>
+                      </div>
+                      <Activity className="h-8 w-8 text-green-600" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Admin Users</p>
+                        <p className="text-2xl font-bold text-gray-900">{systemStats?.users.admins || 0}</p>
+                      </div>
+                      <Shield className="h-8 w-8 text-purple-600" />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
 
             {/* Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

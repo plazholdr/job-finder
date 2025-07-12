@@ -4,16 +4,21 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Save, 
-  Plus, 
-  Trash2, 
+import {
+  Save,
+  Plus,
+  Trash2,
   Upload,
   User,
   GraduationCap,
   Briefcase,
   Award,
-  FileText
+  FileText,
+  Shield,
+  Settings,
+  Eye,
+  EyeOff,
+  Lock
 } from 'lucide-react';
 
 interface StudentProfileEditProps {
@@ -23,6 +28,7 @@ interface StudentProfileEditProps {
 }
 
 export default function StudentProfileEdit({ user, onSave, saving }: StudentProfileEditProps) {
+  const [activeTab, setActiveTab] = useState<'profile' | 'privacy'>('profile');
   const [formData, setFormData] = useState({
     // Basic Profile
     profile: {
@@ -42,6 +48,13 @@ export default function StudentProfileEdit({ user, onSave, saving }: StudentProf
       certifications: user.student?.certifications || [],
       resume: user.student?.resume || '',
       portfolio: user.student?.portfolio || '',
+    },
+    // Privacy Settings
+    privacy: {
+      profileVisibility: user.privacy?.profileVisibility || 'public',
+      showEmail: user.privacy?.showEmail ?? true,
+      showPhone: user.privacy?.showPhone ?? true,
+      showLocation: user.privacy?.showLocation ?? true,
     }
   });
 
@@ -96,7 +109,7 @@ export default function StudentProfileEdit({ user, onSave, saving }: StudentProf
       ...prev,
       student: {
         ...prev.student,
-        education: prev.student.education.map((edu: any, i: number) => 
+        education: prev.student.education.map((edu: any, i: number) =>
           i === index ? { ...edu, [field]: value } : edu
         )
       }
@@ -134,7 +147,7 @@ export default function StudentProfileEdit({ user, onSave, saving }: StudentProf
       ...prev,
       student: {
         ...prev.student,
-        experience: prev.student.experience.map((exp: any, i: number) => 
+        experience: prev.student.experience.map((exp: any, i: number) =>
           i === index ? { ...exp, [field]: value } : exp
         )
       }
@@ -152,13 +165,52 @@ export default function StudentProfileEdit({ user, onSave, saving }: StudentProf
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Basic Information */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-          <User className="h-5 w-5" />
-          Basic Information
-        </h2>
+    <div className="space-y-8">
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6">
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'profile'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Update Profile
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('privacy')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'privacy'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Privacy Settings
+              </div>
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Profile Tab */}
+      {activeTab === 'profile' && (
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Basic Information */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Basic Information
+            </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -326,13 +378,157 @@ export default function StudentProfileEdit({ user, onSave, saving }: StudentProf
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button type="submit" disabled={saving} className="flex items-center gap-2">
-          <Save className="h-4 w-4" />
-          {saving ? 'Saving...' : 'Save Profile'}
-        </Button>
-      </div>
-    </form>
+          {/* Save Button */}
+          <div className="flex justify-end">
+            <Button type="submit" disabled={saving} className="flex items-center gap-2">
+              <Save className="h-4 w-4" />
+              {saving ? 'Saving...' : 'Save Profile'}
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {/* Privacy Tab */}
+      {activeTab === 'privacy' && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Privacy Settings
+          </h2>
+
+          <div className="space-y-6">
+            {/* Profile Visibility */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Profile Visibility
+              </label>
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="profileVisibility"
+                    value="public"
+                    checked={formData.privacy.profileVisibility === 'public'}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      privacy: { ...prev.privacy, profileVisibility: e.target.value as any }
+                    }))}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">Full Access</div>
+                    <div className="text-sm text-gray-500">Anyone can see everything on your profile</div>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="profileVisibility"
+                    value="restricted"
+                    checked={formData.privacy.profileVisibility === 'restricted'}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      privacy: { ...prev.privacy, profileVisibility: e.target.value as any }
+                    }))}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">Restricted</div>
+                    <div className="text-sm text-gray-500">Cannot see name, email, and contact number</div>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="profileVisibility"
+                    value="private"
+                    checked={formData.privacy.profileVisibility === 'private'}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      privacy: { ...prev.privacy, profileVisibility: e.target.value as any }
+                    }))}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">Private</div>
+                    <div className="text-sm text-gray-500">Cannot be searched/display private profile when search through URL directly</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Contact Information Visibility */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Contact Information Visibility
+              </label>
+              <div className="space-y-3">
+                <label className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <div className="font-medium text-gray-900">Show email address</div>
+                    <div className="text-sm text-gray-500">Allow others to see your email</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.privacy.showEmail}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      privacy: { ...prev.privacy, showEmail: e.target.checked }
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <div className="font-medium text-gray-900">Show phone number</div>
+                    <div className="text-sm text-gray-500">Allow others to see your phone</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.privacy.showPhone}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      privacy: { ...prev.privacy, showPhone: e.target.checked }
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <div className="font-medium text-gray-900">Show location</div>
+                    <div className="text-sm text-gray-500">Allow others to see your location</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.privacy.showLocation}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      privacy: { ...prev.privacy, showLocation: e.target.checked }
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Save Privacy Settings Button */}
+            <div className="flex justify-end">
+              <Button
+                onClick={() => onSave(formData)}
+                disabled={saving}
+                className="flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {saving ? 'Saving...' : 'Save Privacy Settings'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
