@@ -303,7 +303,7 @@ export default function CompanyProfileEdit({ user, onSave, saving }: CompanyProf
                 ...prev,
                 company: { ...prev.company, phone: e.target.value }
               }))}
-              placeholder="+1 (555) 123-4567"
+              placeholder="+60 3-1234 5678"
             />
           </div>
         </div>

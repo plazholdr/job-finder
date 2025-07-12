@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState } from 'react';
-import { Search, Briefcase, BookOpen, Star, MapPin, Building2, Clock, Filter, ChevronDown } from 'lucide-react';
+import { Search, Briefcase, BookOpen, Star, MapPin, Building2, Clock, Filter, ChevronDown, Settings } from 'lucide-react';
 import UserProfile from '@/components/UserProfile';
 import { withAuth } from '@/contexts/auth-context';
+import Link from 'next/link';
 
 interface Job {
   id: number;
@@ -58,6 +59,40 @@ function StudentDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Quick Actions */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Link
+              href="/companies"
+              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Building2 className="h-6 w-6 text-blue-600" />
+              <div>
+                <h3 className="font-medium text-gray-900">Discover Companies</h3>
+                <p className="text-sm text-gray-600">Browse companies and their job opportunities</p>
+              </div>
+            </Link>
+            <Link
+              href="/internship-preferences"
+              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Settings className="h-6 w-6 text-green-600" />
+              <div>
+                <h3 className="font-medium text-gray-900">Internship Preferences</h3>
+                <p className="text-sm text-gray-600">Set your preferences to find better matches</p>
+              </div>
+            </Link>
+            <div className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+              <Briefcase className="h-6 w-6 text-purple-600" />
+              <div>
+                <h3 className="font-medium text-gray-900">My Applications</h3>
+                <p className="text-sm text-gray-600">Track your application status</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-4">

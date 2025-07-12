@@ -15,14 +15,17 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
-    "turbo": "latest",
-    "prettier": "^3.0.0",
-    "husky": "^8.0.0",
     "@commitlint/cli": "^17.6.5",
-    "@commitlint/config-conventional": "^17.6.5"
+    "@commitlint/config-conventional": "^17.6.5",
+    "husky": "^8.0.0",
+    "prettier": "^3.0.0",
+    "turbo": "latest"
   },
   "packageManager": "yarn@1.22.19",
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@tailwindcss/line-clamp": "^0.4.4"
   }
 }

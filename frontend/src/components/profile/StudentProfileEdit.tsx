@@ -183,7 +183,7 @@ export default function StudentProfileEdit({ user, onSave, saving }: StudentProf
                 ...prev,
                 profile: { ...prev.profile, phone: e.target.value }
               }))}
-              placeholder="+1 (555) 123-4567"
+              placeholder="+60 12-345 6789"
             />
           </div>
           <div>

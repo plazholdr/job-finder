@@ -119,11 +119,17 @@ const authenticateToken = (app) => {
 
       const authService = new AuthenticationService(app);
       const authResult = await authService.authenticate(authHeader);
-      
-      // Add user info to request
+
+      // Add user info to request and service context
       req.user = authResult.user;
       req.userId = authResult.userId;
-      
+
+      // Store user info for service context
+      req.serviceContext = {
+        user: authResult.user,
+        userId: authResult.userId
+      };
+
       next();
     } catch (error) {
       return res.status(401).json({ error: error.message });

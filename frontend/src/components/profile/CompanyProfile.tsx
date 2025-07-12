@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MapPin,
   Phone,
@@ -18,6 +18,7 @@ import {
   FileText,
   Info
 } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context';
 
 interface CompanyProfileProps {
   user: any;
@@ -25,18 +26,71 @@ interface CompanyProfileProps {
   currentUser: any;
 }
 
+interface JobPosting {
+  _id: string;
+  title: string;
+  description: string;
+  location?: string;
+  remoteWork?: boolean;
+  salaryMin?: number;
+  salaryMax?: number;
+  currency?: string;
+  employmentType: string;
+  status: string;
+  skills?: string[];
+  createdAt: string;
+}
+
 export default function CompanyProfile({ user, isOwnProfile, currentUser }: CompanyProfileProps) {
   const [activeTab, setActiveTab] = useState('about');
+  const [activeJobs, setActiveJobs] = useState<JobPosting[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const { token } = useAuth();
+
   const profile = user.profile || {};
   const company = user.company || {};
   const privacy = user.privacy || {};
+
+  // Fetch active jobs for this company
+  useEffect(() => {
+    const fetchActiveJobs = async () => {
+      if (!token || !isOwnProfile) return; // Only fetch for own profile
+
+      try {
+        setLoadingJobs(true);
+        const response = await fetch('/api/jobs', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const jobs = result.data || result;
+
+          // Filter for active jobs only
+          const activeJobsList = jobs.filter((job: JobPosting) =>
+            job.status === 'Active'
+          );
+
+          setActiveJobs(activeJobsList.slice(0, 3)); // Show only first 3 jobs
+        }
+      } catch (error) {
+        console.error('Failed to fetch active jobs:', error);
+      } finally {
+        setLoadingJobs(false);
+      }
+    };
+
+    fetchActiveJobs();
+  }, [token, isOwnProfile]);
 
   // Check if field should be visible based on privacy settings
   const canShowField = (field: string) => {
     if (isOwnProfile) return true;
     if (privacy.profileVisibility === 'private') return false;
     if (privacy.profileVisibility === 'restricted' && !currentUser) return false;
-    
+
     switch (field) {
       case 'email':
         return privacy.showEmail !== false;
@@ -170,7 +224,7 @@ export default function CompanyProfile({ user, isOwnProfile, currentUser }: Comp
               }`}
             >
               <Briefcase className="h-4 w-4 inline mr-2" />
-              Jobs ({company.activeJobs || 0})
+              Jobs ({activeJobs.length})
             </button>
             <button
               onClick={() => setActiveTab('people')}
@@ -281,41 +335,109 @@ export default function CompanyProfile({ user, isOwnProfile, currentUser }: Comp
                 <Briefcase className="h-5 w-5" />
                 Current Job Openings
               </h2>
-              <div className="space-y-4">
-                {/* Sample job listings - replace with real data */}
-                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <h3 className="font-semibold text-gray-900">Senior Software Engineer</h3>
-                  <p className="text-gray-600 text-sm">Full-time • Remote • $80,000 - $120,000</p>
-                  <p className="text-gray-700 mt-2">We're looking for an experienced software engineer to join our growing team...</p>
-                  <div className="flex gap-2 mt-3">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">React</span>
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Node.js</span>
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">TypeScript</span>
-                  </div>
-                  <button className="mt-3 text-blue-600 hover:text-blue-700 text-sm font-medium">
-                    View Details →
-                  </button>
-                </div>
 
-                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <h3 className="font-semibold text-gray-900">Product Manager</h3>
-                  <p className="text-gray-600 text-sm">Full-time • On-site • $90,000 - $130,000</p>
-                  <p className="text-gray-700 mt-2">Lead product strategy and work with cross-functional teams...</p>
-                  <div className="flex gap-2 mt-3">
-                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Product Strategy</span>
-                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Agile</span>
-                  </div>
-                  <button className="mt-3 text-blue-600 hover:text-blue-700 text-sm font-medium">
-                    View Details →
-                  </button>
-                </div>
-
+              {loadingJobs ? (
                 <div className="text-center py-8">
-                  <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                    View All Jobs
-                  </button>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-gray-500">Loading job openings...</p>
                 </div>
-              </div>
+              ) : activeJobs.length > 0 ? (
+                <div className="space-y-4">
+                  {activeJobs.map((job) => (
+                    <div key={job._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <h3 className="font-semibold text-gray-900">{job.title}</h3>
+                      <div className="text-gray-600 text-sm mt-1">
+                        <div className="flex items-center gap-2">
+                          <span>{job.employmentType}</span>
+                          {job.location && (
+                            <>
+                              <span>•</span>
+                              <span>{job.location}</span>
+                            </>
+                          )}
+                          {job.remoteWork && (
+                            <>
+                              <span>•</span>
+                              <span>Remote</span>
+                            </>
+                          )}
+                          {(job.salaryMin || job.salaryMax) && (
+                            <>
+                              <span>•</span>
+                              <span>
+                                {job.salaryMin && job.salaryMax ? (
+                                  `${job.currency || 'MYR'} ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}`
+                                ) : job.salaryMin ? (
+                                  `From ${job.currency || 'MYR'} ${job.salaryMin.toLocaleString()}`
+                                ) : job.salaryMax ? (
+                                  `Up to ${job.currency || 'MYR'} ${job.salaryMax.toLocaleString()}`
+                                ) : null}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {job.description && (
+                        <p className="text-gray-700 mt-2">
+                          {job.description.length > 150
+                            ? `${job.description.substring(0, 150)}...`
+                            : job.description
+                          }
+                        </p>
+                      )}
+
+                      {job.skills && job.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {job.skills.slice(0, 5).map((skill, index) => (
+                            <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                              {skill}
+                            </span>
+                          ))}
+                          {job.skills.length > 5 && (
+                            <span className="text-xs text-gray-500 px-2 py-1">+{job.skills.length - 5} more</span>
+                          )}
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => window.location.href = `/jobs/view/${job._id}`}
+                        className="mt-3 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                      >
+                        View Details →
+                      </button>
+                    </div>
+                  ))}
+
+                  <div className="text-center py-8">
+                    <button
+                      onClick={() => window.location.href = '/jobs'}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      View All Jobs
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Job Openings</h3>
+                  <p className="text-gray-500 mb-4">
+                    {isOwnProfile
+                      ? "You don't have any active job postings yet."
+                      : "This company doesn't have any active job openings at the moment."
+                    }
+                  </p>
+                  {isOwnProfile && (
+                    <button
+                      onClick={() => window.location.href = '/jobs'}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Create Your First Job
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -461,12 +583,88 @@ export default function CompanyProfile({ user, isOwnProfile, currentUser }: Comp
               <Briefcase className="h-5 w-5" />
               Current Openings
             </h2>
-            <div className="text-center py-4">
-              <p className="text-gray-500 mb-3">See available positions</p>
-              <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                View Jobs
-              </button>
-            </div>
+
+            {loadingJobs ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-sm text-gray-500">Loading jobs...</p>
+              </div>
+            ) : activeJobs.length > 0 ? (
+              <div className="space-y-3">
+                {activeJobs.map((job) => (
+                  <div key={job._id} className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
+                    <h3 className="font-semibold text-gray-900 text-sm">{job.title}</h3>
+                    <div className="text-xs text-gray-600 mt-1">
+                      <div className="flex items-center gap-1">
+                        <span>{job.employmentType}</span>
+                        {job.location && (
+                          <>
+                            <span>•</span>
+                            <span>{job.location}</span>
+                          </>
+                        )}
+                        {job.remoteWork && (
+                          <>
+                            <span>•</span>
+                            <span>Remote</span>
+                          </>
+                        )}
+                      </div>
+                      {(job.salaryMin || job.salaryMax) && (
+                        <div className="mt-1">
+                          {job.salaryMin && job.salaryMax ? (
+                            `${job.currency || 'MYR'} ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}`
+                          ) : job.salaryMin ? (
+                            `From ${job.currency || 'MYR'} ${job.salaryMin.toLocaleString()}`
+                          ) : job.salaryMax ? (
+                            `Up to ${job.currency || 'MYR'} ${job.salaryMax.toLocaleString()}`
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                    {job.skills && job.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {job.skills.slice(0, 3).map((skill, index) => (
+                          <span key={index} className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                            {skill}
+                          </span>
+                        ))}
+                        {job.skills.length > 3 && (
+                          <span className="text-xs text-gray-500">+{job.skills.length - 3} more</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {isOwnProfile && (
+                  <button
+                    onClick={() => window.location.href = '/jobs'}
+                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm mt-3"
+                  >
+                    View All Jobs
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-gray-500 mb-3 text-sm">
+                  {isOwnProfile ? 'No active job openings' : 'See available positions'}
+                </p>
+                {isOwnProfile ? (
+                  <button
+                    onClick={() => window.location.href = '/jobs'}
+                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    Create Job
+                  </button>
+                ) : (
+                  <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                    View Jobs
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Contact */}
