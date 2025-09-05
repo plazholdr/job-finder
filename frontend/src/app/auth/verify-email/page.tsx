@@ -1,24 +1,28 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
-  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'invalid'>('loading');
+  const [status, setStatus] = useState<
+    'loading' | 'success' | 'error' | 'invalid'
+  >('loading');
   const [message, setMessage] = useState('');
   const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
     if (!token) {
       setStatus('invalid');
-      setMessage('Invalid verification link. Please check your email for the correct link.');
+      setMessage(
+        'Invalid verification link. Please check your email for the correct link.'
+      );
       return;
     }
 
@@ -100,14 +104,12 @@ export default function VerifyEmailPage() {
             <div className="mx-auto flex items-center justify-center mb-6">
               {getStatusIcon()}
             </div>
-            
+
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
               {getStatusTitle()}
             </h1>
-            
-            <p className="text-gray-600 mb-8">
-              {message}
-            </p>
+
+            <p className="text-gray-600 mb-8">{message}</p>
 
             <div className="space-y-4">
               {status === 'success' && (
@@ -141,7 +143,7 @@ export default function VerifyEmailPage() {
                       'Resend verification email'
                     )}
                   </Button>
-                  
+
                   <Link href="/auth/login">
                     <Button variant="outline" className="w-full">
                       Back to Login
@@ -160,5 +162,33 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+          <div className="sm:mx-auto sm:w-full sm:max-w-md">
+            <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center mb-6">
+                  <Loader2 className="h-16 w-16 text-blue-500 animate-spin" />
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                  Loading...
+                </h1>
+                <p className="text-gray-600 mb-8">
+                  Please wait while we load the verification page...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
