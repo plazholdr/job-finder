@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,22 +10,26 @@ import { CheckCircle, XCircle, Loader2, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-const resetPasswordSchema = z.object({
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
 
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
-  const [status, setStatus] = useState<'loading' | 'valid' | 'success' | 'error' | 'invalid'>('loading');
+  const [status, setStatus] = useState<
+    'loading' | 'valid' | 'success' | 'error' | 'invalid'
+  >('loading');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -58,7 +62,7 @@ export default function ResetPasswordPage() {
     if (!token) return;
 
     setIsSubmitting(true);
-    
+
     try {
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
@@ -78,7 +82,9 @@ export default function ResetPasswordPage() {
         setMessage(result.message || 'Password reset successfully!');
       } else {
         setStatus('error');
-        setMessage(result.error || 'Failed to reset password. Please try again.');
+        setMessage(
+          result.error || 'Failed to reset password. Please try again.'
+        );
       }
     } catch (error) {
       setStatus('error');
@@ -127,21 +133,20 @@ export default function ResetPasswordPage() {
             <div className="mx-auto flex items-center justify-center mb-6">
               {getStatusIcon()}
             </div>
-            
+
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
               {getStatusTitle()}
             </h1>
-            
-            {message && (
-              <p className="text-gray-600 mb-8">
-                {message}
-              </p>
-            )}
+
+            {message && <p className="text-gray-600 mb-8">{message}</p>}
 
             {status === 'valid' && (
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 text-left">
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-gray-700 text-left"
+                  >
                     New Password
                   </label>
                   <div className="mt-1 relative">
@@ -164,12 +169,17 @@ export default function ResetPasswordPage() {
                     </button>
                   </div>
                   {errors.password && (
-                    <p className="mt-2 text-sm text-red-600">{errors.password.message}</p>
+                    <p className="mt-2 text-sm text-red-600">
+                      {errors.password.message}
+                    </p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 text-left">
+                  <label
+                    htmlFor="confirmPassword"
+                    className="block text-sm font-medium text-gray-700 text-left"
+                  >
                     Confirm New Password
                   </label>
                   <div className="mt-1 relative">
@@ -182,7 +192,9 @@ export default function ResetPasswordPage() {
                     <button
                       type="button"
                       className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
                     >
                       {showConfirmPassword ? (
                         <EyeOff className="h-4 w-4 text-gray-400" />
@@ -192,7 +204,9 @@ export default function ResetPasswordPage() {
                     </button>
                   </div>
                   {errors.confirmPassword && (
-                    <p className="mt-2 text-sm text-red-600">{errors.confirmPassword.message}</p>
+                    <p className="mt-2 text-sm text-red-600">
+                      {errors.confirmPassword.message}
+                    </p>
                   )}
                 </div>
 
@@ -213,7 +227,9 @@ export default function ResetPasswordPage() {
               </form>
             )}
 
-            {(status === 'success' || status === 'error' || status === 'invalid') && (
+            {(status === 'success' ||
+              status === 'error' ||
+              status === 'invalid') && (
               <div className="space-y-4 mt-8">
                 {status === 'success' && (
                   <Link href="/auth/login">
@@ -230,7 +246,7 @@ export default function ResetPasswordPage() {
                         Request new reset link
                       </Button>
                     </Link>
-                    
+
                     <Link href="/auth/login">
                       <Button variant="outline" className="w-full">
                         Back to Login
@@ -244,5 +260,33 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+          <div className="sm:mx-auto sm:w-full sm:max-w-md">
+            <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center mb-6">
+                  <Loader2 className="h-16 w-16 text-blue-500 animate-spin" />
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                  Loading...
+                </h1>
+                <p className="text-gray-600 mb-8">
+                  Please wait while we load the password reset page...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
