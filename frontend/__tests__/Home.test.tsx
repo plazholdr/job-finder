@@ -9,9 +9,7 @@ jest.mock('antd', () => {
       <button {...props}>{children}</button>
     ),
     Typography: {
-      Title: ({ children, ...props }: any) => (
-        <h1 {...props}>{children}</h1>
-      ),
+      Title: ({ children, ...props }: any) => <h1 {...props}>{children}</h1>,
     },
   };
 });
@@ -19,9 +17,11 @@ jest.mock('antd', () => {
 describe('Home', () => {
   it('renders the home page', () => {
     render(<Home />);
-    
-    expect(screen.getByText('Job Finder')).toBeInTheDocument();
-    expect(screen.getByText('Find your dream job with Job Finder')).toBeInTheDocument();
-    expect(screen.getByText('Get Started')).toBeInTheDocument();
+
+    expect(screen.getByText('hireup')).toBeInTheDocument();
+    expect(
+      screen.getByText('The future of working is remote')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Find a job')).toBeInTheDocument();
   });
 });
