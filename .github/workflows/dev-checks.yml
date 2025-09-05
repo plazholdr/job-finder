@@ -19,30 +19,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci
 
       - name: Run linting
         run: |
-          cd frontend && yarn lint
-          cd ../backend && yarn lint
+          cd frontend && npm run lint
+          cd ../backend && npm run lint
 
       - name: Type checking
         run: |
-          cd frontend && yarn type-check || echo "Frontend type check completed"
-          cd ../backend && yarn type-check || echo "Backend type check completed"
+          cd frontend && npm run type-check || echo "Frontend type check completed"
+          cd ../backend && npm run type-check || echo "Backend type check completed"
 
       - name: Run unit tests only (no integration tests)
         run: |
-          cd frontend && yarn test --passWithNoTests
-          cd ../backend && yarn test:unit --passWithNoTests || echo "Backend unit tests completed"
+          cd frontend && npm test -- --passWithNoTests
+          cd ../backend && npm run test:unit --passWithNoTests || echo "Backend unit tests completed"
 
       - name: Build check (no deployment)
         run: |
-          cd frontend && yarn build
-          cd ../backend && yarn build || echo "Backend build completed"
+          cd frontend && npm run build
+          cd ../backend && npm run build || echo "Backend build completed"
 
   notify-status:
     name: Notify Development Status
