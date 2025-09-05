@@ -1,124 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-// Mock data for companies
-const mockCompanies = [
-  {
-    id: '1',
-    name: 'TechCorp Solutions',
-    description: 'A leading technology company specializing in software development and digital transformation. We provide innovative solutions for businesses across various industries.',
-    nature: 'Technology',
-    logo: '/api/placeholder/64/64',
-    email: 'hr@techcorp.com',
-    address: '123 Tech Street, Silicon Valley, CA 94000',
-    phoneNumber: '+1-555-0123',
-    picEmail: 'john.doe@techcorp.com',
-    picMobileNumber: '+1-555-0124',
-    website: 'https://techcorp.com',
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15'),
-  },
-  {
-    id: '2',
-    name: 'Green Energy Inc',
-    description: 'Pioneering sustainable energy solutions for a greener future. We focus on renewable energy projects and environmental conservation.',
-    nature: 'Energy & Environment',
-    logo: '/api/placeholder/64/64',
-    email: 'careers@greenenergy.com',
-    address: '456 Eco Drive, Portland, OR 97201',
-    phoneNumber: '+1-555-0234',
-    picEmail: 'sarah.green@greenenergy.com',
-    picMobileNumber: '+1-555-0235',
-    website: 'https://greenenergy.com',
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10'),
-  },
-  {
-    id: '3',
-    name: 'HealthTech Innovations',
-    description: 'Revolutionizing healthcare through technology. We develop cutting-edge medical devices and healthcare software solutions.',
-    nature: 'Healthcare',
-    logo: '/api/placeholder/64/64',
-    email: 'jobs@healthtech.com',
-    address: '789 Medical Plaza, Boston, MA 02101',
-    phoneNumber: '+1-555-0345',
-    picEmail: 'dr.smith@healthtech.com',
-    picMobileNumber: '+1-555-0346',
-    website: 'https://healthtech.com',
-    createdAt: new Date('2024-01-05'),
-    updatedAt: new Date('2024-01-05'),
-  },
-  {
-    id: '4',
-    name: 'Financial Solutions Group',
-    description: 'Providing comprehensive financial services and innovative fintech solutions to help businesses and individuals achieve their financial goals.',
-    nature: 'Finance',
-    logo: '/api/placeholder/64/64',
-    email: 'recruitment@finsol.com',
-    address: '321 Wall Street, New York, NY 10005',
-    phoneNumber: '+1-555-0456',
-    picEmail: 'mike.johnson@finsol.com',
-    picMobileNumber: '+1-555-0457',
-    website: 'https://finsol.com',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-  },
-  {
-    id: '5',
-    name: 'Creative Design Studio',
-    description: 'A full-service creative agency specializing in branding, web design, and digital marketing. We help businesses tell their story through compelling design.',
-    nature: 'Creative & Design',
-    logo: '/api/placeholder/64/64',
-    email: 'hello@creativedesign.com',
-    address: '654 Art District, Los Angeles, CA 90028',
-    phoneNumber: '+1-555-0567',
-    picEmail: 'anna.creative@creativedesign.com',
-    picMobileNumber: '+1-555-0568',
-    website: 'https://creativedesign.com',
-    createdAt: new Date('2023-12-20'),
-    updatedAt: new Date('2023-12-20'),
-  },
-];
+// Helper function to get auth token from cookies
+async function getAuthToken() {
+  const cookieStore = await cookies();
+  return cookieStore.get('token')?.value;
+}
+
+// Helper function to make authenticated requests to backend
+async function makeBackendRequest(endpoint: string, options: RequestInit = {}) {
+  const token = await getAuthToken();
+
+  const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3030'}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+
+    // Build query parameters for backend
+    const queryParams = new URLSearchParams();
+
+    // Pass through search parameters
     const search = searchParams.get('search');
-    const nature = searchParams.get('nature');
-    const location = searchParams.get('location');
+    const industry = searchParams.get('nature'); // Map 'nature' to 'industry'
+    const size = searchParams.get('size');
+    const limit = searchParams.get('limit') || '50';
+    const skip = searchParams.get('skip') || '0';
 
-    let filteredCompanies = [...mockCompanies];
+    if (search) queryParams.append('search', search);
+    if (industry) queryParams.append('industry', industry);
+    if (size) queryParams.append('size', size);
+    queryParams.append('$limit', limit);
+    queryParams.append('$skip', skip);
 
-    // Apply search filter
-    if (search) {
-      const searchLower = search.toLowerCase();
-      filteredCompanies = filteredCompanies.filter(company =>
-        company.name.toLowerCase().includes(searchLower) ||
-        company.description.toLowerCase().includes(searchLower) ||
-        company.nature.toLowerCase().includes(searchLower)
-      );
-    }
+    // Call backend API to get companies
+    const backendResponse = await makeBackendRequest(`/companies?${queryParams.toString()}`);
 
-    // Apply nature filter
-    if (nature) {
-      const natureList = nature.split(',');
-      filteredCompanies = filteredCompanies.filter(company =>
-        natureList.includes(company.nature)
-      );
-    }
-
-    // Apply location filter
-    if (location) {
-      const locationList = location.split(',');
-      filteredCompanies = filteredCompanies.filter(company =>
-        locationList.some(loc => company.address.toLowerCase().includes(loc.toLowerCase()))
-      );
-    }
+    // Transform backend data to match frontend expectations
+    const transformedCompanies = (backendResponse.data || []).map((company: any) => ({
+      id: company._id,
+      name: company.company?.name || `${company.firstName} ${company.lastName}`,
+      description: company.company?.description || 'Company description not available',
+      nature: company.company?.industry || 'Technology',
+      logo: company.company?.logo || '/api/placeholder/64/64',
+      email: company.email,
+      address: company.company?.headquarters || 'Address not available',
+      phoneNumber: company.company?.phone || 'Phone not available',
+      website: company.company?.website || '',
+      activeJobsCount: company.activeJobsCount || 0,
+      createdAt: company.createdAt,
+      updatedAt: company.updatedAt
+    }));
 
     return NextResponse.json({
       success: true,
-      data: filteredCompanies,
+      data: transformedCompanies,
+      total: backendResponse.total || 0,
       message: 'Companies fetched successfully'
     });
+
   } catch (error) {
     console.error('Error fetching companies:', error);
     return NextResponse.json(

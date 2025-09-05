@@ -63,9 +63,9 @@ export default function LoginPage() {
 
           // Redirect to role-based dashboard
           if (user.role === 'student') {
-            router.push('/pages/student-dashboard');
+            router.push('/dashboard');
           } else if (user.role === 'company') {
-            router.push('/pages/company-dashboard');
+            router.push('/company/dashboard');
           } else if (user.role === 'admin') {
             router.push('/pages/admin-dashboard');
           } else {

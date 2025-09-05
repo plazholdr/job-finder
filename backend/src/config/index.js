@@ -50,6 +50,23 @@ const baseConfig = {
       secretKey: process.env.S3_SECRET_KEY || 'minioadmin',
       bucket: process.env.S3_BUCKET || 'job-finder',
     },
+    gcs: {
+      projectId: process.env.GCS_PROJECT_ID || 'job-finder-464817',
+      bucketName: process.env.GCS_BUCKET_NAME || 'job-finder',
+      keyFilename: process.env.GCS_KEY_FILENAME || './job-finder-464817-c5c7e72ff0bf.json',
+      maxFileSize: 10 * 1024 * 1024, // 10MB
+      allowedMimeTypes: [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain'
+      ],
+      allowedExtensions: ['.pdf', '.doc', '.docx', '.txt'],
+      folders: {
+        jobAttachments: 'job-attachments',
+        temp: 'temp'
+      }
+    },
   },
   cors: {
     origin: process.env.CORS_ORIGIN || '*',

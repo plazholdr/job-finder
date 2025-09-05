@@ -1,68 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { JobPosting } from '@/types/company';
+import { cookies } from 'next/headers';
 
-// Mock job postings data (imported from the main jobs route)
-// In a real app, this would be in a shared database
-let mockJobs: JobPosting[] = [
-  {
-    id: 'job-1',
-    companyId: 'company-1',
-    title: 'Software Engineering Intern',
-    description: 'Join our engineering team to work on cutting-edge web applications.',
-    requirements: ['JavaScript', 'React', 'Node.js'],
-    responsibilities: ['Develop web applications', 'Write clean code', 'Collaborate with team'],
-    type: 'internship',
-    level: 'entry',
-    department: 'Engineering',
-    location: {
-      type: 'hybrid',
-      city: 'San Francisco',
-      state: 'CA',
-      country: 'USA'
+// Helper function to get auth token from cookies
+async function getAuthToken() {
+  const cookieStore = await cookies();
+  return cookieStore.get('token')?.value;
+}
+
+// Helper function to make authenticated requests to backend
+async function makeBackendRequest(endpoint: string, options: RequestInit = {}) {
+  // Check if Authorization header is provided in options, otherwise use cookie token
+  const authHeader = options.headers?.['Authorization'] as string;
+  const token = authHeader || `Bearer ${await getAuthToken()}`;
+
+  console.log('🔐 Making backend request:', { endpoint, hasAuth: !!token });
+
+  const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3030'}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': token }),
+      ...options.headers,
     },
-    salary: {
-      min: 25,
-      max: 35,
-      currency: 'USD',
-      period: 'hour'
-    },
-    applicationDeadline: new Date('2024-12-31'),
-    requiredSkills: ['JavaScript', 'React', 'Git'],
-    preferredSkills: ['TypeScript', 'Next.js'],
-    education: {
-      level: 'bachelor',
-      field: 'Computer Science'
-    },
-    experience: {
-      min: 0,
-      max: 1,
-      unit: 'years'
-    },
-    applicationProcess: {
-      steps: ['Application Review', 'Technical Interview', 'Final Interview'],
-      documentsRequired: ['Resume', 'Cover Letter', 'Portfolio'],
-      interviewProcess: 'Two-round interview process'
-    },
-    status: 'published',
-    applicationsCount: 45,
-    viewsCount: 234,
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15'),
-    publishedAt: new Date('2024-01-15')
+  });
+
+  console.log('📡 Backend response status:', response.status);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    console.error('❌ Backend error:', errorData);
+    throw new Error(errorData.error || `HTTP ${response.status}`);
   }
-];
+
+  return response.json();
+}
 
 // GET single job by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const jobId = params.id;
-    
-    const job = mockJobs.find(j => j.id === jobId);
-    
-    if (!job) {
+    const { id: jobId } = await params;
+
+    // Call backend API to get job details
+    const job = await makeBackendRequest(`/jobs/${jobId}`, {
+      headers: {
+        'Authorization': request.headers.get('Authorization') || '',
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: job
+    });
+
+  } catch (error) {
+    console.error('Error fetching job:', error);
+
+    if (error.message.includes('404') || error.message.includes('not found')) {
       return NextResponse.json(
         {
           success: false,
@@ -72,17 +68,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: job
-    });
-
-  } catch (error) {
-    console.error('Error fetching job:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error'
+        error: 'Failed to fetch job details'
       },
       { status: 500 }
     );
@@ -92,15 +81,31 @@ export async function GET(
 // UPDATE job (full update)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const jobId = params.id;
-    const updatedData: Partial<JobPosting> = await request.json();
+    const { id: jobId } = await params;
+    const updatedData = await request.json();
 
-    const jobIndex = mockJobs.findIndex(j => j.id === jobId);
-    
-    if (jobIndex === -1) {
+    // Call backend API to update job
+    const updatedJob = await makeBackendRequest(`/jobs/${jobId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': request.headers.get('Authorization') || '',
+      },
+      body: JSON.stringify(updatedData),
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: updatedJob,
+      message: 'Job updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating job:', error);
+
+    if (error.message.includes('404') || error.message.includes('not found')) {
       return NextResponse.json(
         {
           success: false,
@@ -110,43 +115,10 @@ export async function PUT(
       );
     }
 
-    // Validate required fields
-    const requiredFields = ['title', 'description', 'department', 'type', 'level'];
-    for (const field of requiredFields) {
-      if (updatedData[field as keyof JobPosting] === undefined || 
-          updatedData[field as keyof JobPosting] === '') {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `${field} is required`
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Update the job
-    mockJobs[jobIndex] = {
-      ...mockJobs[jobIndex],
-      ...updatedData,
-      updatedAt: new Date(),
-      publishedAt: updatedData.status === 'published' && mockJobs[jobIndex].status !== 'published' 
-        ? new Date() 
-        : mockJobs[jobIndex].publishedAt
-    };
-
-    return NextResponse.json({
-      success: true,
-      data: mockJobs[jobIndex],
-      message: 'Job updated successfully'
-    });
-
-  } catch (error) {
-    console.error('Error updating job:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error'
+        error: error.message || 'Failed to update job'
       },
       { status: 500 }
     );
@@ -156,15 +128,35 @@ export async function PUT(
 // PATCH job (partial update, e.g., status change)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const jobId = params.id;
-    const updates: Partial<JobPosting> = await request.json();
+    const { id: jobId } = await params;
+    const updates = await request.json();
 
-    const jobIndex = mockJobs.findIndex(j => j.id === jobId);
-    
-    if (jobIndex === -1) {
+    console.log('🔄 PATCH job request:', { jobId, updates });
+
+    // Call backend API to partially update job
+    const updatedJob = await makeBackendRequest(`/jobs/${jobId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': request.headers.get('Authorization') || '',
+      },
+      body: JSON.stringify(updates),
+    });
+
+    console.log('✅ Job updated successfully:', updatedJob);
+
+    return NextResponse.json({
+      success: true,
+      data: updatedJob,
+      message: 'Job updated successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating job:', error);
+
+    if (error.message.includes('404') || error.message.includes('not found')) {
       return NextResponse.json(
         {
           success: false,
@@ -174,30 +166,10 @@ export async function PATCH(
       );
     }
 
-    // Apply partial updates
-    mockJobs[jobIndex] = {
-      ...mockJobs[jobIndex],
-      ...updates,
-      updatedAt: new Date()
-    };
-
-    // Update publishedAt if status changed to published
-    if (updates.status === 'published' && mockJobs[jobIndex].status !== 'published') {
-      mockJobs[jobIndex].publishedAt = new Date();
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: mockJobs[jobIndex],
-      message: 'Job updated successfully'
-    });
-
-  } catch (error) {
-    console.error('Error updating job:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error'
+        error: error.message || 'Failed to update job'
       },
       { status: 500 }
     );
@@ -207,14 +179,28 @@ export async function PATCH(
 // DELETE job
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const jobId = params.id;
-    
-    const jobIndex = mockJobs.findIndex(j => j.id === jobId);
-    
-    if (jobIndex === -1) {
+    const { id: jobId } = await params;
+
+    // Call backend API to delete job
+    await makeBackendRequest(`/jobs/${jobId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': request.headers.get('Authorization') || '',
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Job deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting job:', error);
+
+    if (error.message.includes('404') || error.message.includes('not found')) {
       return NextResponse.json(
         {
           success: false,
@@ -224,32 +210,10 @@ export async function DELETE(
       );
     }
 
-    // Check if job has applications
-    const job = mockJobs[jobIndex];
-    if (job.applicationsCount > 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Cannot delete job with existing applications. Please close the job instead.'
-        },
-        { status: 400 }
-      );
-    }
-
-    // Remove the job
-    mockJobs.splice(jobIndex, 1);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Job deleted successfully'
-    });
-
-  } catch (error) {
-    console.error('Error deleting job:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error'
+        error: error.message || 'Failed to delete job'
       },
       { status: 500 }
     );

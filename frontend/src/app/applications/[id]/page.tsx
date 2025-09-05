@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,20 +35,38 @@ export default function ApplicationDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    if (params.id) {
-      fetchApplicationDetails();
-    }
-  }, [params.id]);
-
-  const fetchApplicationDetails = async () => {
+  const fetchApplicationDetails = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/applications/${params.id}`);
+      console.log('Fetching application details for ID:', params.id);
+
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
+
+      const response = await fetch(`/api/applications/${params.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      console.log('Application details response status:', response.status);
       const data = await response.json();
+      console.log('Application details response data:', data);
 
       if (data.success) {
-        setApplication(data.data);
+        console.log('Setting application data:', data.data);
+        console.log('Application data type:', typeof data.data);
+        console.log('Application data keys:', Object.keys(data.data || {}));
+        console.log('Application status:', data.data?.status);
+        console.log('Application status type:', typeof data.data?.status);
+
+        // Ensure all data is properly serialized
+        const cleanData = JSON.parse(JSON.stringify(data.data));
+        console.log('Clean application data:', cleanData);
+
+        setApplication(cleanData);
       } else {
         console.error('Failed to fetch application details:', data.error);
       }
@@ -57,58 +75,172 @@ export default function ApplicationDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
-  const handleDownloadPDF = async () => {
-    if (!application) return;
+  useEffect(() => {
+    if (params.id) {
+      fetchApplicationDetails();
+    }
+  }, [params.id, fetchApplicationDetails]);
+
+  const handleDownloadOfferLetter = async () => {
+    if (!application) {
+      alert('No application data available');
+      return;
+    }
 
     try {
       setActionLoading(true);
-      const response = await fetch(`/api/applications/${application.id}/pdf`);
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.error('No auth token found');
+        alert('Authentication required');
+        return;
+      }
+
+      // Use the same pattern as resume downloads - go through API
+      const response = await fetch(`/api/applications/${application._id || application.id}/offer-letter`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
+        a.style.display = 'none';
         a.href = url;
-        a.download = `application_${application.id}.pdf`;
+        a.download = `offer_letter_${application._id || application.id}.pdf`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        console.error('Failed to download PDF');
+        const errorData = await response.json();
+        console.error('Failed to download offer letter:', errorData);
+        alert(errorData.error || 'Failed to download offer letter. Please try again.');
       }
+
     } catch (error) {
-      console.error('Error downloading PDF:', error);
+      console.error('Error downloading offer letter:', error);
+      alert('Error downloading offer letter. Please try again.');
     } finally {
       setActionLoading(false);
     }
   };
 
+  // Helper function to check if offer has expired
+  const isOfferExpired = (offerValidity: string) => {
+    if (!offerValidity) return false;
+    const validityDate = new Date(offerValidity);
+    const currentDate = new Date();
+    return currentDate > validityDate;
+  };
+
+  // Auto-update expired applications
+  useEffect(() => {
+    const updateExpiredApplication = async () => {
+      if (!application || application.status !== 'pending_acceptance') return;
+
+      if (isOfferExpired(application.offerValidity)) {
+        try {
+          const token = localStorage.getItem('authToken');
+          if (!token) return;
+
+          console.log('Auto-updating expired application to rejected status');
+          const response = await fetch(`/api/applications/${application._id || application.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              status: 'rejected',
+              reason: 'Offer expired without response'
+            }),
+          });
+
+          if (response.ok) {
+            // Update the local application state instead of reloading
+            setApplication(prev => prev ? { ...prev, status: 'rejected' } : null);
+          }
+        } catch (error) {
+          console.error('Error updating expired application:', error);
+        }
+      }
+    };
+
+    // Only run once when application loads and is expired
+    if (application && application.status === 'pending_acceptance' && isOfferExpired(application.offerValidity)) {
+      updateExpiredApplication();
+    }
+  }, [application?._id]); // Only depend on application ID to avoid repeated calls
+
   const handleAction = async (action: string) => {
     if (!application) return;
 
+    // Show confirmation for decline action
+    if (action === 'decline_offer') {
+      if (!confirm('Are you sure you want to decline this offer? This action cannot be undone.')) {
+        return;
+      }
+    }
+
     try {
       setActionLoading(true);
-      const response = await fetch(`/api/applications/${application.id}`, {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
+
+      // Map actions to status updates
+      let status;
+      if (action === 'accept_offer') {
+        status = 'accepted';
+      } else if (action === 'decline_offer') {
+        status = 'rejected';
+      } else {
+        status = action; // For other actions, use as-is
+      }
+
+      console.log('Performing action:', action, 'updating status to:', status, 'on application:', application._id || application.id);
+      const response = await fetch(`/api/applications/${application._id || application.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          status,
+          reason: action === 'decline_offer' ? 'Offer declined by candidate' : undefined
+        }),
       });
 
+      console.log('Action response status:', response.status);
       const data = await response.json();
+      console.log('Action response data:', data);
 
       if (data.success) {
+        console.log('Action successful, updating application data');
         setApplication(data.data);
-        // Show success message
+
+        // Show specific success messages
+        if (action === 'accept_offer') {
+          alert('Offer accepted successfully! You will receive a confirmation email shortly.');
+        } else if (action === 'decline_offer') {
+          alert('Offer declined. Thank you for your consideration.');
+        } else {
+          alert(`Successfully ${action.replace('_', ' ')}!`);
+        }
       } else {
         console.error('Failed to update application:', data.error);
+        alert(`Failed to ${action.replace('_', ' ')}: ${data.error}`);
       }
     } catch (error) {
       console.error('Error updating application:', error);
+      alert(`Error: ${error}`);
     } finally {
       setActionLoading(false);
     }
@@ -125,7 +257,7 @@ export default function ApplicationDetailPage() {
       case 'interview_completed':
         return 'bg-purple-100 text-purple-800';
       case 'accepted':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border-2 border-green-300 font-semibold';
       case 'rejected':
       case 'withdrawn':
         return 'bg-red-100 text-red-800';
@@ -223,23 +355,28 @@ export default function ApplicationDetailPage() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {application.job?.title || 'Application Details'}
+                {application.jobInfo?.title || 'Application Details'}
               </h1>
               <div className="flex items-center space-x-4 text-gray-600">
                 <div className="flex items-center space-x-2">
                   <Building2 className="h-4 w-4" />
-                  <span>{application.job?.company?.name || application.job?.name}</span>
+                  <span>{application.companyInfo?.name || 'Unknown Company'}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-4 w-4" />
-                  <span>Applied {formatDateShort(application.submittedAt)}</span>
+                  <span>Applied {formatDateShort(application.createdAt || application.submittedAt)}</span>
                 </div>
               </div>
             </div>
 
             <Badge className={`${getStatusColor(application.status)} flex items-center space-x-1`}>
               {getStatusIcon(application.status)}
-              <span className="capitalize">{application.status.replace('_', ' ')}</span>
+              <span className="capitalize">
+                {application.status === 'accepted'
+                  ? 'Offer Accepted'
+                  : application.status.replace('_', ' ')
+                }
+              </span>
             </Badge>
           </div>
         </div>
@@ -253,35 +390,56 @@ export default function ApplicationDetailPage() {
                 <CardTitle>Application Timeline</CardTitle>
               </CardHeader>
               <CardContent>
-                {application.timeline && application.timeline.length > 0 ? (
-                  <div className="space-y-6">
-                    {application.timeline
-                      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                {application.statusHistory && application.statusHistory.length > 0 ? (
+                  <div className="space-y-4">
+                    {application.statusHistory
+                      .sort((a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime())
                       .map((event, index) => (
-                        <div key={event.id} className="flex space-x-4">
+                        <div key={index} className="flex items-start space-x-4">
+                          {/* Timeline dot and line */}
                           <div className="flex flex-col items-center">
-                            <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                              index === 0 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
-                            }`}>
-                              {getStatusIcon(event.status)}
-                            </div>
-                            {index < application.timeline!.length - 1 && (
-                              <div className="w-px h-12 bg-gray-200 mt-2"></div>
+                            <div className={`w-3 h-3 rounded-full ${
+                              event.status === 'submitted' ? 'bg-blue-500' :
+                              event.status === 'shortlisted' ? 'bg-yellow-500' :
+                              event.status === 'pending_acceptance' ? 'bg-green-500' :
+                              event.status === 'accepted' ? 'bg-green-600' :
+                              event.status === 'rejected' ? 'bg-red-500' :
+                              'bg-gray-400'
+                            }`} />
+                            {index < application.statusHistory.length - 1 && (
+                              <div className="w-0.5 h-8 bg-gray-200 mt-2" />
                             )}
                           </div>
-                          <div className="flex-1 pb-8">
-                            <div className="flex items-center justify-between mb-1">
-                              <h4 className="font-medium text-gray-900">{event.title}</h4>
-                              <span className="text-sm text-gray-500">
-                                {formatDate(event.timestamp)}
-                              </span>
+
+                          {/* Timeline content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-medium text-gray-900 capitalize">
+                                {event.status.replace('_', ' ')}
+                              </h4>
+                              <time className="text-xs text-gray-500">
+                                {formatDate(event.changedAt)}
+                              </time>
                             </div>
-                            <p className="text-gray-600 text-sm mb-2">{event.description}</p>
-                            {event.actorName && (
-                              <p className="text-xs text-gray-500">
-                                by {event.actorName}
-                              </p>
-                            )}
+                            <Badge
+                              variant="outline"
+                              className={`mt-1 text-xs ${
+                                event.status === 'submitted' ? 'border-blue-200 text-blue-700' :
+                                event.status === 'shortlisted' ? 'border-yellow-200 text-yellow-700' :
+                                event.status === 'pending_acceptance' ? 'border-green-200 text-green-700' :
+                                event.status === 'accepted' ? 'border-green-200 text-green-800' :
+                                event.status === 'rejected' ? 'border-red-200 text-red-700' :
+                                'border-gray-200 text-gray-700'
+                              }`}
+                            >
+                              {event.status === 'submitted' ? 'Application Submitted' :
+                               event.status === 'shortlisted' ? 'Shortlisted for Review' :
+                               event.status === 'pending_acceptance' ? 'Pending Acceptance' :
+                               event.status === 'accepted' ? 'Offer Accepted' :
+                               event.status === 'rejected' ? 'Application Rejected' :
+                               event.status.charAt(0).toUpperCase() + event.status.slice(1).replace('_', ' ')
+                              }
+                            </Badge>
                           </div>
                         </div>
                       ))}
@@ -412,7 +570,99 @@ export default function ApplicationDetailPage() {
                       </div>
                     )}
 
-                    {application.offerDetails.responseRequired && application.offerDetails.status === 'pending' && (
+                    {/* Handle pending_acceptance status with offer validity check */}
+                    {application.status === 'pending_acceptance' && (
+                      <div className={`border rounded-lg p-4 ${
+                        isOfferExpired(application.offerValidity)
+                          ? 'bg-red-50 border-red-200'
+                          : 'bg-yellow-50 border-yellow-200'
+                      }`}>
+                        <div className="flex items-center space-x-2 mb-2">
+                          {isOfferExpired(application.offerValidity) ? (
+                            <XCircle className="h-5 w-5 text-red-600" />
+                          ) : (
+                            <AlertCircle className="h-5 w-5 text-yellow-600" />
+                          )}
+                          <span className={`font-medium ${
+                            isOfferExpired(application.offerValidity)
+                              ? 'text-red-800'
+                              : 'text-yellow-800'
+                          }`}>
+                            {isOfferExpired(application.offerValidity) ? 'Offer Expired' : 'Response Required'}
+                          </span>
+                        </div>
+
+                        {application.offerValidity && (
+                          <p className={`text-sm mb-4 ${
+                            isOfferExpired(application.offerValidity)
+                              ? 'text-red-700'
+                              : 'text-yellow-700'
+                          }`}>
+                            {isOfferExpired(application.offerValidity)
+                              ? `This offer expired on ${formatDate(application.offerValidity)}`
+                              : `Please respond to this offer by ${formatDate(application.offerValidity)}`
+                            }
+                          </p>
+                        )}
+
+                        <div className="flex space-x-3">
+                          {isOfferExpired(application.offerValidity) ? (
+                            <Button
+                              disabled
+                              className="bg-red-600 text-white cursor-not-allowed opacity-50"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Rejected (Expired)
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                onClick={() => handleAction('accept_offer')}
+                                disabled={actionLoading}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Accept Offer
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => handleAction('decline_offer')}
+                                disabled={actionLoading}
+                                className="border-red-300 text-red-600 hover:bg-red-50"
+                              >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                Decline Offer
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Show rejected expired status */}
+                    {application.status === 'rejected' && application.offerValidity && isOfferExpired(application.offerValidity) && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <XCircle className="h-5 w-5 text-red-600" />
+                          <span className="font-medium text-red-800">Offer Expired</span>
+                        </div>
+                        <p className="text-sm mb-4 text-red-700">
+                          This offer expired on {formatDate(new Date(application.offerValidity))}
+                        </p>
+                        <div className="flex space-x-3">
+                          <Button
+                            disabled
+                            className="bg-red-600 text-white cursor-not-allowed opacity-50"
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Rejected (Expired)
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Original response required section for other statuses */}
+                    {application.offerDetails.responseRequired && application.offerDetails.status === 'pending' && application.status !== 'pending_acceptance' && (
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                         <div className="flex items-center space-x-2 mb-2">
                           <AlertCircle className="h-5 w-5 text-yellow-600" />
@@ -443,12 +693,156 @@ export default function ApplicationDetailPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Accept Offer Section - Show when status is pending_acceptance */}
+            {application.status === 'pending_acceptance' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Offer Response Required</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`border rounded-lg p-4 ${
+                    isOfferExpired(application.offerValidity)
+                      ? 'bg-red-50 border-red-200'
+                      : 'bg-yellow-50 border-yellow-200'
+                  }`}>
+                    <div className="flex items-center space-x-2 mb-2">
+                      {isOfferExpired(application.offerValidity) ? (
+                        <XCircle className="h-5 w-5 text-red-600" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 text-yellow-600" />
+                      )}
+                      <span className={`font-medium ${
+                        isOfferExpired(application.offerValidity)
+                          ? 'text-red-800'
+                          : 'text-yellow-800'
+                      }`}>
+                        {isOfferExpired(application.offerValidity) ? 'Offer Expired' : 'Response Required'}
+                      </span>
+                    </div>
+
+                    {application.offerValidity && (
+                      <p className={`text-sm mb-4 ${
+                        isOfferExpired(application.offerValidity)
+                          ? 'text-red-700'
+                          : 'text-yellow-700'
+                      }`}>
+                        {isOfferExpired(application.offerValidity)
+                          ? `This offer expired on ${formatDate(application.offerValidity)}`
+                          : `Please respond to this offer by ${formatDate(application.offerValidity)}`
+                        }
+                      </p>
+                    )}
+
+                    <div className="flex space-x-3">
+                      {isOfferExpired(application.offerValidity) ? (
+                        <Button
+                          disabled
+                          className="bg-red-600 text-white cursor-not-allowed opacity-50"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Rejected (Expired)
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            onClick={() => handleAction('accept_offer')}
+                            disabled={actionLoading}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Accept Offer
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => handleAction('decline_offer')}
+                            disabled={actionLoading}
+                            className="border-red-300 text-red-600 hover:bg-red-50"
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Decline Offer
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Accepted Offer Section - Show when status is accepted */}
+            {application.status === 'accepted' && (
+              <Card className="border-2 border-green-300 bg-gradient-to-r from-green-50 to-emerald-50">
+                <CardHeader>
+                  <CardTitle className="text-green-800 flex items-center gap-2">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                    Congratulations! Offer Accepted
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-green-100 border border-green-300 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <span className="font-medium text-green-800">Internship Started!</span>
+                    </div>
+                    <p className="text-sm mb-4 text-green-700">
+                      You have successfully accepted this job offer! Your internship has been created and you can now start your journey with {application.companyName || 'the company'}.
+                    </p>
+                    <div className="flex space-x-3">
+                      <Button
+                        disabled
+                        className="bg-green-600 text-white cursor-not-allowed opacity-75"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Offer Accepted ✓
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-green-300 text-green-700 hover:bg-green-50"
+                        onClick={() => router.push('/applications')}
+                      >
+                        View All Applications
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Rejected Offer Section - Show when status is rejected and offer was expired */}
+            {application.status === 'rejected' && application.offerValidity && isOfferExpired(application.offerValidity) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Offer Expired</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <XCircle className="h-5 w-5 text-red-600" />
+                      <span className="font-medium text-red-800">Offer Expired</span>
+                    </div>
+                    <p className="text-sm mb-4 text-red-700">
+                      This offer expired on {formatDate(new Date(application.offerValidity))}
+                    </p>
+                    <div className="flex space-x-3">
+                      <Button
+                        disabled
+                        className="bg-red-600 text-white cursor-not-allowed opacity-50"
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Rejected (Expired)
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Job Information */}
-            {application.job && (
+            {application.jobInfo && (
               <Card>
                 <CardHeader>
                   <CardTitle>Job Information</CardTitle>
@@ -457,10 +851,10 @@ export default function ApplicationDetailPage() {
                   <div className="space-y-4">
                     <div className="flex items-center space-x-3">
                       <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                        {application.job.logo ? (
+                        {application.companyInfo?.company?.logo ? (
                           <img
-                            src={application.job.logo}
-                            alt={`${application.job.company?.name || application.job.name} logo`}
+                            src={application.companyInfo.company.logo}
+                            alt={`${application.companyInfo.name} logo`}
                             className="h-8 w-8 object-contain"
                           />
                         ) : (
@@ -468,27 +862,36 @@ export default function ApplicationDetailPage() {
                         )}
                       </div>
                       <div>
-                        <h3 className="font-medium">{application.job.title}</h3>
-                        <p className="text-sm text-gray-600">{application.job.company?.name || application.job.name}</p>
+                        <h3 className="font-medium">{application.jobInfo.title}</h3>
+                        <p className="text-sm text-gray-600">{application.companyInfo?.name}</p>
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2 text-sm text-gray-600">
                         <MapPin className="h-4 w-4" />
-                        <span>{application.job.location}</span>
+                        <span>{application.jobInfo.location}</span>
                       </div>
                       <div className="flex items-center space-x-2 text-sm text-gray-600">
                         <DollarSign className="h-4 w-4" />
-                        <span>{application.job.salaryRange}</span>
+                        <span>
+                          {typeof application.jobInfo.salary === 'object'
+                            ? `${application.jobInfo.salary.minimum || 'N/A'} - ${application.jobInfo.salary.maximum || 'N/A'} ${application.jobInfo.salary.currency || ''}`
+                            : application.jobInfo.salary || 'N/A'
+                          }
+                        </span>
                       </div>
                       <div className="flex items-center space-x-2 text-sm text-gray-600">
                         <Calendar className="h-4 w-4" />
-                        <span>Deadline: {formatDateShort(application.job.deadline)}</span>
+                        <span>Duration: {
+                          typeof application.jobInfo.duration === 'object'
+                            ? `${application.jobInfo.duration.months || 'N/A'} months${application.jobInfo.duration.flexible ? ' (flexible)' : ''}`
+                            : application.jobInfo.duration || 'N/A'
+                        }</span>
                       </div>
                     </div>
 
-                    <Link href={`/jobs/${application.job.id}`}>
+                    <Link href={`/jobs/${application.jobId}`}>
                       <Button variant="outline" size="sm" className="w-full">
                         <FileText className="h-4 w-4 mr-2" />
                         View Job Details
@@ -506,17 +909,26 @@ export default function ApplicationDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {/* PDF Download Button */}
+                  {/* Offer Letter Download Button */}
                   <Button
                     variant="default"
                     size="sm"
                     className="w-full"
-                    onClick={handleDownloadPDF}
-                    disabled={actionLoading}
+                    onClick={handleDownloadOfferLetter}
+                    disabled={actionLoading || (application.status !== 'pending_acceptance' && application.status !== 'accepted') || !application.offerLetterUrl}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    Download PDF
+                    {(application.status === 'pending_acceptance' || application.status === 'accepted') && application.offerLetterUrl
+                      ? 'Download Offer Letter'
+                      : 'Download Offer Letter'
+                    }
                   </Button>
+
+                  {application.status === 'rejected' && (
+                    <p className="text-xs text-gray-500 text-center mt-1">
+                      You have rejected this offer.
+                    </p>
+                  )}
 
                   {application.status === 'applied' || application.status === 'reviewed' ? (
                     <Button
@@ -550,7 +962,7 @@ export default function ApplicationDetailPage() {
                 <div className="space-y-3 text-sm">
                   <div>
                     <span className="font-medium text-gray-600">Submitted:</span>
-                    <p>{formatDate(application.submittedAt)}</p>
+                    <p>{formatDate(application.createdAt || application.submittedAt)}</p>
                   </div>
                   <div>
                     <span className="font-medium text-gray-600">Last Updated:</span>
@@ -558,7 +970,7 @@ export default function ApplicationDetailPage() {
                   </div>
                   <div>
                     <span className="font-medium text-gray-600">Application ID:</span>
-                    <p className="font-mono text-xs">{application.id}</p>
+                    <p className="font-mono text-xs">{application._id || application.id}</p>
                   </div>
                 </div>
               </CardContent>

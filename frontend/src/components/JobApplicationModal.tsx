@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Upload,
@@ -12,7 +12,11 @@ import {
   Briefcase,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Download,
+  Calendar,
+  GraduationCap,
+  Award
 } from 'lucide-react';
 
 interface JobApplicationModalProps {
@@ -29,137 +33,103 @@ interface JobApplicationModalProps {
 }
 
 interface ApplicationData {
-  coverLetter: string;
-  resume: File | null;
-  additionalDocuments: File[];
-  personalInfo: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    location: string;
-  };
-  experience: {
-    currentRole: string;
-    yearsOfExperience: string;
-    expectedSalary: string;
-    availableStartDate: string;
-  };
-  questions: Record<string, string>;
+  candidateStatement: string;
+  applicationValidity: string; // Date string
+  offerValidity: string; // Date string
+  offerLetterUrl: string;
+  profileConfirmed: boolean;
 }
 
 export default function JobApplicationModal({ isOpen, onClose, job, onSubmit }: JobApplicationModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
-
-  const resumeInputRef = useRef<HTMLInputElement>(null);
-  const documentsInputRef = useRef<HTMLInputElement>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   const [applicationData, setApplicationData] = useState<ApplicationData>({
-    coverLetter: '',
-    resume: null,
-    additionalDocuments: [],
-    personalInfo: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      location: '',
-    },
-    experience: {
-      currentRole: '',
-      yearsOfExperience: '',
-      expectedSalary: '',
-      availableStartDate: '',
-    },
-    questions: {},
+    candidateStatement: '',
+    applicationValidity: '',
+    profileConfirmed: false,
   });
 
-  // Mock screening questions - in real app, these would come from the job posting
-  const screeningQuestions = [
-    {
-      id: 'authorization',
-      question: 'Are you authorized to work in the United States?',
-      type: 'select',
-      options: ['Yes', 'No', 'Will require sponsorship'],
-      required: true,
-    },
-    {
-      id: 'relocation',
-      question: 'Are you willing to relocate for this position?',
-      type: 'select',
-      options: ['Yes', 'No', 'Maybe'],
-      required: true,
-    },
-    {
-      id: 'remote',
-      question: 'Do you have experience working remotely?',
-      type: 'textarea',
-      required: false,
-    },
-  ];
+  // Fetch user profile when modal opens
+  useEffect(() => {
+    if (isOpen && !userProfile) {
+      fetchUserProfile();
+    }
+  }, [isOpen]);
 
-  const handleInputChange = (section: keyof ApplicationData, field: string, value: string) => {
-    setApplicationData(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value,
-      },
-    }));
-  };
+  const fetchUserProfile = async () => {
+    setIsLoadingProfile(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/users/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-  const handleFileUpload = (type: 'resume' | 'documents', files: FileList | null) => {
-    if (!files) return;
-
-    if (type === 'resume') {
-      setApplicationData(prev => ({
-        ...prev,
-        resume: files[0],
-      }));
-    } else {
-      setApplicationData(prev => ({
-        ...prev,
-        additionalDocuments: [...prev.additionalDocuments, ...Array.from(files)],
-      }));
+      if (response.ok) {
+        const result = await response.json();
+        setUserProfile(result.data);
+      } else {
+        console.error('Failed to fetch user profile');
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    } finally {
+      setIsLoadingProfile(false);
     }
   };
 
-  const removeDocument = (index: number) => {
-    setApplicationData(prev => ({
-      ...prev,
-      additionalDocuments: prev.additionalDocuments.filter((_, i) => i !== index),
-    }));
+  const downloadResume = async () => {
+    if (!userProfile?.student?.resume) {
+      alert('No resume found');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/users/resume/download', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'resume.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Failed to download resume');
+      }
+    } catch (error) {
+      console.error('Error downloading resume:', error);
+      alert('Error downloading resume');
+    }
   };
 
-  const handleQuestionChange = (questionId: string, value: string) => {
+  const handleInputChange = (field: keyof ApplicationData, value: string | boolean) => {
     setApplicationData(prev => ({
       ...prev,
-      questions: {
-        ...prev.questions,
-        [questionId]: value,
-      },
+      [field]: value,
     }));
   };
 
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
-        return !!(
-          applicationData.personalInfo.firstName &&
-          applicationData.personalInfo.lastName &&
-          applicationData.personalInfo.email &&
-          applicationData.personalInfo.phone
-        );
+        return !!(applicationData.candidateStatement.trim() && applicationData.applicationValidity);
       case 2:
-        return !!applicationData.resume;
-      case 3:
-        return !!applicationData.coverLetter.trim();
-      case 4:
-        return screeningQuestions
-          .filter(q => q.required)
-          .every(q => applicationData.questions[q.id]);
+        return applicationData.profileConfirmed;
       default:
         return true;
     }
@@ -167,7 +137,7 @@ export default function JobApplicationModal({ isOpen, onClose, job, onSubmit }: 
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, 5));
+      setCurrentStep(prev => Math.min(prev + 1, 3));
     }
   };
 
@@ -176,15 +146,23 @@ export default function JobApplicationModal({ isOpen, onClose, job, onSubmit }: 
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(4)) return;
+    if (!validateStep(2)) return;
 
     setIsSubmitting(true);
     setSubmitStatus('idle');
 
     try {
-      await onSubmit(applicationData);
+      // Prepare application data with user profile
+      const finalApplicationData = {
+        jobId: job.id,
+        candidateStatement: applicationData.candidateStatement,
+        applicationValidity: applicationData.applicationValidity,
+        userProfile: userProfile,
+      };
+
+      await onSubmit(finalApplicationData);
       setSubmitStatus('success');
-      setCurrentStep(5);
+      setCurrentStep(3);
     } catch (error) {
       setSubmitStatus('error');
     } finally {
@@ -198,24 +176,11 @@ export default function JobApplicationModal({ isOpen, onClose, job, onSubmit }: 
       setCurrentStep(1);
       setSubmitStatus('idle');
       setApplicationData({
-        coverLetter: '',
-        resume: null,
-        additionalDocuments: [],
-        personalInfo: {
-          firstName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          location: '',
-        },
-        experience: {
-          currentRole: '',
-          yearsOfExperience: '',
-          expectedSalary: '',
-          availableStartDate: '',
-        },
-        questions: {},
+        candidateStatement: '',
+        applicationValidity: '',
+        profileConfirmed: false,
       });
+      setUserProfile(null);
     }
     onClose();
   };
@@ -223,16 +188,14 @@ export default function JobApplicationModal({ isOpen, onClose, job, onSubmit }: 
   if (!isOpen) return null;
 
   const steps = [
-    'Personal Info',
-    'Resume & Documents',
-    'Cover Letter',
-    'Screening Questions',
-    'Review & Submit'
+    'Application Details',
+    'Profile Confirmation',
+    'Submit Application'
   ];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <div>
@@ -286,265 +249,183 @@ export default function JobApplicationModal({ isOpen, onClose, job, onSubmit }: 
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        <div className="p-6 overflow-y-auto flex-1">
           {currentStep === 1 && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Personal Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={applicationData.personalInfo.firstName}
-                    onChange={(e) => handleInputChange('personalInfo', 'firstName', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your first name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={applicationData.personalInfo.lastName}
-                    onChange={(e) => handleInputChange('personalInfo', 'lastName', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your last name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    value={applicationData.personalInfo.email}
-                    onChange={(e) => handleInputChange('personalInfo', 'email', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your email address"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    value={applicationData.personalInfo.phone}
-                    onChange={(e) => handleInputChange('personalInfo', 'phone', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your phone number"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    value={applicationData.personalInfo.location}
-                    onChange={(e) => handleInputChange('personalInfo', 'location', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="City, State/Country"
-                  />
-                </div>
+              <h3 className="text-lg font-medium text-gray-900">Application Details</h3>
+
+              {/* Candidate Statement */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Candidate Statement *
+                </label>
+                <textarea
+                  value={applicationData.candidateStatement}
+                  onChange={(e) => handleInputChange('candidateStatement', e.target.value)}
+                  rows={6}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Tell us why you're interested in this position and what makes you a great candidate..."
+                />
+                <p className="text-sm text-gray-600 mt-2">
+                  {applicationData.candidateStatement.length} characters
+                </p>
               </div>
 
-              <div className="space-y-4">
-                <h4 className="text-md font-medium text-gray-900">Professional Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Current Role
-                    </label>
-                    <input
-                      type="text"
-                      value={applicationData.experience.currentRole}
-                      onChange={(e) => handleInputChange('experience', 'currentRole', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="e.g., Software Engineer"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Years of Experience
-                    </label>
-                    <select
-                      value={applicationData.experience.yearsOfExperience}
-                      onChange={(e) => handleInputChange('experience', 'yearsOfExperience', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="">Select experience</option>
-                      <option value="0-1">0-1 years</option>
-                      <option value="1-3">1-3 years</option>
-                      <option value="3-5">3-5 years</option>
-                      <option value="5-10">5-10 years</option>
-                      <option value="10+">10+ years</option>
-                    </select>
-                  </div>
+              {/* Application Validity */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Application Valid Until *
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={applicationData.applicationValidity}
+                    onChange={(e) => handleInputChange('applicationValidity', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                  <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
                 </div>
+                <p className="text-sm text-gray-600 mt-1">
+                  Select the date until which this application should remain valid
+                </p>
               </div>
             </div>
           )}
 
           {currentStep === 2 && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Resume & Documents</h3>
+              <h3 className="text-lg font-medium text-gray-900">Profile Confirmation</h3>
 
-              {/* Resume Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Resume * (PDF, DOC, DOCX - Max 5MB)
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                  {applicationData.resume ? (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-8 w-8 text-blue-600" />
-                        <div>
-                          <p className="font-medium text-gray-900">{applicationData.resume.name}</p>
-                          <p className="text-sm text-gray-600">
-                            {(applicationData.resume.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setApplicationData(prev => ({ ...prev, resume: null }))}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 mb-2">Click to upload your resume</p>
-                      <button
-                        onClick={() => resumeInputRef.current?.click()}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                      >
-                        Choose File
-                      </button>
-                    </div>
-                  )}
-                  <input
-                    ref={resumeInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={(e) => handleFileUpload('resume', e.target.files)}
-                    className="hidden"
-                  />
+              {isLoadingProfile ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Loading your profile...</span>
                 </div>
-              </div>
+              ) : userProfile ? (
+                <div className="space-y-6">
+                  {/* Personal Information */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <User className="h-5 w-5 text-blue-600" />
+                      <h4 className="font-medium text-gray-900">Personal Information</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Name:</span>
+                        <p className="font-medium">{userProfile.firstName} {userProfile.lastName}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Email:</span>
+                        <p className="font-medium">{userProfile.email}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Phone:</span>
+                        <p className="font-medium">{userProfile.profile?.phone || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Location:</span>
+                        <p className="font-medium">{userProfile.profile?.location || 'Not provided'}</p>
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Additional Documents */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Additional Documents (Optional)
-                </label>
-                <p className="text-sm text-gray-600 mb-3">
-                  Portfolio, cover letter, certifications, etc.
-                </p>
+                  {/* Education Background */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <GraduationCap className="h-5 w-5 text-blue-600" />
+                      <h4 className="font-medium text-gray-900">Education Background</h4>
+                    </div>
+                    {userProfile.student?.education?.length > 0 ? (
+                      <div className="space-y-2">
+                        {userProfile.student.education.map((edu: any, index: number) => (
+                          <div key={index} className="text-sm">
+                            <p className="font-medium">{edu.degree} in {edu.field}</p>
+                            <p className="text-gray-600">{edu.institution}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-600">No education information provided</p>
+                    )}
+                  </div>
 
-                {applicationData.additionalDocuments.length > 0 && (
-                  <div className="space-y-2 mb-4">
-                    {applicationData.additionalDocuments.map((doc, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  {/* Skills */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Award className="h-5 w-5 text-blue-600" />
+                      <h4 className="font-medium text-gray-900">Skills</h4>
+                    </div>
+                    {userProfile.student?.skills?.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {userProfile.student.skills.map((skill: string, index: number) => (
+                          <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-600">No skills listed</p>
+                    )}
+                  </div>
+
+                  {/* Resume */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                      <h4 className="font-medium text-gray-900">Resume</h4>
+                    </div>
+                    {userProfile.student?.resume ? (
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-gray-600" />
-                          <span className="text-sm text-gray-900">{doc.name}</span>
+                          <FileText className="h-8 w-8 text-blue-600" />
+                          <div>
+                            <p className="font-medium text-gray-900">Resume.pdf</p>
+                            <p className="text-sm text-gray-600">Click to download and review</p>
+                          </div>
                         </div>
                         <button
-                          onClick={() => removeDocument(index)}
-                          className="text-red-600 hover:text-red-700"
+                          onClick={downloadResume}
+                          className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                         >
-                          <X className="h-4 w-4" />
+                          <Download className="h-4 w-4" />
+                          Download
                         </button>
                       </div>
-                    ))}
+                    ) : (
+                      <p className="text-sm text-gray-600">No resume uploaded</p>
+                    )}
                   </div>
-                )}
 
-                <button
-                  onClick={() => documentsInputRef.current?.click()}
-                  className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700"
-                >
-                  + Add Document
-                </button>
-                <input
-                  ref={documentsInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  onChange={(e) => handleFileUpload('documents', e.target.files)}
-                  className="hidden"
-                />
-              </div>
+                  {/* Confirmation Checkbox */}
+                  <div className="border-t pt-4">
+                    <label className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={applicationData.profileConfirmed}
+                        onChange={(e) => handleInputChange('profileConfirmed', e.target.checked)}
+                        className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <div className="text-sm">
+                        <p className="font-medium text-gray-900">I confirm that the information above is accurate</p>
+                        <p className="text-gray-600">
+                          By checking this box, I confirm that all the personal information, education background,
+                          skills, and resume shown above are accurate and up-to-date for this job application.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <p className="text-gray-600">Failed to load profile information. Please try again.</p>
+                </div>
+              )}
             </div>
           )}
 
           {currentStep === 3 && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Cover Letter</h3>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Why are you interested in this position? *
-                </label>
-                <textarea
-                  value={applicationData.coverLetter}
-                  onChange={(e) => setApplicationData(prev => ({ ...prev, coverLetter: e.target.value }))}
-                  rows={12}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Tell us about your interest in this role, relevant experience, and what you can bring to the team..."
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  {applicationData.coverLetter.length} characters
-                </p>
-              </div>
-            </div>
-          )}
-
-          {currentStep === 4 && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Screening Questions</h3>
-              <div className="space-y-6">
-                {screeningQuestions.map((question) => (
-                  <div key={question.id}>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {question.question} {question.required && '*'}
-                    </label>
-                    {question.type === 'select' ? (
-                      <select
-                        value={applicationData.questions[question.id] || ''}
-                        onChange={(e) => handleQuestionChange(question.id, e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Select an option</option>
-                        {question.options?.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <textarea
-                        value={applicationData.questions[question.id] || ''}
-                        onChange={(e) => handleQuestionChange(question.id, e.target.value)}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Please provide details..."
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {currentStep === 5 && (
             <div className="space-y-6">
               {submitStatus === 'success' ? (
                 <div className="text-center py-8">
@@ -580,31 +461,21 @@ export default function JobApplicationModal({ isOpen, onClose, job, onSubmit }: 
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Review Your Application</h3>
                   <div className="space-y-4">
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">Personal Information</h4>
-                      <p className="text-sm text-gray-600">
-                        {applicationData.personalInfo.firstName} {applicationData.personalInfo.lastName}
-                      </p>
-                      <p className="text-sm text-gray-600">{applicationData.personalInfo.email}</p>
-                      <p className="text-sm text-gray-600">{applicationData.personalInfo.phone}</p>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">Documents</h4>
-                      <p className="text-sm text-gray-600">
-                        Resume: {applicationData.resume?.name}
-                      </p>
-                      {applicationData.additionalDocuments.length > 0 && (
-                        <p className="text-sm text-gray-600">
-                          Additional documents: {applicationData.additionalDocuments.length} files
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">Cover Letter</h4>
-                      <p className="text-sm text-gray-600 line-clamp-3">
-                        {applicationData.coverLetter}
-                      </p>
+                      <h4 className="font-medium text-gray-900 mb-2">Application Summary</h4>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="text-gray-600">Candidate Statement:</span>
+                          <p className="text-gray-900 line-clamp-3">{applicationData.candidateStatement}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Valid Until:</span>
+                          <p className="text-gray-900">{applicationData.applicationValidity}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Profile Confirmed:</span>
+                          <p className="text-gray-900">{applicationData.profileConfirmed ? 'Yes' : 'No'}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -636,7 +507,7 @@ export default function JobApplicationModal({ isOpen, onClose, job, onSubmit }: 
                 Cancel
               </button>
 
-              {currentStep < 4 ? (
+              {currentStep < 2 ? (
                 <button
                   onClick={handleNext}
                   disabled={!validateStep(currentStep)}
@@ -648,13 +519,13 @@ export default function JobApplicationModal({ isOpen, onClose, job, onSubmit }: 
                 >
                   Next
                 </button>
-              ) : currentStep === 4 ? (
+              ) : currentStep === 2 ? (
                 <button
                   onClick={handleSubmit}
                   disabled={!validateStep(currentStep) || isSubmitting}
                   className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
                     validateStep(currentStep) && !isSubmitting
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      ? 'bg-green-600 text-white hover:bg-green-700'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >

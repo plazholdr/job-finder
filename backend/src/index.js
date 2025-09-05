@@ -30,45 +30,44 @@ process.on('unhandledRejection', (reason, promise) => {
 
 console.log('📦 Loading dependencies...');
 
-// Declare app variable outside try block
+// Declare app, express, and logger variables outside try block
 let app;
+const express = require('@feathersjs/express');
+console.log('✅ Feathers Express loaded');
 
-try {
-  const express = require('@feathersjs/express');
-  console.log('✅ Feathers Express loaded');
+const feathers = require('@feathersjs/feathers');
+console.log('✅ Feathers core loaded');
 
-  const feathers = require('@feathersjs/feathers');
-  console.log('✅ Feathers core loaded');
+const socketio = require('@feathersjs/socketio');
+console.log('✅ Socket.IO loaded');
 
-  const socketio = require('@feathersjs/socketio');
-  console.log('✅ Socket.IO loaded');
+const cors = require('cors');
+console.log('✅ CORS loaded');
 
-  const cors = require('cors');
-  console.log('✅ CORS loaded');
+const helmet = require('helmet');
+console.log('✅ Helmet loaded');
 
-  const helmet = require('helmet');
-  console.log('✅ Helmet loaded');
+console.log('📋 Loading application modules...');
 
-  console.log('📋 Loading application modules...');
+const config = require('./config');
+console.log('✅ Config loaded');
 
-  const config = require('./config');
-  console.log('✅ Config loaded');
+const logger = require('./logger');
+console.log('✅ Logger loaded');
 
-  const logger = require('./logger');
-  console.log('✅ Logger loaded');
+const services = require('./services');
+console.log('✅ Services loaded');
 
-  const services = require('./services');
-  console.log('✅ Services loaded');
+const middleware = require('./middleware');
+console.log('✅ Middleware loaded');
 
-  const middleware = require('./middleware');
-  console.log('✅ Middleware loaded');
+const { connectToMongoDB, getClient } = require('./db');
+console.log('✅ Database module loaded');
 
-  const { connectToMongoDB } = require('./db');
-  console.log('✅ Database module loaded');
-
-  const { connectToRedis } = require('./redis');
+const { connectToRedis } = require('./redis');
   console.log('✅ Redis module loaded');
 
+try {
   console.log('🚀 Creating Feathers application...');
 
   // Create an Express compatible Feathers application
@@ -156,6 +155,7 @@ async function start() {
     // Connect to MongoDB
     await connectToMongoDB();
     app.set('mongoConnected', true);
+    app.set('mongoClient', getClient());
 
     // Connect to Redis
     try {

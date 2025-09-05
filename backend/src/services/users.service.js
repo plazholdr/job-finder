@@ -1,6 +1,7 @@
 const { getDB } = require('../db');
 const UserModel = require('../models/user.model');
 const EmailService = require('./email.service');
+const StorageUtils = require('../utils/storage');
 const logger = require('../logger');
 
 class UsersService {
@@ -120,6 +121,8 @@ class UsersService {
   // Update current user profile
   async updateCurrentUser(userId, data) {
     try {
+      logger.info(`Attempting to update user: ${userId}`, { userId, userIdType: typeof userId });
+
       // Prevent updating sensitive fields
       const { role, isActive, emailVerified, ...safeData } = data;
 
@@ -127,7 +130,7 @@ class UsersService {
       logger.info(`Current user updated: ${userId}`);
       return user;
     } catch (error) {
-      logger.error('Current user update failed', { userId, error: error.message });
+      logger.error('Current user update failed', { userId, userIdType: typeof userId, error: error.message });
       throw error;
     }
   }
@@ -461,6 +464,269 @@ class UsersService {
     }
 
     return filteredUser;
+  }
+
+  // Resume upload method
+  async uploadResume(file, params) {
+    try {
+      const userId = params.userId; // Use the string userId from JWT token
+      const userRole = params.user?.role;
+
+      if (!userId) {
+        throw new Error('Authentication required');
+      }
+
+      // Only students can upload resumes
+      if (userRole !== 'student') {
+        throw new Error('Only students can upload resumes');
+      }
+
+      // Validate file
+      const validation = StorageUtils.validateFile(file);
+      if (!validation.isValid) {
+        throw new Error(`File validation failed: ${validation.errors.join(', ')}`);
+      }
+
+      // Upload file to GCS with user-specific path
+      const uploadResult = await StorageUtils.uploadUserResume(
+        file.buffer,
+        file.originalname,
+        userId,
+        file.mimetype
+      );
+
+      if (!uploadResult.success) {
+        throw new Error('Failed to upload resume to storage');
+      }
+
+      // Update user's resume field in database
+      // First get the current user to preserve existing student data
+      const currentUser = await this.userModel.findById(userId);
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
+
+      // Update the student.resume field while preserving other student data
+      const updateData = {
+        student: {
+          ...currentUser.student,
+          resume: uploadResult.filePath // Store the GCS file path
+        }
+      };
+
+      console.log('=== RESUME UPDATE DEBUG ===');
+      console.log('userId:', userId);
+      console.log('userId type:', typeof userId);
+      console.log('updateData:', updateData);
+      console.log('uploadResult.filePath:', uploadResult.filePath);
+      console.log('=== END DEBUG ===');
+
+      const updatedUser = await this.userModel.updateById(userId, updateData);
+
+      console.log('=== AFTER UPDATE ===');
+      console.log('updatedUser.student.resume:', updatedUser?.student?.resume);
+      console.log('=== END AFTER UPDATE ===');
+
+      logger.info(`Resume uploaded for user: ${userId}`, {
+        fileName: uploadResult.fileName,
+        filePath: uploadResult.filePath
+      });
+
+      return {
+        success: true,
+        message: 'Resume uploaded successfully',
+        data: {
+          fileName: uploadResult.fileName,
+          filePath: uploadResult.filePath,
+          uploadedAt: uploadResult.uploadedAt
+        }
+      };
+    } catch (error) {
+      logger.error('Resume upload failed', {
+        userId: params.user?._id,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  // Update user profile method
+  async updateProfile(updateData, params) {
+    try {
+      const userId = params.userId; // Use the string userId from JWT token
+      const userRole = params.user?.role;
+
+      if (!userId) {
+        throw new Error('Authentication required');
+      }
+
+      console.log('=== PROFILE UPDATE DEBUG ===');
+      console.log('userId:', userId);
+      console.log('userId type:', typeof userId);
+      console.log('updateData:', JSON.stringify(updateData, null, 2));
+      console.log('=== END DEBUG ===');
+
+      // Clean the updateData to ensure no ObjectId references
+      const cleanUpdateData = JSON.parse(JSON.stringify(updateData));
+
+      logger.info(`Updating profile for user: ${userId}`, {
+        userIdType: typeof userId,
+        userId: userId,
+        updateDataKeys: Object.keys(cleanUpdateData)
+      });
+
+      // Use the proper UserModel as intended
+      const updatedUser = await this.userModel.updateById(userId, cleanUpdateData);
+
+      if (!updatedUser) {
+        throw new Error('User not found');
+      }
+
+      // Remove sensitive information before returning
+      const { password, resetPasswordToken, resetPasswordExpires, ...safeUser } = updatedUser;
+
+      logger.info(`Profile updated successfully for user: ${userId}`);
+
+      return {
+        success: true,
+        message: 'Profile updated successfully',
+        data: safeUser
+      };
+    } catch (error) {
+      logger.error('Profile update failed', {
+        userId: params.userId,
+        userIdType: typeof params.userId,
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
+  }
+
+  // Download user resume method
+  async downloadResume(params) {
+    try {
+      const userId = params.userId;
+      const userRole = params.user?.role;
+
+      if (!userId) {
+        throw new Error('Authentication required');
+      }
+
+      // Get user to check if they have a resume
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      if (!user.student?.resume) {
+        throw new Error('No resume found for this user');
+      }
+
+      // Download file from Google Cloud Storage
+      const StorageUtils = require('../utils/storage');
+      const result = await StorageUtils.downloadFile(user.student.resume);
+
+      logger.info(`Resume downloaded for user: ${userId}`);
+
+      return {
+        success: true,
+        fileBuffer: result.fileBuffer,
+        fileName: result.fileName,
+        mimeType: result.mimeType
+      };
+    } catch (error) {
+      logger.error('Resume download failed', {
+        userId: params.userId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  // Download specific user's resume method (for companies to download candidate resumes)
+  async downloadUserResume(params) {
+    try {
+      const requesterId = params.userId;
+      const requesterRole = params.user?.role;
+      const targetUserId = params.targetUserId;
+
+      if (!requesterId) {
+        throw new Error('Authentication required');
+      }
+
+      if (!targetUserId) {
+        throw new Error('Target user ID required');
+      }
+
+      // Only allow companies to download other users' resumes
+      if (requesterRole !== 'company') {
+        throw new Error('Only companies can download candidate resumes');
+      }
+
+      console.log('🔍 Company downloading resume:', { requesterId, targetUserId, requesterRole });
+
+      // Get target user to check if they have a resume
+      const targetUser = await this.userModel.findById(targetUserId);
+      if (!targetUser) {
+        throw new Error('Candidate not found');
+      }
+
+      if (!targetUser.student?.resume) {
+        throw new Error('No resume found for this candidate');
+      }
+
+      // Download file from Google Cloud Storage
+      const StorageUtils = require('../utils/storage');
+      const result = await StorageUtils.downloadFile(targetUser.student.resume);
+
+      logger.info(`Resume downloaded by company ${requesterId} for candidate: ${targetUserId}`);
+
+      return {
+        success: true,
+        fileBuffer: result.fileBuffer,
+        fileName: result.fileName,
+        mimeType: result.mimeType
+      };
+    } catch (error) {
+      logger.error('User resume download failed', {
+        requesterId: params.userId,
+        targetUserId: params.targetUserId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  // Get user resume path method
+  async getResumePath(params) {
+    try {
+      const userId = params.userId;
+
+      if (!userId) {
+        throw new Error('Authentication required');
+      }
+
+      // Get user to check if they have a resume
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      logger.info(`Resume path retrieved for user: ${userId}`);
+
+      return {
+        success: true,
+        resumePath: user.student?.resume || null,
+        hasResume: !!user.student?.resume
+      };
+    } catch (error) {
+      logger.error('Resume path retrieval failed', {
+        userId: params.userId,
+        error: error.message
+      });
+      throw error;
+    }
   }
 }
 

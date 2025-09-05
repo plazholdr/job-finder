@@ -292,6 +292,101 @@ class NotificationService {
     return this.createNotification(userId, notification);
   }
 
+  // Workflow-specific notification methods
+  async notifyNewApplication(application) {
+    try {
+      await this.createNotification(application.companyId, {
+        type: 'new_application',
+        title: 'New Job Application',
+        message: `${application.candidateName} applied for ${application.jobTitle}`,
+        category: 'application',
+        priority: 'normal',
+        data: { applicationId: application._id, jobId: application.jobId },
+        actionUrl: `/company/applications/${application._id}`,
+        actionText: 'Review Application'
+      });
+    } catch (error) {
+      logger.error('Failed to notify new application', { applicationId: application._id, error: error.message });
+    }
+  }
+
+  async notifyHiringManager(application) {
+    try {
+      await this.createNotification(application.companyId, {
+        type: 'hiring_manager_review',
+        title: 'Application Needs Review',
+        message: `Application from ${application.candidateName} requires hiring manager review`,
+        category: 'application',
+        priority: 'high',
+        data: { applicationId: application._id },
+        actionUrl: `/company/applications/${application._id}`,
+        actionText: 'Review Now'
+      });
+    } catch (error) {
+      logger.error('Failed to notify hiring manager', { applicationId: application._id, error: error.message });
+    }
+  }
+
+  async sendInterviewInvitation(application, interviewDetails) {
+    try {
+      await this.createNotification(application.userId, {
+        type: 'interview_invitation',
+        title: 'Interview Scheduled',
+        message: `Your interview for ${application.jobTitle} has been scheduled`,
+        category: 'interview',
+        priority: 'high',
+        data: {
+          applicationId: application._id,
+          interviewDetails: interviewDetails
+        },
+        actionUrl: `/applications/${application._id}/interview`,
+        actionText: 'View Details'
+      });
+    } catch (error) {
+      logger.error('Failed to send interview invitation', { applicationId: application._id, error: error.message });
+    }
+  }
+
+  async sendOfferLetter(application, offerDetails) {
+    try {
+      await this.createNotification(application.userId, {
+        type: 'offer_extended',
+        title: 'Job Offer Received',
+        message: `Congratulations! You have received a job offer for ${application.jobTitle}`,
+        category: 'offer',
+        priority: 'urgent',
+        data: {
+          applicationId: application._id,
+          offerDetails: offerDetails
+        },
+        actionUrl: `/applications/${application._id}/offer`,
+        actionText: 'View Offer'
+      });
+    } catch (error) {
+      logger.error('Failed to send offer letter', { applicationId: application._id, error: error.message });
+    }
+  }
+
+  async sendRejectionNotification(application, rejectionReason) {
+    try {
+      await this.createNotification(application.userId, {
+        type: 'application_rejected',
+        title: 'Application Update',
+        message: `Thank you for your interest in ${application.jobTitle}. We have decided to move forward with other candidates.`,
+        category: 'application',
+        priority: 'normal',
+        data: {
+          applicationId: application._id,
+          rejectionReason: rejectionReason
+        },
+        actionUrl: `/applications/${application._id}`,
+        actionText: 'View Details'
+      });
+    } catch (error) {
+      logger.error('Failed to send rejection notification', { applicationId: application._id, error: error.message });
+    }
+  }
+
   // Clean up expired notifications
   async cleanupExpiredNotifications() {
     try {

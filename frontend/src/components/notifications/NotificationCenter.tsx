@@ -10,8 +10,8 @@ interface Notification {
   type: 'application_update' | 'interview_scheduled' | 'offer_received' | 'deadline_reminder';
   title: string;
   message: string;
-  timestamp: Date;
-  read: boolean;
+  createdAt: string;
+  isRead: boolean;
   actionUrl?: string;
   applicationId?: string;
   jobTitle?: string;
@@ -37,13 +37,15 @@ export default function NotificationCenter({ className = '' }: NotificationCente
       const response = await fetch('/api/notifications');
       const data = await response.json();
 
-      if (data.success) {
-        setNotifications(data.data);
+      if (data.success && data.data && Array.isArray(data.data.notifications)) {
+        setNotifications(data.data.notifications);
       } else {
         console.error('Failed to fetch notifications:', data.error);
+        setNotifications([]); // Ensure notifications is always an array
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      setNotifications([]); // Ensure notifications is always an array
     } finally {
       setLoading(false);
     }
@@ -66,7 +68,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
         setNotifications(prev =>
           prev.map(notif =>
             notif.id === notificationId
-              ? { ...notif, read: true }
+              ? { ...notif, isRead: true }
               : notif
           )
         );
@@ -90,7 +92,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
 
       if (response.ok) {
         setNotifications(prev =>
-          prev.map(notif => ({ ...notif, read: true }))
+          prev.map(notif => ({ ...notif, isRead: true }))
         );
       }
     } catch (error) {
@@ -135,9 +137,10 @@ export default function NotificationCenter({ className = '' }: NotificationCente
     }
   };
 
-  const formatTimestamp = (timestamp: Date) => {
+  const formatTimestamp = (timestamp: string | Date) => {
     const now = new Date();
-    const diff = now.getTime() - new Date(timestamp).getTime();
+    const date = new Date(timestamp);
+    const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -149,11 +152,11 @@ export default function NotificationCenter({ className = '' }: NotificationCente
     } else if (days < 7) {
       return `${days}d ago`;
     } else {
-      return new Date(timestamp).toLocaleDateString();
+      return date.toLocaleDateString();
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0;
 
   return (
     <div className={`relative ${className}`}>
@@ -209,7 +212,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               <div className="p-4 text-center">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
               </div>
-            ) : notifications.length === 0 ? (
+            ) : !Array.isArray(notifications) || notifications.length === 0 ? (
               <div className="p-8 text-center">
                 <Bell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-600">No notifications</p>
@@ -220,7 +223,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                   <div
                     key={notification.id}
                     className={`p-4 hover:bg-gray-50 cursor-pointer ${
-                      !notification.read ? 'bg-blue-50' : ''
+                      !notification.isRead ? 'bg-blue-50' : ''
                     }`}
                     onClick={() => {
                       markAsRead(notification.id);
@@ -236,13 +239,13 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className={`text-sm font-medium ${
-                            !notification.read ? 'text-gray-900' : 'text-gray-700'
+                            !notification.isRead ? 'text-gray-900' : 'text-gray-700'
                           }`}>
                             {notification.title}
                           </p>
                           <div className="flex items-center space-x-2">
                             <span className="text-xs text-gray-500">
-                              {formatTimestamp(notification.timestamp)}
+                              {formatTimestamp(notification.createdAt)}
                             </span>
                             <Button
                               variant="ghost"
@@ -268,7 +271,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                             </span>
                           </div>
                         )}
-                        {!notification.read && (
+                        {!notification.isRead && (
                           <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
                         )}
                       </div>
@@ -280,7 +283,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
           </div>
 
           {/* Footer */}
-          {notifications.length > 0 && (
+          {Array.isArray(notifications) && notifications.length > 0 && (
             <div className="p-3 border-t border-gray-200">
               <Button
                 variant="ghost"

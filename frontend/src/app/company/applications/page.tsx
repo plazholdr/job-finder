@@ -212,6 +212,38 @@ export default function CompanyApplicationsPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Workflow Navigation */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Application Workflow Management</h3>
+                <p className="text-sm text-gray-600">Access advanced workflow tools and analytics</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/company/applications/enhanced-workflow">
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Enhanced Workflow
+                  </Button>
+                </Link>
+                <Link href="/company/applications/workflow-dashboard">
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <MoreHorizontal className="h-4 w-4" />
+                    Workflow Dashboard
+                  </Button>
+                </Link>
+                <Link href="/company/applications/workflow">
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    Standard Workflow
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Filters and Bulk Actions */}
         <Card className="mb-8">
           <CardContent className="p-6">

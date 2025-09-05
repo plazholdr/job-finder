@@ -28,6 +28,7 @@ function InternshipApplications() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Mock applications data
   const applications: InternshipApplication[] = [
@@ -172,6 +173,20 @@ function InternshipApplications() {
         return 'Not Selected';
       default:
         return status;
+    }
+  };
+
+  const handleAcceptOffer = async (applicationId: string) => {
+    setActionLoading(applicationId);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      alert('Offer accepted successfully! You will receive a confirmation email shortly.');
+      // In a real app, you would update the application status here
+    } catch (error) {
+      alert('Failed to accept offer. Please try again.');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -380,8 +395,12 @@ function InternshipApplications() {
                           View Details
                         </Link>
                         {application.status === 'accepted' && (
-                          <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                            Accept Offer
+                          <button
+                            onClick={() => handleAcceptOffer(application.id)}
+                            disabled={actionLoading === application.id}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {actionLoading === application.id ? 'Processing...' : 'Accept Offer'}
                           </button>
                         )}
                       </div>

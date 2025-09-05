@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import JobApplicationModal from '@/components/JobApplicationModal';
+import EnhancedJobApplicationModal from '@/components/EnhancedJobApplicationModal';
 
 interface JobDetails {
   id: string;
@@ -67,82 +67,87 @@ export default function JobDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   const [showApplicationModal, setShowApplicationModal] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
 
   const jobId = params.jobId as string;
 
-  useEffect(() => {
-    // Mock job data - replace with actual API call
-    const mockJob: JobDetails = {
-      id: jobId,
-      title: "Senior Frontend Developer",
-      company: {
-        id: "1",
-        name: "TechCorp Inc.",
-        logo: "/api/placeholder/80/80",
-        industry: "Technology",
-        size: "100-500 employees",
-        location: "San Francisco, CA",
-        website: "https://techcorp.com",
-        description: "TechCorp is a leading technology company focused on building innovative solutions for the modern world. We're passionate about creating products that make a difference."
-      },
-      location: "San Francisco, CA",
-      type: "Full-time",
-      level: "Senior",
-      salary: {
-        min: 120000,
-        max: 180000,
-        currency: "USD",
-        period: "year"
-      },
-      posted: "2024-01-15",
-      deadline: "2024-02-15",
-      description: `We are looking for a talented Senior Frontend Developer to join our growing team. You will be responsible for building and maintaining our web applications using modern technologies and best practices.
+  const checkApplicationStatus = async () => {
+    if (!user) return;
 
-This is an excellent opportunity to work with a passionate team on cutting-edge projects that impact millions of users worldwide. You'll have the chance to mentor junior developers and contribute to architectural decisions.`,
-      requirements: [
-        "5+ years of experience in frontend development",
-        "Expert knowledge of React, TypeScript, and modern JavaScript",
-        "Experience with state management libraries (Redux, Zustand)",
-        "Proficiency in CSS frameworks (Tailwind, Styled Components)",
-        "Experience with testing frameworks (Jest, React Testing Library)",
-        "Knowledge of build tools (Webpack, Vite)",
-        "Understanding of web performance optimization",
-        "Experience with version control (Git)"
-      ],
-      responsibilities: [
-        "Develop and maintain high-quality web applications",
-        "Collaborate with designers and backend developers",
-        "Write clean, maintainable, and well-documented code",
-        "Participate in code reviews and technical discussions",
-        "Mentor junior developers and share knowledge",
-        "Optimize applications for maximum speed and scalability",
-        "Stay up-to-date with the latest frontend technologies"
-      ],
-      benefits: [
-        "Competitive salary and equity package",
-        "Comprehensive health, dental, and vision insurance",
-        "401(k) with company matching",
-        "Flexible work arrangements and remote options",
-        "Professional development budget",
-        "Unlimited PTO policy",
-        "Modern office with free meals and snacks",
-        "Team building events and company retreats"
-      ],
-      skills: ["React", "TypeScript", "JavaScript", "CSS", "HTML", "Redux", "Tailwind CSS", "Git"],
-      experience: "5+ years",
-      education: "Bachelor's degree in Computer Science or related field",
-      remote: true,
-      applications: 45,
-      views: 234,
-      status: 'active'
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/jobs/${jobId}/applied`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      setHasApplied(data.hasApplied || false);
+    } catch (error) {
+      console.error('Error checking application status:', error);
+    }
+  };
+
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/jobs/${jobId}`);
+        const data = await response.json();
+
+        if (data.success) {
+          // Transform backend data to frontend format
+          const transformedJob: JobDetails = {
+            id: data.data._id || data.data.id,
+            title: data.data.title,
+            company: {
+              id: data.data.companyId,
+              name: data.data.companyName || data.data.companyInfo?.name || 'Company Name',
+              logo: "/api/placeholder/80/80",
+              industry: data.data.companyInfo?.industry || "Technology",
+              size: data.data.companyInfo?.size || "Unknown",
+              location: data.data.companyInfo?.location || data.data.location,
+              website: data.data.companyInfo?.website || "",
+              description: data.data.companyInfo?.description || "Company description not available."
+            },
+            location: data.data.location,
+            type: "Internship",
+            level: "Entry",
+            salary: {
+              min: data.data.salary?.minimum || 0,
+              max: data.data.salary?.maximum || 0,
+              currency: data.data.salary?.currency || "USD",
+              period: data.data.salary?.type || "hour"
+            },
+            posted: data.data.createdAt,
+            deadline: data.data.duration?.endDate,
+            description: data.data.description,
+            requirements: data.data.requirements ? data.data.requirements.split('\n').filter(req => req.trim()) : [],
+            responsibilities: [],
+            benefits: [],
+            skills: data.data.skills?.technical ? data.data.skills.technical.split(' ') : [],
+            experience: "Entry level",
+            education: "Currently enrolled in relevant field",
+            remote: data.data.remoteWork || false,
+            applications: data.data.applications || 0,
+            views: data.data.views || 0,
+            status: data.data.status?.toLowerCase() || 'active'
+          };
+
+          setJob(transformedJob);
+        } else {
+          console.error('Failed to fetch job:', data.error);
+        }
+      } catch (error) {
+        console.error('Error fetching job:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // Simulate API call delay
-    setTimeout(() => {
-      setJob(mockJob);
-      setLoading(false);
-    }, 500);
-  }, [jobId]);
+    fetchJob();
+    checkApplicationStatus();
+  }, [jobId, user]);
 
   const handleSaveJob = () => {
     setIsSaved(!isSaved);
@@ -158,21 +163,44 @@ This is an excellent opportunity to work with a passionate team on cutting-edge 
   };
 
   const handleApplicationSubmit = async (applicationData: any) => {
-    // TODO: Implement actual API call to submit application
-    console.log('Submitting application:', applicationData);
+    try {
+      const token = localStorage.getItem('authToken');
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await fetch('/api/applications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          jobId: jobId,
+          personalInformation: `${user?.firstName} ${user?.lastName}, ${user?.email}, ${user?.profile?.phone || 'N/A'}, ${user?.profile?.location || 'N/A'}`,
+          internshipDetails: applicationData.applicationValidity,
+          courseInformation: user?.student?.education ? JSON.stringify(user.student.education) : 'No education info provided',
+          assignmentInformation: user?.student?.experience ? JSON.stringify(user.student.experience) : 'No experience info provided',
+          coverLetter: applicationData.candidateStatement,
+          resumeUrl: user?.student?.resume || null,
+          portfolioUrl: user?.student?.portfolio || null,
+          additionalDocuments: []
+        }),
+      });
 
-    // For now, just log the data - in real app, this would call the backend
-    // Example API call:
-    // const response = await fetch(`/api/jobs/${jobId}/apply`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(applicationData)
-    // });
+      const result = await response.json();
 
-    setShowApplicationModal(false);
+      if (result.success) {
+        // Show success message
+        alert('🎉 Application submitted successfully! The company will review your application and get back to you.');
+        setShowApplicationModal(false);
+        setHasApplied(true);
+        // Refresh job data to update application count
+        fetchJob();
+      } else {
+        throw new Error(result.error || 'Failed to submit application');
+      }
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      throw error; // Re-throw to let the modal handle the error
+    }
   };
 
   const handleShare = () => {
@@ -401,14 +429,21 @@ This is an excellent opportunity to work with a passionate team on cutting-edge 
 
               <button
                 onClick={handleApply}
-                disabled={job.status !== 'active'}
+                disabled={job.status !== 'active' || hasApplied}
                 className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                  job.status === 'active'
+                  job.status === 'active' && !hasApplied
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : hasApplied
+                    ? 'bg-green-100 text-green-700 border border-green-300'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
-                {job.status === 'active' ? 'Apply Now' : 'Position Closed'}
+                {hasApplied
+                  ? 'Application Submitted'
+                  : job.status === 'active'
+                  ? 'Apply Now'
+                  : 'Position Closed'
+                }
               </button>
 
               <div className="mt-4 text-center">
@@ -488,12 +523,20 @@ This is an excellent opportunity to work with a passionate team on cutting-edge 
       </div>
 
       {/* Application Modal */}
-      <JobApplicationModal
-        isOpen={showApplicationModal}
-        onClose={() => setShowApplicationModal(false)}
-        job={job}
-        onSubmit={handleApplicationSubmit}
-      />
+      {job && (
+        <EnhancedJobApplicationModal
+          isOpen={showApplicationModal}
+          onClose={() => setShowApplicationModal(false)}
+          job={{
+            id: job.id,
+            title: job.title,
+            company: {
+              name: job.company?.name || 'Company Name'
+            }
+          }}
+          onSubmit={handleApplicationSubmit}
+        />
+      )}
     </div>
   );
 }

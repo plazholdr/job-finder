@@ -1,188 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { JobPosting } from '@/types/company';
+import config from '@/config';
 
-// Mock job postings data
-const mockJobs: JobPosting[] = [
-  {
-    id: 'job-1',
-    companyId: 'company-1',
-    title: 'Software Engineering Intern',
-    description: 'Join our engineering team to work on cutting-edge web applications.',
-    requirements: ['JavaScript', 'React', 'Node.js'],
-    responsibilities: ['Develop web applications', 'Write clean code', 'Collaborate with team'],
-    type: 'internship',
-    level: 'entry',
-    department: 'Engineering',
-    location: {
-      type: 'hybrid',
-      city: 'San Francisco',
-      state: 'CA',
-      country: 'USA'
-    },
-    salary: {
-      min: 25,
-      max: 35,
-      currency: 'USD',
-      period: 'hour'
-    },
-    applicationDeadline: new Date('2024-12-31'),
-    requiredSkills: ['JavaScript', 'React', 'Git'],
-    preferredSkills: ['TypeScript', 'Next.js'],
-    education: {
-      level: 'bachelor',
-      field: 'Computer Science'
-    },
-    experience: {
-      min: 0,
-      max: 1,
-      unit: 'years'
-    },
-    applicationProcess: {
-      steps: ['Application Review', 'Technical Interview', 'Final Interview'],
-      documentsRequired: ['Resume', 'Cover Letter', 'Portfolio'],
-      interviewProcess: 'Two-round interview process'
-    },
-    status: 'published',
-    applicationsCount: 45,
-    viewsCount: 234,
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15'),
-    publishedAt: new Date('2024-01-15')
-  },
-  {
-    id: 'job-2',
-    companyId: 'company-1',
-    title: 'Marketing Intern',
-    description: 'Help us grow our brand and reach new audiences.',
-    requirements: ['Marketing knowledge', 'Social media experience'],
-    responsibilities: ['Create content', 'Manage social media', 'Analyze metrics'],
-    type: 'internship',
-    level: 'entry',
-    department: 'Marketing',
-    location: {
-      type: 'remote',
-      country: 'USA'
-    },
-    salary: {
-      min: 20,
-      max: 25,
-      currency: 'USD',
-      period: 'hour'
-    },
-    applicationDeadline: new Date('2024-12-31'),
-    requiredSkills: ['Social Media', 'Content Creation'],
-    preferredSkills: ['Adobe Creative Suite', 'Analytics'],
-    education: {
-      level: 'bachelor',
-      field: 'Marketing'
-    },
-    experience: {
-      min: 0,
-      unit: 'years'
-    },
-    applicationProcess: {
-      steps: ['Application Review', 'Portfolio Review', 'Interview'],
-      documentsRequired: ['Resume', 'Portfolio'],
-      interviewProcess: 'Single interview with marketing team'
-    },
-    status: 'published',
-    applicationsCount: 28,
-    viewsCount: 156,
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10'),
-    publishedAt: new Date('2024-01-10')
-  },
-  {
-    id: 'job-3',
-    companyId: 'company-1',
-    title: 'Data Science Intern',
-    description: 'Work with our data team to analyze user behavior and business metrics.',
-    requirements: ['Python', 'Statistics', 'Data Analysis'],
-    responsibilities: ['Analyze data', 'Create visualizations', 'Build models'],
-    type: 'internship',
-    level: 'entry',
-    department: 'Data Science',
-    location: {
-      type: 'on-site',
-      city: 'New York',
-      state: 'NY',
-      country: 'USA'
-    },
-    salary: {
-      min: 30,
-      max: 40,
-      currency: 'USD',
-      period: 'hour'
-    },
-    applicationDeadline: new Date('2024-12-31'),
-    requiredSkills: ['Python', 'SQL', 'Statistics'],
-    preferredSkills: ['Machine Learning', 'R', 'Tableau'],
-    education: {
-      level: 'bachelor',
-      field: 'Data Science'
-    },
-    experience: {
-      min: 0,
-      max: 1,
-      unit: 'years'
-    },
-    applicationProcess: {
-      steps: ['Application Review', 'Technical Assessment', 'Interview'],
-      documentsRequired: ['Resume', 'Transcript'],
-      interviewProcess: 'Technical assessment followed by interview'
-    },
-    status: 'draft',
-    applicationsCount: 0,
-    viewsCount: 0,
-    createdAt: new Date('2024-01-20'),
-    updatedAt: new Date('2024-01-20')
-  }
-];
+const API_BASE_URL = config.api.baseUrl;
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const sort = searchParams.get('sort') || 'recent';
+    const limit = searchParams.get('limit') || '50';
+    const skip = searchParams.get('skip') || '0';
     const status = searchParams.get('status');
+    const sort = searchParams.get('sort') || 'recent';
 
-    let filteredJobs = [...mockJobs];
+    // Build query parameters for backend
+    const queryParams = new URLSearchParams();
+    queryParams.append('$limit', limit);
+    queryParams.append('$skip', skip);
 
-    // Filter by status if provided
-    if (status) {
-      filteredJobs = filteredJobs.filter(job => job.status === status);
-    }
-
-    // Sort jobs
+    // Map frontend sort to backend sort
     if (sort === 'recent') {
-      filteredJobs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      queryParams.append('$sort', JSON.stringify({ createdAt: -1 }));
     } else if (sort === 'applications') {
-      filteredJobs.sort((a, b) => b.applicationsCount - a.applicationsCount);
+      queryParams.append('$sort', JSON.stringify({ applications: -1 }));
     } else if (sort === 'views') {
-      filteredJobs.sort((a, b) => b.viewsCount - a.viewsCount);
+      queryParams.append('$sort', JSON.stringify({ views: -1 }));
     }
 
-    // Apply limit
-    const limitedJobs = filteredJobs.slice(0, limit);
+    if (status) {
+      queryParams.append('status', status);
+    }
 
-    return NextResponse.json({
-      success: true,
-      data: limitedJobs,
-      pagination: {
-        page: 1,
-        limit: limit,
-        total: filteredJobs.length,
-        totalPages: Math.ceil(filteredJobs.length / limit)
-      }
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
+    }
+
+    // Call backend API - this will automatically filter by company for company users
+    const response = await fetch(`${API_BASE_URL}/jobs?${queryParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
     });
 
+    const data = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data.message || 'Failed to fetch company jobs' },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(data);
+
   } catch (error) {
-    console.error('Error fetching jobs:', error);
+    console.error('Company jobs fetch error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Internal server error'
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -190,51 +65,36 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const jobData = await request.json();
-
-    // Validate required fields
-    const requiredFields = ['title', 'description', 'department', 'type', 'level'];
-    for (const field of requiredFields) {
-      if (!jobData[field]) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `${field} is required`
-          },
-          { status: 400 }
-        );
-      }
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
     }
 
-    // Create new job posting
-    const newJob: JobPosting = {
-      id: `job-${Date.now()}`,
-      companyId: 'company-1', // In real app, get from auth token
-      ...jobData,
-      applicationsCount: 0,
-      viewsCount: 0,
-      status: jobData.status || 'draft',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      publishedAt: jobData.status === 'published' ? new Date() : undefined
-    };
+    const body = await request.json();
 
-    // Add to mock storage
-    mockJobs.push(newJob);
-
-    return NextResponse.json({
-      success: true,
-      data: newJob,
-      message: 'Job posting created successfully'
+    const response = await fetch(`${API_BASE_URL}/jobs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+      body: JSON.stringify(body),
     });
 
+    const data = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data.message || data.error || 'Failed to create job' },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Error creating job:', error);
+    console.error('Job creation error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Internal server error'
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

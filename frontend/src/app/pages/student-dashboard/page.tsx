@@ -222,38 +222,38 @@ function StudentDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold text-gray-900">Find Your Dream Job</h1>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowProfileWizard(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-50 text-purple-700 rounded-xl hover:bg-purple-100 transition-colors duration-200 font-medium text-sm"
               >
                 <User className="h-4 w-4" />
                 Complete Profile
               </button>
               <Link
                 href="/internship"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-200 font-medium text-sm shadow-sm"
               >
                 <BookOpen className="h-4 w-4" />
                 Internships
               </Link>
               <Link
                 href="/saved-jobs"
-                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 font-medium text-sm shadow-sm"
               >
                 <Star className="h-4 w-4" />
                 Saved Jobs
               </Link>
               <Link
                 href="/applications"
-                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 font-medium text-sm shadow-sm"
               >
                 <Briefcase className="h-4 w-4" />
                 My Applications
               </Link>
               <Link
                 href="/users/search"
-                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 font-medium text-sm shadow-sm"
               >
                 <User className="h-4 w-4" />
                 Discover People

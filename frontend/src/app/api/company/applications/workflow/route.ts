@@ -283,10 +283,69 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Enhanced workflow stages based on the diagram
+const workflowStages = {
+  'submitted': {
+    name: 'New Application',
+    allowedTransitions: ['first_level_review', 'rejected'],
+    requiredFields: []
+  },
+  'first_level_review': {
+    name: 'First Level Review',
+    allowedTransitions: ['pending_acceptance', 'rejected'],
+    requiredFields: ['reviewer_notes']
+  },
+  'pending_acceptance': {
+    name: 'Pending Acceptance',
+    allowedTransitions: ['accepted', 'rejected'],
+    requiredFields: ['decision_reason']
+  },
+  'accepted': {
+    name: 'Accepted',
+    allowedTransitions: ['shortlisted', 'rejected'],
+    requiredFields: ['acceptance_notes']
+  },
+  'shortlisted': {
+    name: 'Shortlisted',
+    allowedTransitions: ['interview_scheduled', 'rejected'],
+    requiredFields: ['shortlist_reason']
+  },
+  'interview_scheduled': {
+    name: 'Interview Scheduled',
+    allowedTransitions: ['interview_completed', 'interview_rescheduled', 'rejected'],
+    requiredFields: ['interview_details']
+  },
+  'interview_completed': {
+    name: 'Interview Completed',
+    allowedTransitions: ['offer_extended', 'additional_interview', 'rejected'],
+    requiredFields: ['interview_feedback']
+  },
+  'offer_extended': {
+    name: 'Offer Extended',
+    allowedTransitions: ['offer_accepted', 'offer_declined', 'offer_negotiation'],
+    requiredFields: ['offer_details']
+  },
+  'offer_accepted': {
+    name: 'Offer Accepted',
+    allowedTransitions: ['onboarding_started'],
+    requiredFields: ['acceptance_confirmation']
+  },
+  'offer_declined': {
+    name: 'Offer Declined',
+    allowedTransitions: [],
+    requiredFields: ['decline_reason']
+  },
+  'rejected': {
+    name: 'Rejected',
+    allowedTransitions: [],
+    requiredFields: ['rejection_reason']
+  }
+};
+
 // POST workflow action
 export async function POST(request: NextRequest) {
   try {
-    const { applicationId, action, newStatus, notes, performedBy } = await request.json();
+    const { applicationId, action, newStatus, notes, performedBy, additionalData } = await request.json();
 
     // Validate required fields
     if (!applicationId || !action || !newStatus) {
@@ -300,7 +359,7 @@ export async function POST(request: NextRequest) {
     }
 
     const applicationIndex = mockApplications.findIndex(app => app.id === applicationId);
-    
+
     if (applicationIndex === -1) {
       return NextResponse.json(
         {
@@ -314,26 +373,41 @@ export async function POST(request: NextRequest) {
     const application = mockApplications[applicationIndex];
     const previousStatus = application.status;
 
-    // Validate status transition
-    const validTransitions: Record<string, string[]> = {
-      'submitted': ['pending_acceptance', 'rejected', 'on_hold'],
-      'pending_acceptance': ['reviewing', 'rejected'],
-      'reviewing': ['shortlisted', 'rejected', 'on_hold'],
-      'shortlisted': ['interview_scheduled', 'rejected'],
-      'interview_scheduled': ['interview_completed', 'rejected', 'interview_scheduled'],
-      'interview_completed': ['offer_extended', 'rejected', 'interview_scheduled'],
-      'offer_extended': ['offer_accepted', 'offer_declined', 'offer_extended'],
-      'on_hold': ['reviewing', 'rejected'],
-      'rejected': [], // Final state
-      'offer_accepted': [], // Final state
-      'offer_declined': [] // Final state
-    };
+    // Get current stage configuration
+    const currentStage = workflowStages[previousStatus];
+    const targetStage = workflowStages[newStatus];
 
-    if (!validTransitions[previousStatus]?.includes(newStatus)) {
+    if (!currentStage || !targetStage) {
       return NextResponse.json(
         {
           success: false,
-          error: `Invalid status transition from ${previousStatus} to ${newStatus}`
+          error: 'Invalid workflow stage'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate status transition
+    if (!currentStage.allowedTransitions.includes(newStatus)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Invalid status transition from ${previousStatus} to ${newStatus}. Allowed transitions: ${currentStage.allowedTransitions.join(', ')}`
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate required fields for target stage
+    const missingFields = targetStage.requiredFields.filter(field =>
+      !additionalData || !additionalData[field]
+    );
+
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Missing required fields for ${newStatus}: ${missingFields.join(', ')}`
         },
         { status: 400 }
       );

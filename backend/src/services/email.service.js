@@ -10,30 +10,32 @@ class EmailService {
 
   initializeTransporter() {
     try {
-      // For development, use ethereal email (fake SMTP)
-      if (this.config.env === 'development') {
-        this.transporter = nodemailer.createTransporter({
-          host: 'smtp.ethereal.email',
-          port: 587,
-          auth: {
-            user: 'ethereal.user@ethereal.email',
-            pass: 'ethereal.pass'
-          }
+      // Check if we have real SMTP credentials
+      const hasRealCredentials = this.config.email.smtp.auth.user &&
+                                this.config.email.smtp.auth.pass &&
+                                this.config.email.smtp.auth.pass !== 'REPLACE_WITH_YOUR_BREVO_SMTP_KEY';
+
+      if (this.config.env === 'development' && !hasRealCredentials) {
+        // Development mode without real credentials - log emails to console
+        this.transporter = nodemailer.createTransport({
+          streamTransport: true,
+          newline: 'unix',
+          buffer: true
         });
+        logger.info('Email service initialized (development mode - emails will be logged to console)');
       } else {
-        // Production email configuration
-        this.transporter = nodemailer.createTransporter({
-          host: this.config.email.smtp.host,
-          port: this.config.email.smtp.port,
-          secure: this.config.email.smtp.secure,
+        // Real SMTP configuration (development with credentials or production)
+        this.transporter = nodemailer.createTransport({
+          host: this.config.email.smtp.host || 'smtp-relay.brevo.com',
+          port: this.config.email.smtp.port || 587,
+          secure: this.config.email.smtp.secure || false,
           auth: {
             user: this.config.email.smtp.auth.user,
             pass: this.config.email.smtp.auth.pass,
           },
         });
+        logger.info(`Email service initialized (${this.config.env} mode - using real SMTP)`);
       }
-
-      logger.info('Email service initialized');
     } catch (error) {
       logger.error('Failed to initialize email service', { error: error.message });
     }
@@ -50,6 +52,21 @@ class EmailService {
         html: this.getEmailVerificationTemplate(user, verificationUrl),
         text: `Hi ${user.firstName},\n\nPlease verify your email address by clicking the following link:\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nBest regards,\nJob Finder Team`
       };
+
+      // Check if we're in development mode without real credentials
+      const hasRealCredentials = this.config.email.smtp.auth.user &&
+                                this.config.email.smtp.auth.pass &&
+                                this.config.email.smtp.auth.pass !== 'REPLACE_WITH_YOUR_BREVO_SMTP_KEY';
+
+      if (this.config.env === 'development' && !hasRealCredentials) {
+        logger.info('📧 EMAIL VERIFICATION (Development Mode - Console Only)', {
+          to: user.email,
+          subject: mailOptions.subject,
+          verificationUrl: verificationUrl,
+          userId: user._id
+        });
+        return { messageId: 'dev-' + Date.now() };
+      }
 
       const result = await this.transporter.sendMail(mailOptions);
       logger.info('Email verification sent', {

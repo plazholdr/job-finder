@@ -192,6 +192,7 @@ export interface JobPosting {
 export interface CandidateApplication {
   id: string;
   jobId: string;
+  jobTitle?: string; // Job title for display purposes
   candidateId: string;
 
   // Application Data
@@ -214,7 +215,7 @@ export interface CandidateApplication {
   // Application Status
   status: 'submitted' | 'reviewing' | 'shortlisted' | 'interview_scheduled' |
           'interview_completed' | 'reference_check' | 'offer_extended' |
-          'offer_accepted' | 'offer_declined' | 'rejected' | 'withdrawn';
+          'pending_acceptance' | 'offer_accepted' | 'offer_declined' | 'accepted' | 'rejected' | 'withdrawn';
 
   // Review Process
   reviewStage: 'initial' | 'technical' | 'hr' | 'final' | 'completed';
@@ -255,6 +256,18 @@ export interface CandidateApplication {
     sentAt: Date;
     read: boolean;
   }[];
+
+  // Offer Information
+  offerValidity?: string | null;
+  offerLetterUrl?: string | null;
+
+  // Status History
+  statusHistory?: Array<{
+    status: string;
+    changedAt: Date;
+    changedBy?: string;
+    reason?: string;
+  }>;
 
   // Timestamps
   submittedAt: Date;

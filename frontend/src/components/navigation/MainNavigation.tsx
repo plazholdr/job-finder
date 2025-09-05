@@ -72,29 +72,11 @@ export default function MainNavigation({ user }: MainNavigationProps) {
       description: 'Your liked companies and jobs'
     },
     {
-      name: 'Intern Management',
-      href: '/intern-management',
-      icon: User,
-      description: 'Comprehensive application management'
-    },
-    {
-      name: 'Hiring & Onboarding',
-      href: '/hiring',
-      icon: Award,
-      description: 'Track your internship journey'
-    },
-    {
       name: 'Applications',
       href: '/applications',
       icon: FileText,
       description: 'Track your applications'
-    },
-    {
-      name: 'Workflow',
-      href: '/workflow',
-      icon: Target,
-      description: 'Complete workflow overview'
-    },
+    }
   ];
 
   return (
@@ -133,7 +115,7 @@ export default function MainNavigation({ user }: MainNavigationProps) {
           </nav>
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             {/* Search */}
             <Button variant="ghost" size="sm" className="hidden lg:flex">
               <Search className="h-4 w-4 mr-2" />

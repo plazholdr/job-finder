@@ -119,7 +119,10 @@ const authenticateToken = (app) => {
 
       const authService = new AuthenticationService(app);
       const authResult = await authService.authenticate(authHeader);
-      
+
+      console.log('Auth result:', authResult);
+      console.log('User ID from auth result:', authResult.userId);
+
       // Add user info to request
       req.user = authResult.user;
       req.userId = authResult.userId;

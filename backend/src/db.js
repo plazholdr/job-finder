@@ -28,6 +28,13 @@ function getDB() {
   return db;
 }
 
+function getClient() {
+  if (!client) {
+    throw new Error('Database client not initialized. Call connectToMongoDB first.');
+  }
+  return client;
+}
+
 async function closeConnection() {
   if (client) {
     await client.close();
@@ -38,5 +45,6 @@ async function closeConnection() {
 module.exports = {
   connectToMongoDB,
   getDB,
+  getClient,
   closeConnection
 };

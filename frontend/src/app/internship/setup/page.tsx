@@ -93,10 +93,34 @@ function InternshipSetup() {
     }
   }, [user, isUpdateMode]);
 
+  // Check authentication status on component mount
+  useEffect(() => {
+    if (!user) {
+      console.warn('No user found in internship setup');
+    } else {
+      console.log('User authenticated:', user.email, 'ID:', user._id);
+      console.log('Full user object:', user);
+
+      // Check localStorage data
+      if (typeof window !== 'undefined') {
+        const storedUser = localStorage.getItem('authUser');
+        const storedToken = localStorage.getItem('authToken');
+        console.log('Stored user:', storedUser);
+        console.log('Stored token:', storedToken);
+      }
+    }
+  }, [user]);
+
   const handleSaveAndContinue = async (nextStep: string) => {
     try {
       setSaving(true);
       setSaveError(null);
+
+      // Check if user is still authenticated
+      if (!user) {
+        setSaveError('You are not logged in. Please log in again.');
+        return;
+      }
 
       // Prepare data to save
       const internshipData = {
@@ -105,6 +129,8 @@ function InternshipSetup() {
         courses,
         assignments
       };
+
+      console.log('Saving internship data for user:', user._id);
 
       await updateUser({
         internship: internshipData
@@ -120,7 +146,22 @@ function InternshipSetup() {
         window.history.pushState({}, '', newUrl);
       }
     } catch (error: any) {
-      setSaveError(error.message || 'Failed to save internship information');
+      console.error('Save error:', error);
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to save internship information';
+
+      if (error.message?.includes('User not found')) {
+        errorMessage = 'Your session has expired. Please log in again.';
+      } else if (error.message?.includes('Not authenticated')) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.message?.includes('Invalid or expired token')) {
+        errorMessage = 'Your session has expired. Please log in again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setSaveError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -194,9 +235,20 @@ function InternshipSetup() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {saveError && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <p className="text-red-600">{saveError}</p>
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <p className="text-red-600 font-medium">Error</p>
+            </div>
+            <p className="text-red-600 mb-3">{saveError}</p>
+            {(saveError.includes('session has expired') || saveError.includes('log in again') || saveError.includes('Authentication failed')) && (
+              <button
+                onClick={() => router.push('/auth/login')}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Go to Login
+              </button>
+            )}
           </div>
         )}
 

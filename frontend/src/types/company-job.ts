@@ -164,6 +164,8 @@ export interface Application {
   feedback?: string;
   interviewDetails?: InterviewDetails;
   offerDetails?: OfferDetails;
+  offerValidity?: string | null;
+  offerLetterUrl?: string | null;
 }
 
 export interface ApplicationTimelineEvent {

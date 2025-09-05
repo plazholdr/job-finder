@@ -40,7 +40,81 @@ interface LegacyApplication {
 }
 
 const statusConfig = {
+  // Backend status values
+  submitted: {
+    label: 'Application Submitted',
+    color: 'bg-blue-100 text-blue-800',
+    icon: Clock,
+    description: 'Your application has been submitted and is waiting for review.'
+  },
+  reviewed: {
+    label: 'Under Review',
+    color: 'bg-yellow-100 text-yellow-800',
+    icon: Eye,
+    description: 'The hiring team is currently reviewing your application.'
+  },
+  shortlisted: {
+    label: 'Shortlisted',
+    color: 'bg-purple-100 text-purple-800',
+    icon: CheckCircle,
+    description: 'Congratulations! You have been shortlisted for this position.'
+  },
+  interview_scheduled: {
+    label: 'Interview Scheduled',
+    color: 'bg-purple-100 text-purple-800',
+    icon: Calendar,
+    description: 'Congratulations! You have been selected for an interview.'
+  },
+  interview_completed: {
+    label: 'Interview Completed',
+    color: 'bg-indigo-100 text-indigo-800',
+    icon: CheckCircle,
+    description: 'Your interview has been completed. Waiting for results.'
+  },
+  pending_acceptance: {
+    label: 'Offer Extended',
+    color: 'bg-green-100 text-green-800',
+    icon: CheckCircle,
+    description: 'Congratulations! You have received a job offer.'
+  },
+  offer_accepted: {
+    label: 'Offer Accepted',
+    color: 'bg-green-100 text-green-800',
+    icon: CheckCircle,
+    description: 'Congratulations! You have accepted the job offer.'
+  },
+  offer_declined: {
+    label: 'Offer Declined',
+    color: 'bg-gray-100 text-gray-800',
+    icon: XCircle,
+    description: 'You have declined the job offer.'
+  },
+  accepted: {
+    label: 'Offer Accepted',
+    color: 'bg-green-100 text-green-800',
+    icon: CheckCircle,
+    description: 'Congratulations! You have accepted the job offer.'
+  },
+  rejected: {
+    label: 'Not Selected',
+    color: 'bg-red-100 text-red-800',
+    icon: XCircle,
+    description: 'Unfortunately, you were not selected for this position.'
+  },
+  withdrawn: {
+    label: 'Withdrawn',
+    color: 'bg-gray-100 text-gray-800',
+    icon: XCircle,
+    description: 'You have withdrawn your application.'
+  },
+  // Legacy status values for backward compatibility
   pending: {
+    label: 'Application Submitted',
+    color: 'bg-blue-100 text-blue-800',
+    icon: Clock,
+    description: 'Your application has been submitted and is waiting for review.'
+  },
+  applied: {
     label: 'Application Submitted',
     color: 'bg-blue-100 text-blue-800',
     icon: Clock,
@@ -57,18 +131,6 @@ const statusConfig = {
     color: 'bg-purple-100 text-purple-800',
     icon: Calendar,
     description: 'Congratulations! You have been selected for an interview.'
-  },
-  rejected: {
-    label: 'Not Selected',
-    color: 'bg-red-100 text-red-800',
-    icon: XCircle,
-    description: 'Unfortunately, you were not selected for this position.'
-  },
-  accepted: {
-    label: 'Offer Extended',
-    color: 'bg-green-100 text-green-800',
-    icon: CheckCircle,
-    description: 'Congratulations! You have received a job offer.'
   }
 };
 
@@ -86,31 +148,44 @@ export default function ApplicationsPage() {
   const fetchApplications = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/applications');
+      console.log('Fetching applications...');
+
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.error('No auth token found');
+        setApplications([]);
+        return;
+      }
+
+      const response = await fetch('/api/applications', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       const data = await response.json();
+      console.log('Applications API response:', data);
 
       if (data.success) {
-        // Fetch job details for each application
-        const applicationsWithJobs = await Promise.all(
-          data.data.map(async (app: Application) => {
-            try {
-              const jobResponse = await fetch(`/api/jobs/${app.jobId}`);
-              const jobData = await jobResponse.json();
-              return {
-                ...app,
-                job: jobData.success ? jobData.data.job : null
-              };
-            } catch (error) {
-              console.error('Error fetching job details:', error);
-              return app;
-            }
-          })
-        );
-        setApplications(applicationsWithJobs);
+        console.log('Applications data:', data.data);
+        console.log('Applications data type:', typeof data.data);
+        console.log('Applications data length:', data.data?.length);
+
+        // Check if data.data is an array
+        const applicationsArray = Array.isArray(data.data) ? data.data : [];
+        console.log('Applications array:', applicationsArray);
+
+        if (applicationsArray.length === 0) {
+          console.log('No applications found');
+          setApplications([]);
+        } else {
+          // The backend already includes job information, so we don't need to fetch it separately
+          console.log('Setting applications directly from backend');
+          setApplications(applicationsArray);
+        }
       } else {
         console.error('Failed to fetch applications:', data.error);
-        // Fallback to mock data
-        setApplications(mockApplications);
+        // Fallback to empty array instead of mock data
+        setApplications([]);
       }
     } catch (error) {
       console.error('Error fetching applications:', error);
@@ -125,8 +200,8 @@ export default function ApplicationsPage() {
   const mockApplications: Application[] = [];
 
   const filteredApplications = applications.filter(app => {
-    const jobTitle = app.job?.title || 'Unknown Job';
-    const companyName = app.job?.company?.name || app.job?.name || 'Unknown Company';
+    const jobTitle = app.jobInfo?.title || 'Unknown Job';
+    const companyName = app.companyInfo?.name || 'Unknown Company';
     const matchesSearch = jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          companyName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
@@ -136,11 +211,15 @@ export default function ApplicationsPage() {
   const getStatusCounts = () => {
     return {
       all: applications.length,
-      pending: applications.filter(app => app.status === 'pending' || app.status === 'applied').length,
-      reviewed: applications.filter(app => app.status === 'reviewed').length,
-      interview: applications.filter(app => app.status === 'interview_scheduled' || app.status === 'interview_completed').length,
+      submitted: applications.filter(app => app.status === 'submitted' || app.status === 'pending' || app.status === 'applied').length,
+      reviewed: applications.filter(app => app.status === 'reviewed' || app.status === 'reviewing').length,
+      shortlisted: applications.filter(app => app.status === 'shortlisted').length,
+      interview_scheduled: applications.filter(app => app.status === 'interview_scheduled' || app.status === 'interview').length,
+      interview_completed: applications.filter(app => app.status === 'interview_completed').length,
+      pending_acceptance: applications.filter(app => app.status === 'pending_acceptance' || app.status === 'accepted').length,
+      offer_accepted: applications.filter(app => app.status === 'offer_accepted').length,
+      offer_declined: applications.filter(app => app.status === 'offer_declined').length,
       rejected: applications.filter(app => app.status === 'rejected').length,
-      accepted: applications.filter(app => app.status === 'accepted').length,
       withdrawn: applications.filter(app => app.status === 'withdrawn').length,
     };
   };
@@ -188,20 +267,23 @@ export default function ApplicationsPage() {
             <div className="text-sm text-gray-600">Total</div>
           </div>
 
-          {Object.entries(statusConfig).map(([status, config]) => (
-            <div
-              key={status}
-              className={`p-4 rounded-lg cursor-pointer transition-colors ${
-                statusFilter === status ? 'bg-blue-100 border-2 border-blue-500' : 'bg-white border border-gray-200'
-              }`}
-              onClick={() => setStatusFilter(status)}
-            >
-              <div className="text-2xl font-bold text-gray-900">
-                {statusCounts[status as keyof typeof statusCounts]}
+          {['submitted', 'reviewed', 'shortlisted', 'pending_acceptance', 'rejected'].map((status) => {
+            const config = statusConfig[status as keyof typeof statusConfig];
+            return (
+              <div
+                key={status}
+                className={`p-4 rounded-lg cursor-pointer transition-colors ${
+                  statusFilter === status ? 'bg-blue-100 border-2 border-blue-500' : 'bg-white border border-gray-200'
+                }`}
+                onClick={() => setStatusFilter(status)}
+              >
+                <div className="text-2xl font-bold text-gray-900">
+                  {statusCounts[status as keyof typeof statusCounts] || 0}
+                </div>
+                <div className="text-sm text-gray-600">{config?.label || status}</div>
               </div>
-              <div className="text-sm text-gray-600">{config.label}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Search and Filters */}
@@ -250,10 +332,10 @@ export default function ApplicationsPage() {
               const statusInfo = statusConfig[statusKey] || statusConfig.pending;
               const StatusIcon = statusInfo.icon;
 
-              const jobTitle = application.job?.title || 'Unknown Job';
-              const companyName = application.job?.company?.name || application.job?.name || 'Unknown Company';
-              const companyLogo = application.job?.logo || application.job?.company?.logo || '/api/placeholder/40/40';
-              const jobLocation = application.job?.location || 'Unknown Location';
+              const jobTitle = application.jobInfo?.title || 'Unknown Job';
+              const companyName = application.companyInfo?.name || 'Unknown Company';
+              const companyLogo = application.companyInfo?.company?.logo || '/api/placeholder/40/40';
+              const jobLocation = application.jobInfo?.location || 'Unknown Location';
 
               return (
                 <div key={application.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
@@ -296,7 +378,7 @@ export default function ApplicationsPage() {
                           <div>
                             <span className="text-sm font-medium text-gray-900">Applied:</span>
                             <p className="text-sm text-gray-600">
-                              {new Date(application.submittedAt).toLocaleDateString()}
+                              {new Date(application.createdAt || application.submittedAt).toLocaleDateString()}
                             </p>
                           </div>
                           <div>
@@ -324,7 +406,7 @@ export default function ApplicationsPage() {
 
                         <div className="mt-4 flex items-center gap-3">
                           <Link
-                            href={`/applications/${application.id}`}
+                            href={`/applications/${application._id || application.id}`}
                             className="inline-flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                           >
                             <Briefcase className="h-3 w-3" />

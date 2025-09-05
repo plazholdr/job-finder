@@ -178,6 +178,60 @@ const InternWorkflowContext = createContext<{
 export function InternWorkflowProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(workflowReducer, initialState);
 
+  // Define functions first
+  const loadWorkflowData = async () => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+
+      // Load from localStorage (in a real app, this would be API calls)
+      const savedData = localStorage.getItem('intern-workflow-data');
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+
+        // Convert date strings back to Date objects
+        if (parsedData.applications) {
+          parsedData.applications = parsedData.applications.map((app: any) => ({
+            ...app,
+            submittedAt: new Date(app.submittedAt),
+            lastUpdated: new Date(app.lastUpdated)
+          }));
+        }
+
+        if (parsedData.savedItems) {
+          parsedData.savedItems = parsedData.savedItems.map((item: any) => ({
+            ...item,
+            savedAt: new Date(item.savedAt)
+          }));
+        }
+
+        dispatch({ type: 'LOAD_WORKFLOW_DATA', payload: parsedData });
+      }
+    } catch (error) {
+      console.error('Error loading workflow data:', error);
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to load workflow data' });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
+  const saveWorkflowData = async () => {
+    try {
+      // Save to localStorage (in a real app, this would be API calls)
+      const dataToSave = {
+        profile: state.profile,
+        applications: state.applications,
+        savedItems: state.savedItems,
+        currentStep: state.currentStep,
+        completedSteps: state.completedSteps
+      };
+
+      localStorage.setItem('intern-workflow-data', JSON.stringify(dataToSave));
+    } catch (error) {
+      console.error('Error saving workflow data:', error);
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to save workflow data' });
+    }
+  };
+
   // Load data on mount
   useEffect(() => {
     loadWorkflowData();
@@ -225,58 +279,8 @@ export function InternWorkflowProvider({ children }: { children: React.ReactNode
       dispatch({ type: 'SET_CURRENT_STEP', payload: step });
     },
 
-    loadWorkflowData: async () => {
-      try {
-        dispatch({ type: 'SET_LOADING', payload: true });
-        
-        // Load from localStorage (in a real app, this would be API calls)
-        const savedData = localStorage.getItem('intern-workflow-data');
-        if (savedData) {
-          const parsedData = JSON.parse(savedData);
-          
-          // Convert date strings back to Date objects
-          if (parsedData.applications) {
-            parsedData.applications = parsedData.applications.map((app: any) => ({
-              ...app,
-              submittedAt: new Date(app.submittedAt),
-              lastUpdated: new Date(app.lastUpdated)
-            }));
-          }
-          
-          if (parsedData.savedItems) {
-            parsedData.savedItems = parsedData.savedItems.map((item: any) => ({
-              ...item,
-              savedAt: new Date(item.savedAt)
-            }));
-          }
-          
-          dispatch({ type: 'LOAD_WORKFLOW_DATA', payload: parsedData });
-        }
-      } catch (error) {
-        console.error('Error loading workflow data:', error);
-        dispatch({ type: 'SET_ERROR', payload: 'Failed to load workflow data' });
-      } finally {
-        dispatch({ type: 'SET_LOADING', payload: false });
-      }
-    },
-
-    saveWorkflowData: async () => {
-      try {
-        // Save to localStorage (in a real app, this would be API calls)
-        const dataToSave = {
-          profile: state.profile,
-          applications: state.applications,
-          savedItems: state.savedItems,
-          currentStep: state.currentStep,
-          completedSteps: state.completedSteps
-        };
-        
-        localStorage.setItem('intern-workflow-data', JSON.stringify(dataToSave));
-      } catch (error) {
-        console.error('Error saving workflow data:', error);
-        dispatch({ type: 'SET_ERROR', payload: 'Failed to save workflow data' });
-      }
-    }
+    loadWorkflowData,
+    saveWorkflowData
   };
 
   return (

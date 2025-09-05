@@ -5,6 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Building2,
   Users,
   Briefcase,
@@ -18,7 +24,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ClipboardList,
-  GraduationCap
+  GraduationCap,
+  Settings,
+  Edit
 } from 'lucide-react';
 import Link from 'next/link';
 import { CompanyAnalytics, JobPosting, CandidateApplication } from '@/types/company';
@@ -55,7 +63,13 @@ export default function CompanyDashboardPage() {
       setIsLoading(true);
 
       // Fetch dashboard statistics
-      const statsResponse = await fetch('/api/company/dashboard/stats');
+      const token = localStorage.getItem('authToken');
+
+      const statsResponse = await fetch('/api/company/dashboard/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       const statsData = await statsResponse.json();
 
       if (statsData.success) {
@@ -63,15 +77,23 @@ export default function CompanyDashboardPage() {
       }
 
       // Fetch recent jobs
-      const jobsResponse = await fetch('/api/company/jobs?limit=5&sort=recent');
+      const jobsResponse = await fetch('/api/company/jobs?limit=5&sort=recent', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       const jobsData = await jobsResponse.json();
 
-      if (jobsData.success) {
-        setRecentJobs(jobsData.data);
+      if (jobsData.success || jobsData.data) {
+        setRecentJobs(jobsData.data || jobsData);
       }
 
       // Fetch recent applications
-      const applicationsResponse = await fetch('/api/company/applications?limit=5&sort=recent');
+      const applicationsResponse = await fetch('/api/company/applications?limit=5&sort=recent', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       const applicationsData = await applicationsResponse.json();
 
       if (applicationsData.success) {
@@ -91,13 +113,25 @@ export default function CompanyDashboardPage() {
       case 'draft': return 'bg-gray-100 text-gray-800';
       case 'paused': return 'bg-yellow-100 text-yellow-800';
       case 'closed': return 'bg-red-100 text-red-800';
-      case 'submitted': return 'bg-blue-100 text-blue-800';
+      case 'submitted': return 'bg-green-100 text-green-800';
       case 'reviewing': return 'bg-yellow-100 text-yellow-800';
       case 'shortlisted': return 'bg-purple-100 text-purple-800';
       case 'interview_scheduled': return 'bg-indigo-100 text-indigo-800';
       case 'offer_extended': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusDisplayText = (status: string) => {
+    switch (status) {
+      case 'submitted': return 'New Application';
+      case 'reviewing': return 'Reviewing';
+      case 'shortlisted': return 'Shortlisted';
+      case 'interview_scheduled': return 'Interview Scheduled';
+      case 'offer_extended': return 'Offer Extended';
+      case 'rejected': return 'Rejected';
+      default: return status.replace('_', ' ');
     }
   };
 
@@ -228,8 +262,8 @@ export default function CompanyDashboardPage() {
             <CardContent>
               <div className="space-y-4">
                 {recentJobs.length > 0 ? (
-                  recentJobs.map((job) => (
-                    <div key={job.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  recentJobs.map((job, index) => (
+                    <div key={job._id || job.id || index} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex-1">
                         <h3 className="font-medium text-gray-900">{job.title}</h3>
                         <p className="text-sm text-gray-600">{job.department} • {job.type}</p>
@@ -282,22 +316,35 @@ export default function CompanyDashboardPage() {
             <CardContent>
               <div className="space-y-4">
                 {recentApplications.length > 0 ? (
-                  recentApplications.map((application) => (
-                    <div key={application.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  recentApplications.map((application, index) => (
+                    <div key={application.id || index} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex-1">
                         <h3 className="font-medium text-gray-900">{application.candidate.name}</h3>
                         <p className="text-sm text-gray-600">{application.candidate.email}</p>
+                        <p className="text-sm text-blue-600 font-medium">{application.jobTitle || 'Unknown Position'}</p>
                         <p className="text-sm text-gray-500 mt-1">
                           Applied {new Date(application.submittedAt).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Badge className={getStatusColor(application.status)}>
-                          {application.status.replace('_', ' ')}
+                          {getStatusDisplayText(application.status)}
                         </Badge>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/company/applications/${application.id}`}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Application
+                              </Link>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   ))
@@ -314,6 +361,134 @@ export default function CompanyDashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Company Profile Overview */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Company Profile Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Company Info */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-900">Company Information</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Company Name:</span>
+                    <span className="font-medium">TechCorp Solutions</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Industry:</span>
+                    <span>Technology</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Size:</span>
+                    <span>51-200 employees</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Founded:</span>
+                    <span>2015</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Info */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-900">Contact Information</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Email:</span>
+                    <span>contact@techcorp.com</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Phone:</span>
+                    <span>+1 (555) 123-4567</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Website:</span>
+                    <span className="text-blue-600">techcorp.com</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Location:</span>
+                    <span>San Francisco, CA</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Actions */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-gray-900">Profile Status</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Verification Status:</span>
+                    <Badge className="bg-green-100 text-green-800">Verified</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Profile Completeness:</span>
+                    <span className="text-sm font-medium">85%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: '85%' }}></div>
+                  </div>
+                  <Link href="/company/profile">
+                    <Button size="sm" className="w-full mt-3">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Update Profile
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Company Management */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Company Management
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Link href="/company/profile">
+                <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center hover:bg-blue-50 hover:border-blue-300">
+                  <Edit className="h-6 w-6 mb-2 text-blue-600" />
+                  <span className="text-sm font-medium">Manage Profile</span>
+                  <span className="text-xs text-gray-500">Edit company information</span>
+                </Button>
+              </Link>
+
+              <Link href="/company/settings">
+                <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center hover:bg-green-50 hover:border-green-300">
+                  <Settings className="h-6 w-6 mb-2 text-green-600" />
+                  <span className="text-sm font-medium">Settings</span>
+                  <span className="text-xs text-gray-500">Account & preferences</span>
+                </Button>
+              </Link>
+
+              <Link href="/company/verification">
+                <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center hover:bg-purple-50 hover:border-purple-300">
+                  <UserCheck className="h-6 w-6 mb-2 text-purple-600" />
+                  <span className="text-sm font-medium">Verification</span>
+                  <span className="text-xs text-gray-500">Company verification status</span>
+                </Button>
+              </Link>
+
+              <Link href="/companies">
+                <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center hover:bg-orange-50 hover:border-orange-300">
+                  <Eye className="h-6 w-6 mb-2 text-orange-600" />
+                  <span className="text-sm font-medium">View Public Profile</span>
+                  <span className="text-xs text-gray-500">See how others see you</span>
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
         <Card className="mt-8">

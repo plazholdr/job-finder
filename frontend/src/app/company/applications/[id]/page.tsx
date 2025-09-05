@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
@@ -28,9 +27,10 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { CandidateApplication } from '@/types/company';
+import OfferModal from '@/components/company/OfferModal';
 
 interface ApplicationDetailPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default function ApplicationDetailPage({ params }: ApplicationDetailPageProps) {
@@ -42,19 +42,102 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
   const [rating, setRating] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [showOfferModal, setShowOfferModal] = useState(false);
 
   useEffect(() => {
-    fetchApplication();
-  }, [params.id]);
+    const getParams = async () => {
+      const resolvedParams = await params;
+      setApplicationId(resolvedParams.id);
+    };
+    getParams();
+  }, [params]);
+
+  // Resume download function - Check resumeUrl first, then API
+  const downloadResume = async () => {
+    if (!application) {
+      alert('No application data found');
+      return;
+    }
+
+    try {
+      // First try direct resume URL if available
+      if (application.resume) {
+        console.log('📄 Using direct resume URL:', application.resume);
+        const link = document.createElement('a');
+        link.href = application.resume;
+        link.download = 'resume.pdf';
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      // Fallback to API if no direct URL
+      if (!application.candidate?.id) {
+        alert('No resume found');
+        return;
+      }
+
+      console.log('📡 Using API download for userId:', application.candidate.id);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/users/${application.candidate.id}/resume/download`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'resume.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Failed to download resume');
+      }
+    } catch (error) {
+      console.error('Error downloading resume:', error);
+      alert('Error downloading resume');
+    }
+  };
+
+  useEffect(() => {
+    if (applicationId) {
+      fetchApplication();
+    }
+  }, [applicationId]);
 
   const fetchApplication = async () => {
+    if (!applicationId) return;
+
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/company/applications/${params.id}`);
+      const token = localStorage.getItem('authToken');
+
+      const response = await fetch(`/api/company/applications/${applicationId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       const result = await response.json();
 
       if (result.success) {
         setApplication(result.data);
+        console.log('📋 Application data:', result.data);
+        console.log('🔍 Resume info:', {
+          resume: result.data.resume,
+          resumeUrl: result.data.resumeUrl,
+          candidateId: result.data.candidateId,
+          userId: result.data.userId,
+          candidate: result.data.candidate
+        });
       } else {
         setError(result.error || 'Application not found');
       }
@@ -73,13 +156,15 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
       setIsUpdating(true);
       setError(null);
 
-      const response = await fetch('/api/company/applications', {
+      const token = localStorage.getItem('authToken');
+
+      const response = await fetch(`/api/company/applications/${application.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          applicationId: application.id,
           status: newStatus,
           reviewerId: 'current-user-id', // In real app, get from auth
           feedback: feedback.trim() || undefined,
@@ -115,6 +200,7 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
       case 'shortlisted': return 'bg-purple-100 text-purple-800';
       case 'interview_scheduled': return 'bg-indigo-100 text-indigo-800';
       case 'interview_completed': return 'bg-cyan-100 text-cyan-800';
+      case 'pending_acceptance': return 'bg-green-100 text-green-800';
       case 'offer_extended': return 'bg-green-100 text-green-800';
       case 'offer_accepted': return 'bg-emerald-100 text-emerald-800';
       case 'offer_declined': return 'bg-orange-100 text-orange-800';
@@ -132,8 +218,8 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
             key={star}
             onClick={() => onRatingChange && onRatingChange(star)}
             className={`h-5 w-5 ${
-              star <= currentRating 
-                ? 'text-yellow-400 fill-current' 
+              star <= currentRating
+                ? 'text-yellow-400 fill-current'
                 : 'text-gray-300'
             } ${onRatingChange ? 'hover:text-yellow-400 cursor-pointer' : ''}`}
             disabled={!onRatingChange}
@@ -143,6 +229,16 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
         ))}
       </div>
     );
+  };
+
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (isLoading) {
@@ -191,7 +287,7 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
               <div className="h-6 w-px bg-gray-300" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Application Review</h1>
-                <p className="text-sm text-gray-600">{application.candidate.name}</p>
+                <p className="text-sm text-gray-600">{application.candidate?.name || 'Unknown Candidate'}</p>
               </div>
             </div>
             
@@ -239,16 +335,16 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
                   </div>
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                      {application.candidate.name}
+                      {application.candidate?.name || 'Unknown Candidate'}
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                       <div className="flex items-center">
                         <Mail className="h-4 w-4 mr-2" />
-                        <a href={`mailto:${application.candidate.email}`} className="text-blue-600 hover:underline">
-                          {application.candidate.email}
+                        <a href={`mailto:${application.candidate?.email || ''}`} className="text-blue-600 hover:underline">
+                          {application.candidate?.email || 'No email provided'}
                         </a>
                       </div>
-                      {application.candidate.phone && (
+                      {application.candidate?.phone && (
                         <div className="flex items-center">
                           <Phone className="h-4 w-4 mr-2" />
                           <a href={`tel:${application.candidate.phone}`} className="text-blue-600 hover:underline">
@@ -256,19 +352,19 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
                           </a>
                         </div>
                       )}
-                      {application.candidate.location && (
+                      {application.candidate?.location && (
                         <div className="flex items-center">
                           <MapPin className="h-4 w-4 mr-2" />
                           {application.candidate.location}
                         </div>
                       )}
-                      {application.candidate.education && (
+                      {application.candidate?.education && (
                         <div className="flex items-center">
                           <GraduationCap className="h-4 w-4 mr-2" />
                           {application.candidate.education}
                         </div>
                       )}
-                      {application.candidate.experience && (
+                      {application.candidate?.experience && (
                         <div className="flex items-center">
                           <Briefcase className="h-4 w-4 mr-2" />
                           {application.candidate.experience}
@@ -279,13 +375,13 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
                 </div>
 
                 {/* Skills */}
-                {application.candidate.skills && application.candidate.skills.length > 0 && (
+                {application.candidate.skills && Array.isArray(application.candidate.skills) && application.candidate.skills.length > 0 && (
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-3">Skills</h3>
                     <div className="flex flex-wrap gap-2">
                       {application.candidate.skills.map((skill, index) => (
                         <Badge key={index} variant="outline">
-                          {skill}
+                          {typeof skill === 'string' ? skill : String(skill)}
                         </Badge>
                       ))}
                     </div>
@@ -336,14 +432,14 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
                         <Eye className="h-4 w-4 mr-2" />
                         View
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={downloadResume}>
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
                     </div>
                   </div>
 
-                  {application.additionalDocuments && application.additionalDocuments.map((doc, index) => (
+                  {application.additionalDocuments && Array.isArray(application.additionalDocuments) && application.additionalDocuments.map((doc, index) => (
                     <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <FileText className="h-5 w-5 text-gray-400" />
@@ -378,12 +474,13 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {application.reviewers.map((reviewer, index) => (
+                  {application.reviewers && Array.isArray(application.reviewers) && application.reviewers.length > 0 ? (
+                    application.reviewers.map((reviewer, index) => (
                     <div key={index} className="border-l-4 border-blue-200 pl-4">
                       <div className="flex items-center justify-between mb-2">
                         <div>
-                          <p className="font-medium text-gray-900">{reviewer.name}</p>
-                          <p className="text-sm text-gray-600">{reviewer.role}</p>
+                          <p className="font-medium text-gray-900">{reviewer.name || 'Unknown Reviewer'}</p>
+                          <p className="text-sm text-gray-600">{reviewer.role || 'Unknown Role'}</p>
                         </div>
                         <div className="text-right">
                           <Badge className={
@@ -391,11 +488,11 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
                             reviewer.status === 'rejected' ? 'bg-red-100 text-red-800' :
                             'bg-yellow-100 text-yellow-800'
                           }>
-                            {reviewer.status}
+                            {reviewer.status || 'pending'}
                           </Badge>
                           {reviewer.reviewedAt && (
                             <p className="text-sm text-gray-500 mt-1">
-                              {new Date(reviewer.reviewedAt).toLocaleDateString()}
+                              {reviewer.reviewedAt ? new Date(reviewer.reviewedAt).toLocaleDateString() : 'N/A'}
                             </p>
                           )}
                         </div>
@@ -409,7 +506,10 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
                         <p className="text-gray-700 text-sm">{reviewer.feedback}</p>
                       )}
                     </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No review history available</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -423,71 +523,93 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button
-                  className="w-full"
-                  onClick={() => handleStatusUpdate('shortlisted')}
-                  disabled={isUpdating || application.status === 'shortlisted'}
-                >
-                  <Star className="h-4 w-4 mr-2" />
-                  Shortlist Candidate
-                </Button>
-                
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => handleStatusUpdate('interview_scheduled')}
-                  disabled={isUpdating || application.status === 'interview_scheduled'}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Schedule Interview
-                </Button>
-                
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => handleStatusUpdate('rejected')}
-                  disabled={isUpdating || application.status === 'rejected'}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject Application
-                </Button>
+                {/* New Application Status */}
+                {application.status === 'submitted' && (
+                  <>
+                    <Button
+                      className="w-full"
+                      onClick={() => handleStatusUpdate('shortlisted')}
+                      disabled={isUpdating}
+                    >
+                      <Star className="h-4 w-4 mr-2" />
+                      Shortlist Candidate
+                    </Button>
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={() => handleStatusUpdate('rejected')}
+                      disabled={isUpdating}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject Application
+                    </Button>
+                  </>
+                )}
+
+                {/* Shortlisted Status */}
+                {application.status === 'shortlisted' && (
+                  <>
+                    <Button
+                      className="w-full"
+                      onClick={() => setShowOfferModal(true)}
+                      disabled={isUpdating}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Offer Position
+                    </Button>
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={() => handleStatusUpdate('rejected')}
+                      disabled={isUpdating}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject Application
+                    </Button>
+                  </>
+                )}
+
+                {/* Pending Acceptance Status */}
+                {application.status === 'pending_acceptance' && (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-600 mb-2">
+                      Offer submitted and pending candidate response
+                    </p>
+                    <div className="text-xs text-gray-500">
+                      {application.offerValidity && (
+                        <p>Valid until: {application.offerValidity ? new Date(application.offerValidity).toLocaleDateString() : 'N/A'}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Accepted Status */}
+                {application.status === 'accepted' && (
+                  <div className="text-center py-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center justify-center mb-2">
+                      <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                      <p className="text-sm font-medium text-green-800">
+                        Candidate has accepted the position
+                      </p>
+                    </div>
+                    <p className="text-xs text-green-600">
+                      Application process completed successfully
+                    </p>
+                  </div>
+                )}
+
+                {/* Other Final Status - No actions available */}
+                {(['rejected', 'offer_declined', 'withdrawn'].includes(application.status)) && (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500">
+                      Application process completed
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Add Review */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Add Review</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rating
-                  </label>
-                  {renderStarRating(rating, setRating)}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Feedback
-                  </label>
-                  <Textarea
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="Add your review comments..."
-                    rows={4}
-                  />
-                </div>
-                
-                <Button
-                  className="w-full"
-                  onClick={() => handleStatusUpdate('reviewing')}
-                  disabled={isUpdating || (!feedback.trim() && rating === 0)}
-                >
-                  {isUpdating ? 'Saving...' : 'Save Review'}
-                </Button>
-              </CardContent>
-            </Card>
+
 
             {/* Application Timeline */}
             <Card>
@@ -495,44 +617,86 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
                 <CardTitle>Application Timeline</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Application Submitted</p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(application.submittedAt).toLocaleDateString()}
-                      </p>
-                    </div>
+                {application.statusHistory && application.statusHistory.length > 0 ? (
+                  <div className="space-y-4">
+                    {application.statusHistory
+                      .sort((a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime())
+                      .map((event, index) => (
+                        <div key={index} className="flex items-start space-x-4">
+                          {/* Timeline dot and line */}
+                          <div className="flex flex-col items-center">
+                            <div className={`w-3 h-3 rounded-full ${
+                              event.status === 'submitted' ? 'bg-blue-500' :
+                              event.status === 'shortlisted' ? 'bg-yellow-500' :
+                              event.status === 'pending_acceptance' ? 'bg-green-500' :
+                              event.status === 'accepted' ? 'bg-green-600' :
+                              event.status === 'offer_accepted' ? 'bg-green-600' :
+                              event.status === 'rejected' ? 'bg-red-500' :
+                              'bg-gray-400'
+                            }`} />
+                            {index < (application.statusHistory?.length || 0) - 1 && (
+                              <div className="w-0.5 h-8 bg-gray-200 mt-2" />
+                            )}
+                          </div>
+
+                          {/* Timeline content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-medium text-gray-900 capitalize">
+                                {event.status.replace('_', ' ')}
+                              </h4>
+                              <time className="text-xs text-gray-500">
+                                {formatDate(event.changedAt)}
+                              </time>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={`mt-1 text-xs ${
+                                event.status === 'submitted' ? 'border-blue-200 text-blue-700' :
+                                event.status === 'shortlisted' ? 'border-yellow-200 text-yellow-700' :
+                                event.status === 'pending_acceptance' ? 'border-green-200 text-green-700' :
+                                event.status === 'accepted' ? 'border-green-200 text-green-800' :
+                                event.status === 'offer_accepted' ? 'border-green-200 text-green-800' :
+                                event.status === 'rejected' ? 'border-red-200 text-red-700' :
+                                'border-gray-200 text-gray-700'
+                              }`}
+                            >
+                              {event.status === 'submitted' ? 'Application Submitted' :
+                               event.status === 'shortlisted' ? 'Shortlisted for Review' :
+                               event.status === 'pending_acceptance' ? 'Pending Acceptance' :
+                               event.status === 'accepted' ? 'Offer Accepted' :
+                               event.status === 'offer_accepted' ? 'Offer Accepted' :
+                               event.status === 'rejected' ? 'Application Rejected' :
+                               event.status.charAt(0).toUpperCase() + event.status.slice(1).replace('_', ' ')
+                              }
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
                   </div>
-                  
-                  {application.reviewedAt && (
-                    <div className="flex items-center space-x-3">
-                      <div className="h-2 w-2 bg-yellow-600 rounded-full"></div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Review Started</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(application.reviewedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center space-x-3">
-                    <div className="h-2 w-2 bg-gray-300 rounded-full"></div>
-                    <div>
-                      <p className="text-sm text-gray-500">Last Updated</p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(application.lastUpdated).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                ) : (
+                  <p className="text-gray-600">No timeline events available.</p>
+                )}
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Offer Modal */}
+      {application && (
+        <OfferModal
+          isOpen={showOfferModal}
+          onClose={() => setShowOfferModal(false)}
+          applicationId={application.id}
+          candidateName={application.candidate?.name || 'Unknown Candidate'}
+          onSuccess={() => {
+            fetchApplication(); // Refresh application data
+            setSuccess('Offer submitted successfully!');
+            setTimeout(() => setSuccess(null), 3000);
+          }}
+        />
+      )}
     </div>
   );
 }

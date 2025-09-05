@@ -151,6 +151,17 @@ export interface InternshipApplication {
   additionalDocuments?: AssignmentAttachment[];
   interviewSchedule?: InterviewSchedule[];
   feedback?: ApplicationFeedback[];
+  offerDetails?: {
+    salary: number;
+    currency: string;
+    period: 'hour' | 'month' | 'year';
+    startDate: string;
+    endDate: string;
+    benefits: string[];
+    conditions: string[];
+    deadline: string;
+    responseRequired: boolean;
+  };
 }
 
 export interface InterviewSchedule {

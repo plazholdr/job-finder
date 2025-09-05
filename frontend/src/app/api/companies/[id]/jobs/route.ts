@@ -1,65 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-// Mock data for jobs (same as in jobs/route.ts)
-const mockJobs = [
-  {
-    id: '1',
-    companyId: '1',
-    company: {
-      id: '1',
-      name: 'TechCorp Solutions',
-      logo: '/api/placeholder/64/64',
+// Helper function to get auth token from cookies
+async function getAuthToken() {
+  const cookieStore = await cookies();
+  return cookieStore.get('token')?.value;
+}
+
+// Helper function to make authenticated requests to backend
+async function makeBackendRequest(endpoint: string, options: RequestInit = {}) {
+  const token = await getAuthToken();
+
+  const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3030'}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
     },
-    logo: '/api/placeholder/64/64',
-    name: 'TechCorp Solutions',
-    title: 'Software Development Intern',
-    briefDescription: 'Join our dynamic development team to work on cutting-edge web applications using React, Node.js, and cloud technologies. Perfect opportunity for computer science students.',
-    postedDate: new Date('2024-01-15'),
-    deadline: new Date('2024-02-15'),
-    location: 'Silicon Valley, CA',
-    salaryRange: '$20-25/hour',
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15'),
-  },
-  {
-    id: '2',
-    companyId: '2',
-    company: {
-      id: '2',
-      name: 'Green Energy Inc',
-      logo: '/api/placeholder/64/64',
-    },
-    logo: '/api/placeholder/64/64',
-    name: 'Green Energy Inc',
-    title: 'Environmental Research Intern',
-    briefDescription: 'Contribute to groundbreaking research in renewable energy and sustainability. Work with our research team on solar panel efficiency and wind energy optimization.',
-    postedDate: new Date('2024-01-10'),
-    deadline: new Date('2024-02-10'),
-    location: 'Portland, OR',
-    salaryRange: '$18-22/hour',
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10'),
-  },
-  {
-    id: '6',
-    companyId: '1',
-    company: {
-      id: '1',
-      name: 'TechCorp Solutions',
-      logo: '/api/placeholder/64/64',
-    },
-    logo: '/api/placeholder/64/64',
-    name: 'TechCorp Solutions',
-    title: 'Data Science Intern',
-    briefDescription: 'Analyze large datasets and build machine learning models to drive business insights. Work with Python, R, and cloud-based analytics platforms.',
-    postedDate: new Date('2024-01-12'),
-    deadline: new Date('2024-02-12'),
-    location: 'Silicon Valley, CA',
-    salaryRange: '$23-28/hour',
-    createdAt: new Date('2024-01-12'),
-    updatedAt: new Date('2024-01-12'),
-  },
-];
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
 
 export async function GET(
   request: NextRequest,
@@ -67,16 +34,26 @@ export async function GET(
 ) {
   try {
     const companyId = params.id;
-    
-    // Filter jobs by company ID
-    const companyJobs = mockJobs.filter(job => job.companyId === companyId);
-    
-    // Sort by posted date (newest first)
-    companyJobs.sort((a, b) => new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime());
+    const { searchParams } = new URL(request.url);
+
+    // Build query parameters for backend
+    const queryParams = new URLSearchParams();
+    queryParams.append('companyId', companyId);
+    queryParams.append('$sort', JSON.stringify({ createdAt: -1 }));
+
+    // Add any additional filters from search params
+    const limit = searchParams.get('limit') || '50';
+    const skip = searchParams.get('skip') || '0';
+    queryParams.append('$limit', limit);
+    queryParams.append('$skip', skip);
+
+    // Call backend API to get jobs for specific company
+    const backendResponse = await makeBackendRequest(`/jobs?${queryParams.toString()}`);
 
     return NextResponse.json({
       success: true,
-      data: companyJobs,
+      data: backendResponse.data || [],
+      total: backendResponse.total || 0,
       message: 'Company jobs fetched successfully'
     });
   } catch (error) {

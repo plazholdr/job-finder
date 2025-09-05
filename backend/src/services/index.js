@@ -1,7 +1,36 @@
 const UsersService = require('./users.service');
 const AdminService = require('./admin.service');
 const NotificationService = require('./notification.service');
+const JobsService = require('./jobs.service');
+const CompaniesService = require('./companies.service');
+const ApplicationsService = require('./applications.service');
+const InternshipsService = require('./internships.service');
+const RequestsService = require('./requests.service');
+const NotificationsService = require('./notifications.service');
+const WorkflowService = require('./workflow.service');
+const WorkflowSchedulerService = require('./workflow-scheduler.service');
 const { AuthenticationService, authenticateToken, optionalAuth } = require('./authentication.service');
+const multer = require('multer');
+const StorageUtils = require('../utils/storage');
+const ApplicationModel = require('../models/application.model');
+const { getDB } = require('../db');
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    const StorageUtils = require('../utils/storage');
+    const validation = StorageUtils.validateFile(file);
+    if (validation.isValid) {
+      cb(null, true);
+    } else {
+      cb(new Error(validation.errors.join(', ')), false);
+    }
+  }
+});
 
 // Configure all services here
 module.exports = function (app) {
@@ -17,39 +46,128 @@ module.exports = function (app) {
     }
   });
 
-  // Register users service
-  app.use('/users', {
-    async create(data) {
+  // Protected routes for current user - MUST come before general /users service
+  app.get('/users/me', authenticateToken(app), async (req, res) => {
+    try {
+      console.log('GET /users/me - req.userId:', req.userId);
       const usersService = new UsersService(app);
-      return await usersService.create(data);
-    },
-    async find(params) {
-      const usersService = new UsersService(app);
-      return await usersService.find(params);
-    },
-    async get(id) {
-      const usersService = new UsersService(app);
-      return await usersService.get(id);
-    },
-    async patch(id, data) {
-      const usersService = new UsersService(app);
-      return await usersService.patch(id, data);
-    },
-    async remove(id) {
-      const usersService = new UsersService(app);
-      return await usersService.remove(id);
+      const user = await usersService.getCurrentUser(req.userId);
+      res.json(user);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
     }
   });
 
-  // Protected route for current user
-  app.use('/users/me', authenticateToken(app), {
-    async find() {
+  app.patch('/users/me', authenticateToken(app), async (req, res) => {
+    try {
+      console.log('PATCH /users/me - req.userId:', req.userId);
+      console.log('PATCH /users/me - req.user:', req.user);
+
       const usersService = new UsersService(app);
-      return await usersService.getCurrentUser(this.userId);
-    },
-    async patch(id, data) {
+      const user = await usersService.updateCurrentUser(req.userId, req.body);
+      res.json(user);
+    } catch (error) {
+      console.error('PATCH /users/me error:', error.message);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Users routes - converted from Feathers service to Express routes
+
+  // POST /users - Create user (registration)
+  app.post('/users', async (req, res) => {
+    try {
       const usersService = new UsersService(app);
-      return await usersService.updateCurrentUser(this.userId, data);
+      const user = await usersService.create(req.body);
+      res.json(user);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // GET /users - Find users (with query parameters)
+  app.get('/users', optionalAuth(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const users = await usersService.find(req.query);
+      res.json(users);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // GET /users/:id - Get specific user
+  app.get('/users/:id', optionalAuth(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const user = await usersService.get(req.params.id);
+      res.json(user);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // User profile update endpoint - MUST come before /users/:id
+  app.patch('/users/profile', authenticateToken(app), async (req, res) => {
+    try {
+      console.log('=== ENDPOINT DEBUG ===');
+      console.log('req.userId:', req.userId);
+      console.log('req.userId type:', typeof req.userId);
+      console.log('req.user._id:', req.user._id);
+      console.log('req.user._id type:', typeof req.user._id);
+      console.log('req.body keys:', Object.keys(req.body));
+      console.log('=== END ENDPOINT DEBUG ===');
+
+      const usersService = new UsersService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await usersService.updateProfile(req.body, serviceParams);
+      res.json(result);
+    } catch (error) {
+      console.log('=== ENDPOINT ERROR ===');
+      console.log('Error:', error.message);
+      console.log('Stack:', error.stack);
+      console.log('=== END ENDPOINT ERROR ===');
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get user profile endpoint
+  app.get('/users/profile', authenticateToken(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await usersService.get(req.userId, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // PATCH /users/:id - Update specific user (admin only)
+  app.patch('/users/:id', authenticateToken(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const user = await usersService.patch(req.params.id, req.body);
+      res.json(user);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // DELETE /users/:id - Delete user (admin only)
+  app.delete('/users/:id', authenticateToken(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const result = await usersService.remove(req.params.id);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
     }
   });
 
@@ -330,6 +448,759 @@ module.exports = function (app) {
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
+  });
+
+  // Jobs service endpoints
+  app.post('/jobs', authenticateToken(app), async (req, res) => {
+    try {
+      const jobsService = new JobsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await jobsService.create(req.body, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/jobs', optionalAuth(app), async (req, res) => {
+    try {
+      const jobsService = new JobsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        query: req.query
+      };
+      const result = await jobsService.find(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/jobs/:id', optionalAuth(app), async (req, res) => {
+    try {
+      const jobsService = new JobsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await jobsService.get(req.params.id, serviceParams);
+      res.json(result);
+    } catch (error) {
+      if (error.code === 404) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  app.patch('/jobs/:id', authenticateToken(app), async (req, res) => {
+    try {
+      const jobsService = new JobsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await jobsService.patch(req.params.id, req.body, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete('/jobs/:id', authenticateToken(app), async (req, res) => {
+    try {
+      const jobsService = new JobsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await jobsService.remove(req.params.id, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Job status update endpoint
+  app.patch('/jobs/:id/status', authenticateToken(app), async (req, res) => {
+    try {
+      const { status, reason } = req.body;
+      const jobsService = new JobsService(app);
+      const result = await jobsService.updateStatus(req.params.id, status, req.userId, reason);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Register companies service endpoints
+  app.get('/companies', optionalAuth(app), async (req, res) => {
+    try {
+      const companiesService = new CompaniesService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        query: req.query
+      };
+      const result = await companiesService.find(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/companies/:id', optionalAuth(app), async (req, res) => {
+    try {
+      const companiesService = new CompaniesService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await companiesService.get(req.params.id, serviceParams);
+      res.json(result);
+    } catch (error) {
+      if (error.code === 404) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  // Register applications service endpoints
+  app.post('/applications', authenticateToken(app), async (req, res) => {
+    try {
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await applicationsService.create(req.body, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/applications', authenticateToken(app), async (req, res) => {
+    try {
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        query: req.query
+      };
+      const result = await applicationsService.find(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/applications/:id', authenticateToken(app), async (req, res) => {
+    try {
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await applicationsService.get(req.params.id, serviceParams);
+      res.json(result);
+    } catch (error) {
+      if (error.code === 404) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  app.patch('/applications/:id', authenticateToken(app), async (req, res) => {
+    try {
+      console.log('🔥 BACKEND: Applications PATCH route called');
+      console.log('🔥 Application ID:', req.params.id);
+      console.log('🔥 Request body:', JSON.stringify(req.body, null, 2));
+      console.log('🔥 User from auth:', req.user ? { id: req.user._id, role: req.user.role } : 'NO USER');
+
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await applicationsService.patch(req.params.id, req.body, serviceParams);
+      res.json(result);
+    } catch (error) {
+      console.log('🔥 BACKEND ERROR:', error.message);
+      if (error.code === 404) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  app.delete('/applications/:id', authenticateToken(app), async (req, res) => {
+    try {
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await applicationsService.remove(req.params.id, serviceParams);
+      res.json(result);
+    } catch (error) {
+      if (error.code === 404) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  // Check if user has applied to a job
+  app.get('/jobs/:jobId/applied', authenticateToken(app), async (req, res) => {
+    try {
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await applicationsService.hasApplied(req.params.jobId, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get application statistics for company dashboard
+  app.get('/applications/stats/company', authenticateToken(app), async (req, res) => {
+    try {
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        query: req.query
+      };
+      const result = await applicationsService.getStats(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Register internships service endpoints
+  app.get('/internships', authenticateToken(app), async (req, res) => {
+    try {
+      const internshipsService = new InternshipsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        query: req.query
+      };
+      const result = await internshipsService.find(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/internships/:id', authenticateToken(app), async (req, res) => {
+    try {
+      const internshipsService = new InternshipsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await internshipsService.get(req.params.id, serviceParams);
+      res.json(result);
+    } catch (error) {
+      if (error.code === 404) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  app.post('/internships', authenticateToken(app), async (req, res) => {
+    try {
+      const internshipsService = new InternshipsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await internshipsService.create(req.body, serviceParams);
+      res.status(201).json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch('/internships/:id', authenticateToken(app), async (req, res) => {
+    try {
+      const internshipsService = new InternshipsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await internshipsService.patch(req.params.id, req.body, serviceParams);
+      res.json(result);
+    } catch (error) {
+      if (error.code === 404) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  app.delete('/internships/:id', authenticateToken(app), async (req, res) => {
+    try {
+      const internshipsService = new InternshipsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await internshipsService.remove(req.params.id, serviceParams);
+      res.json(result);
+    } catch (error) {
+      if (error.code === 404) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  // Upload onboarding materials for internship
+  app.post('/internships/:id/upload-onboarding', authenticateToken(app), upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file provided' });
+      }
+
+      const internshipsService = new InternshipsService(app);
+      const result = await internshipsService.uploadOnboardingMaterials(req.params.id, req.file, req.userId);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Download onboarding materials for internship
+  app.get('/internships/:id/onboarding-materials/download', authenticateToken(app), async (req, res) => {
+    try {
+      const internshipsService = new InternshipsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        internshipId: req.params.id
+      };
+
+      const result = await internshipsService.downloadOnboardingMaterials(serviceParams);
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="onboarding-materials-${req.params.id}.pdf"`);
+
+      // Send the file buffer
+      res.send(result.fileBuffer);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+
+
+  // Test endpoint to check internship database
+  app.get('/internships/test/database', authenticateToken(app), async (req, res) => {
+    try {
+      const db = app.get('mongoClient').db();
+      const internshipsCollection = db.collection('internships');
+
+      // Get count and sample documents
+      const count = await internshipsCollection.countDocuments();
+      const samples = await internshipsCollection.find().limit(5).toArray();
+
+      res.json({
+        success: true,
+        message: 'Internships database test',
+        count: count,
+        samples: samples,
+        collectionName: 'internships'
+      });
+    } catch (error) {
+      console.error('Database test error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        message: 'Failed to test internships database'
+      });
+    }
+  });
+
+  // Resume upload endpoint
+  app.post('/users/resume/upload', authenticateToken(app), upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file provided' });
+      }
+
+      const usersService = new UsersService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await usersService.uploadResume(req.file, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Resume download endpoint (current user)
+  app.get('/users/resume/download', authenticateToken(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+
+      const result = await usersService.downloadResume(serviceParams);
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
+
+      // Send the file buffer
+      res.send(result.fileBuffer);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Resume download endpoint (specific user - for companies to download candidate resumes)
+  app.get('/users/:id/resume/download', authenticateToken(app), async (req, res) => {
+    try {
+      console.log('🔄 Company downloading resume for user:', req.params.id);
+      console.log('👤 Requester:', req.user ? { id: req.user._id, role: req.user.role } : 'NO USER');
+
+      const usersService = new UsersService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        targetUserId: req.params.id // The user whose resume we want to download
+      };
+
+      const result = await usersService.downloadUserResume(serviceParams);
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="resume_${req.params.id}.pdf"`);
+
+      // Send the file buffer
+      res.send(result.fileBuffer);
+    } catch (error) {
+      console.error('❌ Error downloading user resume:', error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Offer letter download endpoint
+  app.get('/applications/:id/offer-letter/download', authenticateToken(app), async (req, res) => {
+    try {
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        applicationId: req.params.id
+      };
+
+      const result = await applicationsService.downloadOfferLetter(serviceParams);
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="offer_letter_${req.params.id}.pdf"`);
+
+      // Send the file buffer
+      res.send(result.fileBuffer);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update expired applications endpoint
+  app.post('/applications/update-expired', authenticateToken(app), async (req, res) => {
+    try {
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+
+      const result = await applicationsService.updateExpiredApplications(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Resume path endpoint - just returns the file path
+  app.get('/users/resume/path', authenticateToken(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+
+      const result = await usersService.getResumePath(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Initialize workflow services (delayed to avoid circular dependencies)
+  setTimeout(() => {
+    try {
+      const applicationModel = new ApplicationModel(getDB());
+      const notificationService = new NotificationService(app);
+      const workflowService = new WorkflowService(applicationModel, notificationService);
+      const workflowScheduler = new WorkflowSchedulerService(workflowService, applicationModel);
+
+      // Start workflow scheduler
+      workflowScheduler.start();
+
+      // Store services in app for access from other parts
+      app.set('workflowService', workflowService);
+      app.set('workflowScheduler', workflowScheduler);
+
+      console.log('✅ Workflow services initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize workflow services:', error.message);
+    }
+  }, 1000);
+
+  // Workflow management endpoints
+  app.post('/workflow/transition', authenticateToken(app), async (req, res) => {
+    try {
+      const workflowService = app.get('workflowService');
+      if (!workflowService) {
+        return res.status(503).json({
+          success: false,
+          error: 'Workflow service not available'
+        });
+      }
+
+      const { applicationId, newStage, reason, additionalData } = req.body;
+
+      if (!applicationId || !newStage) {
+        return res.status(400).json({
+          success: false,
+          error: 'Application ID and new stage are required'
+        });
+      }
+
+      const result = await workflowService.transitionApplication(
+        applicationId,
+        newStage,
+        req.userId,
+        { reason, ...additionalData }
+      );
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get('/workflow/stages/:stage/actions', authenticateToken(app), async (req, res) => {
+    try {
+      const workflowService = app.get('workflowService');
+      if (!workflowService) {
+        return res.status(503).json({
+          success: false,
+          error: 'Workflow service not available'
+        });
+      }
+
+      const { stage } = req.params;
+      const actions = workflowService.getAvailableActions(stage);
+      res.json({ success: true, data: actions });
+    } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get('/workflow/stages/:stage/decision', authenticateToken(app), async (req, res) => {
+    try {
+      const workflowService = app.get('workflowService');
+      if (!workflowService) {
+        return res.status(503).json({
+          success: false,
+          error: 'Workflow service not available'
+        });
+      }
+
+      const { stage } = req.params;
+      const decisionPoint = workflowService.getDecisionPoint(stage);
+      res.json({ success: true, data: decisionPoint });
+    } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
+  app.post('/workflow/automation/process', authenticateToken(app), async (req, res) => {
+    try {
+      // Check if user is admin
+      const user = await new UsersService(app).getCurrentUser(req.userId);
+      if (user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      const { applicationId } = req.body;
+
+      if (applicationId) {
+        await workflowService.processAutomatedWorkflow(applicationId);
+        res.json({ success: true, message: 'Automated workflow processed for application' });
+      } else {
+        // Process all active applications
+        await workflowScheduler.processAutomatedWorkflows();
+        res.json({ success: true, message: 'Automated workflow processed for all applications' });
+      }
+    } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get('/workflow/health', authenticateToken(app), async (req, res) => {
+    try {
+      // Check if user is admin
+      const user = await new UsersService(app).getCurrentUser(req.userId);
+      if (user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      await workflowScheduler.performHealthCheck();
+      res.json({ success: true, message: 'Workflow health check completed' });
+    } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
+
+
+
+
+  // Register requests service endpoints
+  app.post('/requests', authenticateToken(app), async (req, res) => {
+    try {
+      console.log('🚀 POST /requests endpoint hit');
+      console.log('📋 Request body:', req.body);
+      console.log('👤 User:', req.user);
+      console.log('🆔 User ID:', req.userId);
+
+      const requestsService = new RequestsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await requestsService.create(req.body, serviceParams);
+      console.log('✅ Request created successfully:', result);
+      res.json(result);
+    } catch (error) {
+      console.error('Error in POST /requests:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/requests', authenticateToken(app), async (req, res) => {
+    try {
+      console.log('🔍 GET /requests endpoint hit');
+      console.log('👤 User:', req.user ? { id: req.user._id, role: req.user.role } : 'NO USER');
+      console.log('📋 Query params:', req.query);
+
+      const requestsService = new RequestsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        query: req.query
+      };
+      const result = await requestsService.find(serviceParams);
+      console.log('✅ Found requests:', result.data?.length || 0);
+      if (result.data?.length > 0) {
+        console.log('📄 First request sample:', JSON.stringify(result.data[0], null, 2));
+      }
+      res.json(result);
+    } catch (error) {
+      console.error('Error in GET /requests:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch('/requests/:id', authenticateToken(app), async (req, res) => {
+    try {
+      console.log('🔄 PATCH /requests/:id endpoint hit');
+      console.log('📋 Request ID:', req.params.id);
+      console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
+      console.log('👤 User:', req.user ? { id: req.user._id, role: req.user.role } : 'NO USER');
+
+      const requestsService = new RequestsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await requestsService.patch(req.params.id, req.body, serviceParams);
+      console.log('✅ Request updated successfully');
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Error updating request:', error);
+      if (error.code === 404) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  app.get('/requests/:id', authenticateToken(app), async (req, res) => {
+    try {
+      console.log('🔍 GET /requests/:id endpoint hit');
+      console.log('📋 Request ID:', req.params.id);
+
+      const requestsService = new RequestsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await requestsService.get(req.params.id, serviceParams);
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Error fetching request:', error);
+      if (error.code === 404) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  // Graceful shutdown handler for workflow scheduler
+  process.on('SIGTERM', () => {
+    console.log('Received SIGTERM, stopping workflow scheduler...');
+    workflowScheduler.stop();
+  });
+
+  process.on('SIGINT', () => {
+    console.log('Received SIGINT, stopping workflow scheduler...');
+    workflowScheduler.stop();
   });
 
   // Make authentication middleware available to other parts of the app

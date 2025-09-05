@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CandidateApplication } from '@/types/company';
+import config from '@/config';
+
+const API_BASE_URL = config.api.baseUrl;
 
 // Mock applications data
 const mockApplications: CandidateApplication[] = [
@@ -240,23 +243,78 @@ const mockApplications: CandidateApplication[] = [
 
 export async function GET(request: NextRequest) {
   try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '10');
     const sort = searchParams.get('sort') || 'recent';
     const status = searchParams.get('status');
     const jobId = searchParams.get('jobId');
 
-    let filteredApplications = [...mockApplications];
+    // Build query parameters for backend
+    const queryParams = new URLSearchParams();
+    queryParams.append('$limit', limit.toString());
 
-    // Filter by status if provided
+    if (sort === 'recent') {
+      queryParams.append('$sort', JSON.stringify({ createdAt: -1 }));
+    }
+
     if (status) {
-      filteredApplications = filteredApplications.filter(app => app.status === status);
+      queryParams.append('status', status);
     }
 
-    // Filter by job ID if provided
     if (jobId) {
-      filteredApplications = filteredApplications.filter(app => app.jobId === jobId);
+      queryParams.append('jobId', jobId);
     }
+
+    // Call backend API to get applications for the company
+    console.log('Fetching applications with query:', queryParams.toString());
+    console.log('API_BASE_URL:', API_BASE_URL);
+    console.log('Full URL:', `${API_BASE_URL}/applications?${queryParams.toString()}`);
+
+    const response = await fetch(`${API_BASE_URL}/applications?${queryParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+    });
+
+    const data = await response.json();
+    console.log('Backend response for applications:', data);
+    console.log('First application sample:', data.data?.[0]);
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data.message || 'Failed to fetch applications' },
+        { status: response.status }
+      );
+    }
+
+    // Transform backend data to match frontend expectations
+    const applications = (data.data || data).map((app: any) => ({
+      id: app._id,
+      jobId: app.jobId,
+      jobTitle: app.jobInfo?.title || app.job?.title || 'Unknown Position',
+      candidate: {
+        id: app.userId,
+        name: app.personalInformation?.split(',')[0] || 'Unknown',
+        email: app.personalInformation?.split(',')[1]?.trim() || 'Unknown',
+        phone: app.personalInformation?.split(',')[2]?.trim() || 'Unknown',
+        location: app.personalInformation?.split(',')[3]?.trim() || 'Unknown'
+      },
+      status: app.status || 'submitted',
+      submittedAt: app.createdAt,
+      resumeUrl: app.resumeUrl,
+      coverLetter: app.coverLetter,
+      rating: null,
+      feedback: null
+    }));
+
+    let filteredApplications = applications;
 
     // Sort applications
     if (sort === 'recent') {
@@ -283,10 +341,12 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching applications:', error);
+    console.error('Error details:', error.message, error.stack);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error'
+        error: 'Internal server error',
+        details: error.message
       },
       { status: 500 }
     );

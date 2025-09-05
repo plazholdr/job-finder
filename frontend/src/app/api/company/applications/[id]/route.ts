@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CandidateApplication } from '@/types/company';
+import config from '@/config';
+
+const API_BASE_URL = config.api.baseUrl;
 
 // Mock applications data (same as in the main route)
 const mockApplications: CandidateApplication[] = [
@@ -33,7 +36,15 @@ const mockApplications: CandidateApplication[] = [
     ],
     submittedAt: new Date('2024-01-22T10:30:00Z'),
     lastUpdated: new Date('2024-01-22T10:30:00Z'),
-    additionalDocuments: []
+    additionalDocuments: [],
+    statusHistory: [
+      {
+        status: 'submitted',
+        changedAt: new Date('2024-01-22T10:30:00Z'),
+        changedBy: 'John Doe',
+        reason: 'Application submitted'
+      }
+    ]
   },
   {
     id: 'app-2',
@@ -132,7 +143,100 @@ const mockApplications: CandidateApplication[] = [
     submittedAt: new Date('2024-01-18T11:20:00Z'),
     lastUpdated: new Date('2024-01-22T10:30:00Z'),
     reviewedAt: new Date('2024-01-20T16:45:00Z'),
-    additionalDocuments: []
+    additionalDocuments: [],
+    statusHistory: [
+      {
+        status: 'submitted',
+        changedAt: new Date('2024-01-18T11:20:00Z'),
+        changedBy: 'Alex Wilson',
+        reason: 'Application submitted'
+      },
+      {
+        status: 'shortlisted',
+        changedAt: new Date('2024-01-19T14:00:00Z'),
+        changedBy: 'Sarah Johnson',
+        reason: 'Candidate shortlisted for interview'
+      },
+      {
+        status: 'interview_scheduled',
+        changedAt: new Date('2024-01-20T11:00:00Z'),
+        changedBy: 'Sarah Johnson',
+        reason: 'Interview scheduled'
+      }
+    ]
+  },
+  // Test application with offer_accepted status
+  {
+    id: 'app-accepted',
+    jobId: 'job-1',
+    candidateId: 'candidate-accepted',
+    coverLetter: 'I am thrilled to apply for this position and contribute to your team.',
+    resume: '/resumes/jane-smith-resume.pdf',
+    candidate: {
+      id: 'candidate-accepted',
+      name: 'Jane Smith',
+      email: 'jane.smith@email.com',
+      phone: '+1 (555) 987-6543',
+      location: 'New York, NY',
+      education: 'MS Computer Science, MIT',
+      experience: '3 years',
+      skills: ['React', 'TypeScript', 'Python', 'AWS'],
+      resumeUrl: '/resumes/jane-smith-resume.pdf'
+    },
+    status: 'offer_accepted',
+    reviewStage: 'completed',
+    reviewers: [
+      {
+        id: 'reviewer-1',
+        name: 'Sarah Johnson',
+        role: 'HR Manager',
+        status: 'approved',
+        rating: 5,
+        feedback: 'Excellent candidate, offer extended and accepted.',
+        reviewedAt: new Date('2024-01-23T16:30:00Z')
+      }
+    ],
+    submittedAt: new Date('2024-01-18T09:00:00Z'),
+    lastUpdated: new Date('2024-01-24T10:15:00Z'),
+    additionalDocuments: [],
+    statusHistory: [
+      {
+        status: 'submitted',
+        changedAt: new Date('2024-01-18T09:00:00Z'),
+        changedBy: 'Jane Smith',
+        reason: 'Application submitted'
+      },
+      {
+        status: 'shortlisted',
+        changedAt: new Date('2024-01-19T14:00:00Z'),
+        changedBy: 'Sarah Johnson',
+        reason: 'Candidate shortlisted for review'
+      },
+      {
+        status: 'interview_scheduled',
+        changedAt: new Date('2024-01-20T11:00:00Z'),
+        changedBy: 'Sarah Johnson',
+        reason: 'Interview scheduled'
+      },
+      {
+        status: 'interview_completed',
+        changedAt: new Date('2024-01-22T15:00:00Z'),
+        changedBy: 'Mike Chen',
+        reason: 'Interview completed successfully'
+      },
+      {
+        status: 'offer_extended',
+        changedAt: new Date('2024-01-23T16:30:00Z'),
+        changedBy: 'Sarah Johnson',
+        reason: 'Offer extended to candidate'
+      },
+      {
+        status: 'offer_accepted',
+        changedAt: new Date('2024-01-24T10:15:00Z'),
+        changedBy: 'Jane Smith',
+        reason: 'Candidate accepted the offer'
+      }
+    ]
   }
 ];
 
@@ -143,18 +247,74 @@ export async function GET(
 ) {
   try {
     const applicationId = params.id;
-    
-    const application = mockApplications.find(app => app.id === applicationId);
-    
-    if (!application) {
+
+    // Get auth header
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, error: 'Authorization header required' },
+        { status: 401 }
+      );
+    }
+
+    // Call backend API to get specific application
+    console.log('Fetching application ID:', applicationId);
+    console.log('API URL:', `${API_BASE_URL}/applications/${applicationId}`);
+
+    const response = await fetch(`${API_BASE_URL}/applications/${applicationId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+    });
+
+    const data = await response.json();
+    console.log('Backend response for single application:', data);
+    console.log('Response status:', response.status);
+
+    if (!response.ok) {
+      console.error('Backend error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
       return NextResponse.json(
         {
           success: false,
-          error: 'Application not found'
+          error: data.message || `Backend error: ${response.status} ${response.statusText}`
         },
-        { status: 404 }
+        { status: response.status }
       );
     }
+
+    // Transform backend data to match frontend expectations
+    const application = {
+      id: data._id,
+      jobId: data.jobId,
+      jobTitle: data.jobInfo?.title || data.job?.title || 'Unknown Position',
+      candidate: {
+        id: data.userId,
+        name: data.personalInformation?.split(',')[0] || 'Unknown',
+        email: data.personalInformation?.split(',')[1]?.trim() || 'Unknown',
+        phone: data.personalInformation?.split(',')[2]?.trim() || 'Unknown',
+        location: data.personalInformation?.split(',')[3]?.trim() || 'Unknown'
+      },
+      status: data.status || 'submitted',
+      submittedAt: data.createdAt,
+      lastUpdated: data.updatedAt,
+      personalInformation: data.personalInformation,
+      internshipDetails: data.internshipDetails,
+      courseInformation: data.courseInformation,
+      assignmentInformation: data.assignmentInformation,
+      coverLetter: data.coverLetter,
+      resumeUrl: data.resumeUrl,
+      portfolioUrl: data.portfolioUrl,
+      additionalDocuments: data.additionalDocuments || [],
+      statusHistory: data.statusHistory || [],
+      reviewStage: 'initial',
+      reviewers: []
+    };
 
     return NextResponse.json({
       success: true,
@@ -180,61 +340,74 @@ export async function PUT(
 ) {
   try {
     const applicationId = params.id;
-    const { status, reviewerId, feedback, rating } = await request.json();
+    const requestData = await request.json();
 
-    const applicationIndex = mockApplications.findIndex(app => app.id === applicationId);
-    
-    if (applicationIndex === -1) {
+    // Get auth header
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Application not found'
-        },
-        { status: 404 }
+        { success: false, error: 'Authorization header required' },
+        { status: 401 }
       );
     }
 
-    const application = mockApplications[applicationIndex];
+    // Call backend API to update application
+    console.log('🚀 FRONTEND: Updating application ID:', applicationId);
+    console.log('🚀 FRONTEND: Update data:', requestData);
+    console.log('🚀 FRONTEND: Auth header:', authHeader);
+    console.log('🚀 FRONTEND: Backend URL:', `${API_BASE_URL}/applications/${applicationId}`);
 
-    // Update application status
-    if (status) {
-      application.status = status as any;
-      application.lastUpdated = new Date();
+    const response = await fetch(`${API_BASE_URL}/applications/${applicationId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+      body: JSON.stringify(requestData),
+    });
 
-      // Set reviewedAt if this is the first review
-      if (!application.reviewedAt && status !== 'submitted') {
-        application.reviewedAt = new Date();
-      }
+    const data = await response.json();
+    console.log('Backend update response:', data);
+
+    if (!response.ok) {
+      console.error('Backend error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: data.message || `Backend error: ${response.status} ${response.statusText}`
+        },
+        { status: response.status }
+      );
     }
 
-    // Add or update reviewer information if provided
-    if (reviewerId) {
-      const existingReviewerIndex = application.reviewers.findIndex(r => r.id === reviewerId);
-      
-      if (existingReviewerIndex >= 0) {
-        // Update existing reviewer
-        application.reviewers[existingReviewerIndex] = {
-          ...application.reviewers[existingReviewerIndex],
-          status: status === 'rejected' ? 'rejected' : 'approved',
-          reviewedAt: new Date(),
-          feedback: feedback || application.reviewers[existingReviewerIndex].feedback,
-          rating: rating || application.reviewers[existingReviewerIndex].rating
-        };
-      } else {
-        // Add new reviewer
-        application.reviewers.push({
-          id: reviewerId,
-          name: 'Current User', // In real app, get from user data
-          role: 'Reviewer',
-          status: status === 'rejected' ? 'rejected' : 'approved',
-          reviewedAt: new Date(),
-          feedback,
-          rating
-        });
-      }
-    }
-
-    mockApplications[applicationIndex] = application;
+    // Transform backend data to match frontend expectations
+    const application = {
+      id: data._id,
+      jobId: data.jobId,
+      jobTitle: data.jobInfo?.title || data.job?.title || 'Unknown Position',
+      candidate: {
+        id: data.userId,
+        name: data.personalInformation?.split(',')[0] || 'Unknown',
+        email: data.personalInformation?.split(',')[1]?.trim() || 'Unknown',
+        phone: data.personalInformation?.split(',')[2]?.trim() || 'Unknown',
+        location: data.personalInformation?.split(',')[3]?.trim() || 'Unknown'
+      },
+      status: data.status || 'submitted',
+      submittedAt: data.createdAt,
+      lastUpdated: data.updatedAt || new Date(),
+      personalInformation: data.personalInformation,
+      internshipDetails: data.internshipDetails,
+      courseInformation: data.courseInformation,
+      assignmentInformation: data.assignmentInformation,
+      coverLetter: data.coverLetter,
+      resumeUrl: data.resumeUrl,
+      portfolioUrl: data.portfolioUrl,
+      additionalDocuments: data.additionalDocuments || []
+    };
 
     return NextResponse.json({
       success: true,

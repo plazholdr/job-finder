@@ -194,14 +194,14 @@ export async function PATCH(request: NextRequest) {
     if (action === 'mark_read') {
       notifications = notifications.map(notification => {
         if (notification.userId === userId && notificationIds.includes(notification.id)) {
-          return { ...notification, read: true };
+          return { ...notification, isRead: true };
         }
         return notification;
       });
     } else if (action === 'mark_all_read') {
       notifications = notifications.map(notification => {
         if (notification.userId === userId) {
-          return { ...notification, read: true };
+          return { ...notification, isRead: true };
         }
         return notification;
       });
@@ -251,11 +251,11 @@ export async function DELETE(request: NextRequest) {
 }
 
 // Helper function to create notifications (used by other parts of the system)
-export function createNotification(notification: Omit<Notification, 'id' | 'timestamp'>) {
+export function createNotification(notification: Omit<Notification, 'id' | 'createdAt'>) {
   const newNotification: Notification = {
     ...notification,
     id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    timestamp: new Date()
+    createdAt: new Date().toISOString()
   };
 
   notifications.push(newNotification);

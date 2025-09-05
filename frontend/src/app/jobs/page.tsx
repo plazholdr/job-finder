@@ -9,13 +9,20 @@ import { Heart, Search, MapPin, Calendar, DollarSign, Building2, Clock } from 'l
 import { Job, JobFilters, LikedJob } from '@/types/company-job';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import EnhancedJobApplicationModal from '@/components/EnhancedJobApplicationModal';
+import { useAuth } from '@/contexts/auth-context';
+import { useRouter } from 'next/navigation';
 
 export default function JobsPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [likedJobs, setLikedJobs] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<JobFilters>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<any>(null);
 
   useEffect(() => {
     fetchJobs();
@@ -31,11 +38,19 @@ export default function JobsPage() {
       if (filters.postedWithin) queryParams.append('postedWithin', filters.postedWithin);
       if (filters.deadline) queryParams.append('deadline', filters.deadline);
 
-      const response = await fetch(`/api/jobs?${queryParams}`);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/jobs?${queryParams}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       const data = await response.json();
 
-      if (data.success) {
-        setJobs(data.data);
+      if (data.success || data.data) {
+        console.log('Jobs fetched from API:', data.data || data);
+        setJobs(data.data || data);
+      } else {
+        console.error('API returned error:', data);
       }
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -46,7 +61,12 @@ export default function JobsPage() {
 
   const fetchLikedJobs = async () => {
     try {
-      const response = await fetch('/api/jobs/liked');
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/jobs/liked', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -62,11 +82,13 @@ export default function JobsPage() {
     try {
       const isLiked = likedJobs.has(jobId);
       const method = isLiked ? 'DELETE' : 'POST';
+      const token = localStorage.getItem('authToken');
 
       const response = await fetch('/api/jobs/like', {
         method,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ jobId }),
       });
@@ -104,11 +126,59 @@ export default function JobsPage() {
   };
 
   const getDaysUntilDeadline = (deadline: Date) => {
-    const today = new Date();
-    const deadlineDate = new Date(deadline);
-    const diffTime = deadlineDate.getTime() - today.getTime();
+    const now = new Date();
+    const diffTime = deadline.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  const handleApply = (job: any) => {
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+    setSelectedJob(job);
+    setShowApplicationModal(true);
+  };
+
+  const handleApplicationSubmit = async (applicationData: any) => {
+    try {
+      console.log('Submitting application:', applicationData);
+
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/applications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          jobId: selectedJob._id || selectedJob.id,
+          personalInformation: `${user?.firstName} ${user?.lastName}, ${user?.email}, ${user?.profile?.phone || 'N/A'}, ${user?.profile?.location || 'N/A'}`,
+          internshipDetails: applicationData.applicationValidity,
+          courseInformation: user?.student?.education ? JSON.stringify(user.student.education) : 'No education info provided',
+          assignmentInformation: user?.student?.experience ? JSON.stringify(user.student.experience) : 'No experience info provided',
+          coverLetter: applicationData.candidateStatement,
+          resumeUrl: applicationData.resumeUrl || user?.student?.resume,
+          portfolioUrl: user?.student?.portfolio || null,
+          additionalDocuments: []
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setShowApplicationModal(false);
+        setSelectedJob(null);
+        // Refresh jobs to update application count
+        fetchJobs();
+      } else {
+        throw new Error(result.error || 'Failed to submit application');
+      }
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      throw error; // Re-throw to let the modal handle the error
+    }
   };
 
   return (
@@ -165,46 +235,48 @@ export default function JobsPage() {
       ) : (
         <div className="space-y-6">
           {jobs.map((job) => {
-            const daysUntilDeadline = getDaysUntilDeadline(job.deadline);
-            const isUrgent = daysUntilDeadline <= 7;
+            // Handle different date formats from backend
+            const deadline = job.duration?.endDate ? new Date(job.duration.endDate) : null;
+            const postedDate = job.createdAt ? new Date(job.createdAt) : new Date();
+            const daysUntilDeadline = deadline ? getDaysUntilDeadline(deadline) : null;
+            const isUrgent = daysUntilDeadline !== null && daysUntilDeadline <= 7;
+
+            // Format salary display
+            const salaryDisplay = job.salary?.minimum && job.salary?.maximum
+              ? `$${job.salary.minimum}-${job.salary.maximum}/${job.salary.type || 'month'}`
+              : job.salary?.minimum
+                ? `$${job.salary.minimum}+/${job.salary.type || 'month'}`
+                : 'Salary negotiable';
 
             return (
-              <Card key={job.id} className="hover:shadow-lg transition-shadow">
+              <Card key={job._id || job.id} className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-4">
                       <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                        {job.logo ? (
-                          <img
-                            src={job.logo}
-                            alt={`${job.company?.name || job.name} logo`}
-                            className="h-12 w-12 object-contain"
-                          />
-                        ) : (
-                          <Building2 className="h-8 w-8 text-gray-400" />
-                        )}
+                        <Building2 className="h-8 w-8 text-gray-400" />
                       </div>
                       <div>
                         <h3 className="font-semibold text-xl text-gray-900 mb-1">
                           {job.title}
                         </h3>
                         <p className="text-gray-600 font-medium">
-                          {job.company?.name || job.name}
+                          {job.companyName || job.companyInfo?.name || 'Company Name'}
                         </p>
                         <div className="flex items-center space-x-4 mt-2">
                           <div className="flex items-center text-sm text-gray-500">
                             <MapPin className="h-4 w-4 mr-1" />
-                            {job.location}
+                            {job.location || 'Location not specified'}
                           </div>
                           <div className="flex items-center text-sm text-gray-500">
                             <DollarSign className="h-4 w-4 mr-1" />
-                            {job.salaryRange}
+                            {salaryDisplay}
                           </div>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {isUrgent && (
+                      {isUrgent && daysUntilDeadline !== null && (
                         <Badge variant="destructive" className="text-xs">
                           <Clock className="h-3 w-3 mr-1" />
                           {daysUntilDeadline} days left
@@ -213,12 +285,12 @@ export default function JobsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleLikeJob(job.id)}
+                        onClick={() => handleLikeJob(job._id || job.id)}
                         className="p-2"
                       >
                         <Heart
                           className={`h-5 w-5 ${
-                            likedJobs.has(job.id)
+                            likedJobs.has(job._id || job.id)
                               ? 'fill-red-500 text-red-500'
                               : 'text-gray-400'
                           }`}
@@ -228,32 +300,32 @@ export default function JobsPage() {
                   </div>
 
                   <p className="text-gray-600 mb-4 line-clamp-2">
-                    {job.briefDescription}
+                    {job.description}
                   </p>
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1" />
-                        Posted {formatDate(job.postedDate)}
+                        Posted {formatDate(postedDate)}
                       </div>
-                      <div className="flex items-center">
-                        <Clock className="h-4 w-4 mr-1" />
-                        Deadline {formatDate(job.deadline)}
-                      </div>
+                      {deadline && (
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 mr-1" />
+                          Deadline {formatDate(deadline)}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex space-x-2">
-                      <Link href={`/jobs/${job.id}`}>
+                      <Link href={`/jobs/${job._id || job.id}`}>
                         <Button variant="outline" size="sm">
                           View Details
                         </Button>
                       </Link>
-                      <Link href={`/jobs/${job.id}/apply`}>
-                        <Button size="sm">
-                          Apply Now
-                        </Button>
-                      </Link>
+                      <Button size="sm" onClick={() => handleApply(job)}>
+                        Apply Now
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -271,6 +343,25 @@ export default function JobsPage() {
         </div>
       )}
       </div>
+
+      {/* Application Modal */}
+      {selectedJob && (
+        <EnhancedJobApplicationModal
+          isOpen={showApplicationModal}
+          onClose={() => {
+            setShowApplicationModal(false);
+            setSelectedJob(null);
+          }}
+          job={{
+            id: selectedJob._id || selectedJob.id,
+            title: selectedJob.title,
+            company: {
+              name: selectedJob.companyName || selectedJob.companyInfo?.name || 'Company Name'
+            }
+          }}
+          onSubmit={handleApplicationSubmit}
+        />
+      )}
     </AppLayout>
   );
 }
