@@ -30,6 +30,7 @@ jobs:
         run: npm run build --if-present
 
       - name: Deploy to Production Server
+        id: deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.PRODUCTION_HOST }}
@@ -37,15 +38,66 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/ubuntu/job-finder
+
+            # Create backup of current state before deployment
+            BACKUP_DIR="/home/ubuntu/backups/job-finder-$(date +%Y%m%d-%H%M%S)"
+            mkdir -p $BACKUP_DIR
+            cp -r . $BACKUP_DIR/
+            echo "Backup created at: $BACKUP_DIR"
+
+            # Store current commit for potential rollback
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            echo $CURRENT_COMMIT > /tmp/previous_commit.txt
+
+            # Deploy new version
             git fetch origin
             git reset --hard origin/production
             docker-compose down
             docker-compose build --no-cache
             docker-compose up -d
+
             echo "Production deployment completed at $(date)"
+            echo "Previous commit stored: $CURRENT_COMMIT"
 
       - name: Health Check
+        id: health-check
         run: |
           sleep 30
           curl -f https://jobfinder.saino365.com/api/ || exit 1
           echo "Production health check passed"
+
+      - name: Rollback on Failure
+        if: failure() && (steps.deploy.conclusion == 'failure' || steps.health-check.conclusion == 'failure')
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/job-finder
+
+            echo "🚨 Deployment failed! Initiating automatic rollback..."
+
+            # Get previous commit
+            if [ -f /tmp/previous_commit.txt ]; then
+              PREVIOUS_COMMIT=$(cat /tmp/previous_commit.txt)
+              echo "Rolling back to: $PREVIOUS_COMMIT"
+
+              git reset --hard $PREVIOUS_COMMIT
+              docker-compose down
+              docker-compose build --no-cache
+              docker-compose up -d
+
+              echo "Automatic rollback completed at $(date)"
+              echo "Rolled back to commit: $PREVIOUS_COMMIT"
+            else
+              echo "❌ No previous commit found for rollback!"
+              exit 1
+            fi
+
+      - name: Verify Rollback
+        if: failure() && (steps.deploy.conclusion == 'failure' || steps.health-check.conclusion == 'failure')
+        run: |
+          sleep 30
+          curl -f https://jobfinder.saino365.com/api/ || exit 1
+          echo "✅ Rollback verification passed"

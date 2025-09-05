@@ -2,9 +2,9 @@ name: Continuous Integration
 
 on:
   push:
-    branches: [major-change-sebas, staging, production]
+    branches: [staging, production]
   pull_request:
-    branches: [major-change-sebas, staging, production]
+    branches: [staging, production, master]
 
 jobs:
   lint:

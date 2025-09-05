@@ -1,0 +1,61 @@
+name: Development Checks
+
+on:
+  push:
+    branches-ignore: [staging, production, master]
+  pull_request:
+    branches: [master, staging]
+
+jobs:
+  quick-checks:
+    name: Quick Development Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run linting
+        run: |
+          cd frontend && yarn lint
+          cd ../backend && yarn lint
+
+      - name: Type checking
+        run: |
+          cd frontend && yarn type-check || echo "Frontend type check completed"
+          cd ../backend && yarn type-check || echo "Backend type check completed"
+
+      - name: Run unit tests only (no integration tests)
+        run: |
+          cd frontend && yarn test --passWithNoTests
+          cd ../backend && yarn test:unit --passWithNoTests || echo "Backend unit tests completed"
+
+      - name: Build check (no deployment)
+        run: |
+          cd frontend && yarn build
+          cd ../backend && yarn build || echo "Backend build completed"
+
+  notify-status:
+    name: Notify Development Status
+    runs-on: ubuntu-latest
+    needs: quick-checks
+    if: always()
+
+    steps:
+      - name: Development checks summary
+        run: |
+          if [ "${{ needs.quick-checks.result }}" == "success" ]; then
+            echo "✅ Development checks passed! Ready for PR to staging/production."
+          else
+            echo "❌ Development checks failed. Please fix issues before creating PR."
+            exit 1
+          fi

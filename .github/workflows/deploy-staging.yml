@@ -30,6 +30,7 @@ jobs:
         run: npm run build --if-present
 
       - name: Deploy to Staging Server
+        id: deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.STAGING_HOST }}
@@ -37,15 +38,66 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/ubuntu/job-finder-staging
+
+            # Create backup of current state before deployment
+            BACKUP_DIR="/home/ubuntu/backups/job-finder-staging-$(date +%Y%m%d-%H%M%S)"
+            mkdir -p $BACKUP_DIR
+            cp -r . $BACKUP_DIR/
+            echo "Backup created at: $BACKUP_DIR"
+
+            # Store current commit for potential rollback
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            echo $CURRENT_COMMIT > /tmp/previous_commit_staging.txt
+
+            # Deploy new version
             git fetch origin
             git reset --hard origin/staging
             docker-compose -f docker-compose.staging-final.yml down
             docker-compose -f docker-compose.staging-final.yml build --no-cache
             docker-compose -f docker-compose.staging-final.yml up -d
+
             echo "Staging deployment completed at $(date)"
+            echo "Previous commit stored: $CURRENT_COMMIT"
 
       - name: Health Check
+        id: health-check
         run: |
           sleep 30
           curl -f https://staging.saino365.com/api/ || exit 1
           echo "Staging health check passed"
+
+      - name: Rollback on Failure
+        if: failure() && (steps.deploy.conclusion == 'failure' || steps.health-check.conclusion == 'failure')
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/job-finder-staging
+
+            echo "🚨 Staging deployment failed! Initiating automatic rollback..."
+
+            # Get previous commit
+            if [ -f /tmp/previous_commit_staging.txt ]; then
+              PREVIOUS_COMMIT=$(cat /tmp/previous_commit_staging.txt)
+              echo "Rolling back to: $PREVIOUS_COMMIT"
+
+              git reset --hard $PREVIOUS_COMMIT
+              docker-compose -f docker-compose.staging-final.yml down
+              docker-compose -f docker-compose.staging-final.yml build --no-cache
+              docker-compose -f docker-compose.staging-final.yml up -d
+
+              echo "Automatic rollback completed at $(date)"
+              echo "Rolled back to commit: $PREVIOUS_COMMIT"
+            else
+              echo "❌ No previous commit found for rollback!"
+              exit 1
+            fi
+
+      - name: Verify Rollback
+        if: failure() && (steps.deploy.conclusion == 'failure' || steps.health-check.conclusion == 'failure')
+        run: |
+          sleep 30
+          curl -f https://staging.saino365.com/api/ || exit 1
+          echo "✅ Rollback verification passed"

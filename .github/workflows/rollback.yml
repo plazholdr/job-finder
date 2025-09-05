@@ -1,0 +1,151 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      commit_sha:
+        description: 'Commit SHA to rollback to (leave empty for previous deployment)'
+        required: false
+        type: string
+
+jobs:
+  rollback:
+    name: Rollback ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch full history for rollback
+
+      - name: Determine rollback target
+        id: rollback-target
+        run: |
+          if [ -n "${{ inputs.commit_sha }}" ]; then
+            echo "target_sha=${{ inputs.commit_sha }}" >> $GITHUB_OUTPUT
+            echo "Rolling back to specified commit: ${{ inputs.commit_sha }}"
+          else
+            # Get the second-to-last deployment commit
+            if [ "${{ inputs.environment }}" = "production" ]; then
+              BRANCH="production"
+            else
+              BRANCH="staging"
+            fi
+            
+            # Get previous commit (before the current HEAD)
+            PREV_SHA=$(git log $BRANCH --format="%H" -n 2 | tail -n 1)
+            echo "target_sha=$PREV_SHA" >> $GITHUB_OUTPUT
+            echo "Rolling back to previous commit: $PREV_SHA"
+          fi
+
+      - name: Validate rollback target
+        run: |
+          TARGET_SHA="${{ steps.rollback-target.outputs.target_sha }}"
+          if ! git cat-file -e $TARGET_SHA^{commit}; then
+            echo "Error: Invalid commit SHA: $TARGET_SHA"
+            exit 1
+          fi
+          echo "Rollback target validated: $TARGET_SHA"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Checkout rollback target
+        run: |
+          git checkout ${{ steps.rollback-target.outputs.target_sha }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests on rollback target
+        run: npm run test --if-present
+
+      - name: Build application
+        run: npm run build --if-present
+
+      - name: Deploy to Staging Server
+        if: inputs.environment == 'staging'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/job-finder-staging
+
+            # Create backup of current state
+            BACKUP_DIR="/home/ubuntu/backups/job-finder-staging-$(date +%Y%m%d-%H%M%S)"
+            mkdir -p $BACKUP_DIR
+            cp -r . $BACKUP_DIR/
+            echo "Backup created at: $BACKUP_DIR"
+
+            # Rollback to target commit
+            git fetch origin
+            git reset --hard ${{ steps.rollback-target.outputs.target_sha }}
+
+            # Deploy
+            docker-compose -f docker-compose.staging-final.yml down
+            docker-compose -f docker-compose.staging-final.yml build --no-cache
+            docker-compose -f docker-compose.staging-final.yml up -d
+
+            echo "Staging rollback completed at $(date)"
+            echo "Rolled back to commit: ${{ steps.rollback-target.outputs.target_sha }}"
+
+      - name: Deploy to Production Server
+        if: inputs.environment == 'production'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/job-finder
+
+            # Create backup of current state
+            BACKUP_DIR="/home/ubuntu/backups/job-finder-$(date +%Y%m%d-%H%M%S)"
+            mkdir -p $BACKUP_DIR
+            cp -r . $BACKUP_DIR/
+            echo "Backup created at: $BACKUP_DIR"
+
+            # Rollback to target commit
+            git fetch origin
+            git reset --hard ${{ steps.rollback-target.outputs.target_sha }}
+
+            # Deploy
+            docker-compose down
+            docker-compose build --no-cache
+            docker-compose up -d
+
+            echo "Production rollback completed at $(date)"
+            echo "Rolled back to commit: ${{ steps.rollback-target.outputs.target_sha }}"
+
+      - name: Health Check
+        run: |
+          sleep 30
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            URL="https://jobfinder.saino365.com/api/"
+          else
+            URL="https://staging.saino365.com/api/"
+          fi
+
+          curl -f $URL || exit 1
+          echo "${{ inputs.environment }} health check passed after rollback"
+
+      - name: Notify rollback completion
+        run: |
+          echo "🔄 Rollback completed successfully!"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Target commit: ${{ steps.rollback-target.outputs.target_sha }}"
+          echo "Timestamp: $(date)"
