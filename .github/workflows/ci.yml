@@ -1,10 +1,10 @@
-name: CI
+name: Continuous Integration
 
 on:
   push:
-    branches: [ master ]
+    branches: [major-change-sebas, staging, production]
   pull_request:
-    branches: [ master ]
+    branches: [major-change-sebas, staging, production]
 
 jobs:
   lint:
