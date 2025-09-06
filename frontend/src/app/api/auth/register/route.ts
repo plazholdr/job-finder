@@ -20,8 +20,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Prefer a server-only BACKEND_URL when available (staging/prod),
+    // otherwise fall back to public config api base URL
+    const backendUrl = process.env.BACKEND_URL || config.api.baseUrl;
+
     // Call backend API to create user
-    const response = await fetch(`${config.api.baseUrl}/users`, {
+    const response = await fetch(`${backendUrl}/users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -45,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Auto-login after successful registration
-    const loginResponse = await fetch(`${config.api.baseUrl}/authentication`, {
+    const loginResponse = await fetch(`${backendUrl}/authentication`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
