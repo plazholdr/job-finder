@@ -89,18 +89,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
 
-      // Call the Next.js API route instead of backend directly
-      const response = await fetch('/api/auth/login', {
+      // On staging, /api/* is proxied by Nginx directly to the backend and
+      // the /api prefix is stripped. The backend exposes /authentication.
+      const response = await fetch('/api/authentication', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, strategy: 'local' }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
+        let message = 'Login failed';
+        try {
+          const errorData = await response.json();
+          message = errorData.error || errorData.message || message;
+        } catch (_e) {}
+        throw new Error(message);
       }
 
       const { accessToken, user: userData } = await response.json();
@@ -125,8 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
 
-      // Call the Next.js API route instead of backend directly
-      const response = await fetch('/api/auth/register', {
+      // First, create the user on the backend via Nginx-proxied route
+      const createRes = await fetch('/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,20 +139,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(userData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Registration failed');
+      if (!createRes.ok) {
+        let message = 'Registration failed';
+        try {
+          const err = await createRes.json();
+          message = err.error || err.message || message;
+        } catch (_e) {}
+        throw new Error(message);
       }
 
-      const result = await response.json();
+      // Then auto-login using the same credentials
+      const loginRes = await fetch('/api/authentication', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userData.email,
+          password: userData.password,
+          strategy: 'local',
+        }),
+      });
 
-      // If auto-login was successful, store auth data
-      if (result.accessToken && result.user) {
-        setToken(result.accessToken);
-        setUser(result.user);
+      if (!loginRes.ok) {
+        // Registration succeeded but login failed
+        return;
+      }
+
+      const { accessToken, user: userDataResp } = await loginRes.json();
+      if (accessToken && userDataResp) {
+        setToken(accessToken);
+        setUser(userDataResp);
         if (typeof window !== 'undefined') {
-          localStorage.setItem('authToken', result.accessToken);
-          localStorage.setItem('authUser', JSON.stringify(result.user));
+          localStorage.setItem('authToken', accessToken);
+          localStorage.setItem('authUser', JSON.stringify(userDataResp));
         }
       }
     } catch (error) {
