@@ -412,7 +412,7 @@ class InternshipsService {
       }
 
       // Only admins or company admins can delete internships
-      if (userRole !== 'admin' && 
+      if (userRole !== 'admin' &&
           (userRole !== 'company' || internship.companyId.toString() !== userId.toString())) {
         throw new Error('Access denied: Only admins or company administrators can delete internships');
       }
@@ -456,14 +456,14 @@ class InternshipsService {
       }
 
       // Validate file
-      const StorageUtils = require('../utils/storage');
-      const validation = StorageUtils.validateFile(file);
+      const { S3StorageUtils } = require('../utils/s3-storage');
+      const validation = S3StorageUtils.validateFile(file);
       if (!validation.isValid) {
         throw new Error(`File validation failed: ${validation.errors.join(', ')}`);
       }
 
-      // Upload file to GCS
-      const uploadResult = await StorageUtils.uploadOnboardingMaterials(
+      // Upload file to S3
+      const uploadResult = await S3StorageUtils.uploadOnboardingMaterials(
         file.buffer,
         file.originalname,
         id,
@@ -543,9 +543,9 @@ class InternshipsService {
         throw new Error('No onboarding materials found for this internship');
       }
 
-      // Download file from Google Cloud Storage
-      const StorageUtils = require('../utils/storage');
-      const result = await StorageUtils.downloadFile(internship.onboardingMaterialUrl);
+      // Download file from S3 Storage
+      const { S3StorageUtils } = require('../utils/s3-storage');
+      const result = await S3StorageUtils.downloadFile(internship.onboardingMaterialUrl);
 
       console.log(`Onboarding materials downloaded for internship: ${internshipId}`);
 

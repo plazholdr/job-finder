@@ -11,7 +11,7 @@ const WorkflowService = require('./workflow.service');
 const WorkflowSchedulerService = require('./workflow-scheduler.service');
 const { AuthenticationService, authenticateToken, optionalAuth } = require('./authentication.service');
 const multer = require('multer');
-const StorageUtils = require('../utils/storage');
+const { S3StorageUtils } = require('../utils/s3-storage');
 const ApplicationModel = require('../models/application.model');
 const { getDB } = require('../db');
 
@@ -22,8 +22,7 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB
   },
   fileFilter: (req, file, cb) => {
-    const StorageUtils = require('../utils/storage');
-    const validation = StorageUtils.validateFile(file);
+    const validation = S3StorageUtils.validateFile(file);
     if (validation.isValid) {
       cb(null, true);
     } else {

@@ -34,9 +34,9 @@ class JobsService {
       logger.info(`Job created: ${job._id} by company: ${companyId}`);
       return job;
     } catch (error) {
-      logger.error('Job creation failed', { 
-        companyId: params.user?._id, 
-        error: error.message 
+      logger.error('Job creation failed', {
+        companyId: params.user?._id,
+        error: error.message
       });
       throw error;
     }
@@ -67,7 +67,7 @@ class JobsService {
       }
 
       const { $limit = 50, $skip = 0, $sort = { createdAt: -1 }, status, search } = params.query || {};
-      
+
       // Add status filter if provided
       if (status && userRole === 'company') {
         query.status = status;
@@ -150,9 +150,9 @@ class JobsService {
         data: jobs,
       };
     } catch (error) {
-      logger.error('Jobs find failed', { 
-        userId: params.user?._id, 
-        error: error.message 
+      logger.error('Jobs find failed', {
+        userId: params.user?._id,
+        error: error.message
       });
       throw error;
     }
@@ -237,10 +237,10 @@ class JobsService {
 
       return job;
     } catch (error) {
-      logger.error('Job get failed', { 
-        id, 
-        userId: params.user?._id, 
-        error: error.message 
+      logger.error('Job get failed', {
+        id,
+        userId: params.user?._id,
+        error: error.message
       });
       throw error;
     }
@@ -267,16 +267,16 @@ class JobsService {
         if (!job) {
           throw new Error('Job not found');
         }
-        
+
         const updatedJob = await this.jobModel.updateById(id, data, job.companyId);
         logger.info(`Job updated: ${id} by admin: ${companyId}`);
         return updatedJob;
       }
     } catch (error) {
-      logger.error('Job update failed', { 
-        id, 
-        userId: params.user?._id, 
-        error: error.message 
+      logger.error('Job update failed', {
+        id,
+        userId: params.user?._id,
+        error: error.message
       });
       throw error;
     }
@@ -311,10 +311,10 @@ class JobsService {
       logger.info(`Job deleted: ${id} by user: ${companyId}`);
       return { id, deleted: true };
     } catch (error) {
-      logger.error('Job deletion failed', { 
-        id, 
-        userId: params.user?._id, 
-        error: error.message 
+      logger.error('Job deletion failed', {
+        id,
+        userId: params.user?._id,
+        error: error.message
       });
       throw error;
     }
@@ -327,11 +327,11 @@ class JobsService {
       logger.info(`Job status updated: ${jobId} to ${newStatus} by company: ${companyId}`);
       return job;
     } catch (error) {
-      logger.error('Job status update failed', { 
-        jobId, 
-        newStatus, 
-        companyId, 
-        error: error.message 
+      logger.error('Job status update failed', {
+        jobId,
+        newStatus,
+        companyId,
+        error: error.message
       });
       throw error;
     }
@@ -341,7 +341,8 @@ class JobsService {
   async uploadAttachment(jobId, file, companyId) {
     try {
       // Validate file
-      const validation = StorageUtils.validateFile(file);
+      const { S3StorageUtils } = require('../utils/s3-storage');
+      const validation = S3StorageUtils.validateFile(file);
       if (!validation.isValid) {
         throw new Error(`File validation failed: ${validation.errors.join(', ')}`);
       }
@@ -351,13 +352,13 @@ class JobsService {
       if (!job) {
         throw new Error('Job not found');
       }
-      
+
       if (job.companyId.toString() !== companyId.toString()) {
         throw new Error('Access denied: You can only upload files to your own jobs');
       }
 
-      // Upload file to GCS
-      const uploadResult = await StorageUtils.uploadJobAttachment(
+      // Upload file to S3
+      const uploadResult = await S3StorageUtils.uploadJobAttachment(
         file.buffer,
         file.originalname,
         companyId,

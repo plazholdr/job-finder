@@ -482,13 +482,14 @@ class UsersService {
       }
 
       // Validate file
-      const validation = StorageUtils.validateFile(file);
+      const { S3StorageUtils } = require('../utils/s3-storage');
+      const validation = S3StorageUtils.validateFile(file);
       if (!validation.isValid) {
         throw new Error(`File validation failed: ${validation.errors.join(', ')}`);
       }
 
-      // Upload file to GCS with user-specific path
-      const uploadResult = await StorageUtils.uploadUserResume(
+      // Upload file to S3 with user-specific path
+      const uploadResult = await S3StorageUtils.uploadUserResume(
         file.buffer,
         file.originalname,
         userId,
@@ -623,9 +624,9 @@ class UsersService {
         throw new Error('No resume found for this user');
       }
 
-      // Download file from Google Cloud Storage
-      const StorageUtils = require('../utils/storage');
-      const result = await StorageUtils.downloadFile(user.student.resume);
+      // Download file from S3 Storage
+      const { S3StorageUtils } = require('../utils/s3-storage');
+      const result = await S3StorageUtils.downloadFile(user.student.resume);
 
       logger.info(`Resume downloaded for user: ${userId}`);
 
@@ -676,9 +677,9 @@ class UsersService {
         throw new Error('No resume found for this candidate');
       }
 
-      // Download file from Google Cloud Storage
-      const StorageUtils = require('../utils/storage');
-      const result = await StorageUtils.downloadFile(targetUser.student.resume);
+      // Download file from S3 Storage
+      const { S3StorageUtils } = require('../utils/s3-storage');
+      const result = await S3StorageUtils.downloadFile(targetUser.student.resume);
 
       logger.info(`Resume downloaded by company ${requesterId} for candidate: ${targetUserId}`);
 

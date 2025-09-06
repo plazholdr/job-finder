@@ -62,10 +62,10 @@ class ApplicationsService {
       logger.info(`Application created: ${application._id} by user: ${userId} for job: ${jobId}`);
       return application;
     } catch (error) {
-      logger.error('Application creation failed', { 
-        userId: params.user?._id, 
+      logger.error('Application creation failed', {
+        userId: params.user?._id,
         jobId: data.jobId,
-        error: error.message 
+        error: error.message
       });
       throw error;
     }
@@ -128,7 +128,7 @@ class ApplicationsService {
           try {
             // Get job information
             const job = await this.jobModel.findById(application.jobId);
-            
+
             // Get user information (for company view)
             let userInfo = null;
             if (userRole === 'company' || userRole === 'admin') {
@@ -194,9 +194,9 @@ class ApplicationsService {
         data: enrichedApplications,
       };
     } catch (error) {
-      logger.error('Applications find failed', { 
-        userId: params.user?._id, 
-        error: error.message 
+      logger.error('Applications find failed', {
+        userId: params.user?._id,
+        error: error.message
       });
       throw error;
     }
@@ -233,7 +233,7 @@ class ApplicationsService {
 
       // Enrich with job and user information
       const job = await this.jobModel.findById(application.jobId);
-      
+
       let userInfo = null;
       if (userRole === 'company' || userRole === 'admin') {
         userInfo = await this.userModel.findById(application.userId, {
@@ -269,10 +269,10 @@ class ApplicationsService {
         companyInfo: plainCompanyInfo
       };
     } catch (error) {
-      logger.error('Application get failed', { 
-        id, 
-        userId: params.user?._id, 
-        error: error.message 
+      logger.error('Application get failed', {
+        id,
+        userId: params.user?._id,
+        error: error.message
       });
       throw error;
     }
@@ -323,13 +323,13 @@ class ApplicationsService {
 
           // Handle file upload for offer letter
           if (data.offerLetter) {
-            const StorageUtils = require('../utils/storage');
+            const { S3StorageUtils } = require('../utils/s3-storage');
 
             // Convert base64 to buffer
             const base64Data = data.offerLetter.data.split(',')[1]; // Remove data:application/pdf;base64, prefix
             const fileBuffer = Buffer.from(base64Data, 'base64');
 
-            const uploadResult = await StorageUtils.uploadOfferLetter(
+            const uploadResult = await S3StorageUtils.uploadOfferLetter(
               fileBuffer,
               data.offerLetter.name,
               id,
@@ -427,12 +427,12 @@ class ApplicationsService {
       // For students, update status to withdrawn instead of deleting
       if (userRole === 'student') {
         const withdrawnApplication = await this.applicationModel.updateStatus(
-          id, 
-          'withdrawn', 
-          userId, 
+          id,
+          'withdrawn',
+          userId,
           'Application withdrawn by student'
         );
-        
+
         // Decrease job application count
         const job = await this.jobModel.findById(application.jobId);
         const currentApplications = job.applications || 0;
@@ -446,7 +446,7 @@ class ApplicationsService {
 
       // For admins, actually delete
       await this.applicationModel.deleteById(id);
-      
+
       // Decrease job application count
       const job = await this.jobModel.findById(application.jobId);
       const currentApplications = job.applications || 0;
@@ -457,10 +457,10 @@ class ApplicationsService {
       logger.info(`Application deleted: ${id} by admin: ${userId}`);
       return { id, deleted: true };
     } catch (error) {
-      logger.error('Application deletion failed', { 
-        id, 
-        userId: params.user?._id, 
-        error: error.message 
+      logger.error('Application deletion failed', {
+        id,
+        userId: params.user?._id,
+        error: error.message
       });
       throw error;
     }
@@ -470,7 +470,7 @@ class ApplicationsService {
   async hasApplied(jobId, params) {
     try {
       const userId = params.user?._id;
-      
+
       if (!userId) {
         return { hasApplied: false };
       }
@@ -478,10 +478,10 @@ class ApplicationsService {
       const hasApplied = await this.applicationModel.hasUserApplied(userId, jobId);
       return { hasApplied };
     } catch (error) {
-      logger.error('Has applied check failed', { 
-        jobId, 
-        userId: params.user?._id, 
-        error: error.message 
+      logger.error('Has applied check failed', {
+        jobId,
+        userId: params.user?._id,
+        error: error.message
       });
       throw error;
     }
