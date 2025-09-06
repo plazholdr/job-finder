@@ -967,12 +967,14 @@ module.exports = function (app) {
   });
 
   // Initialize workflow services (delayed to avoid circular dependencies)
+  let workflowScheduler = null;
+
   setTimeout(() => {
     try {
       const applicationModel = new ApplicationModel(getDB());
       const notificationService = new NotificationService(app);
       const workflowService = new WorkflowService(applicationModel, notificationService);
-      const workflowScheduler = new WorkflowSchedulerService(workflowService, applicationModel);
+      workflowScheduler = new WorkflowSchedulerService(workflowService, applicationModel);
 
       // Start workflow scheduler
       workflowScheduler.start();
@@ -1067,10 +1069,18 @@ module.exports = function (app) {
       const { applicationId } = req.body;
 
       if (applicationId) {
+        const workflowService = app.get('workflowService');
+        if (!workflowService) {
+          return res.status(503).json({ error: 'Workflow service not available' });
+        }
         await workflowService.processAutomatedWorkflow(applicationId);
         res.json({ success: true, message: 'Automated workflow processed for application' });
       } else {
         // Process all active applications
+        const workflowScheduler = app.get('workflowScheduler');
+        if (!workflowScheduler) {
+          return res.status(503).json({ error: 'Workflow scheduler not available' });
+        }
         await workflowScheduler.processAutomatedWorkflows();
         res.json({ success: true, message: 'Automated workflow processed for all applications' });
       }
@@ -1087,6 +1097,10 @@ module.exports = function (app) {
         return res.status(403).json({ error: 'Admin access required' });
       }
 
+      const workflowScheduler = app.get('workflowScheduler');
+      if (!workflowScheduler) {
+        return res.status(503).json({ error: 'Workflow scheduler not available' });
+      }
       await workflowScheduler.performHealthCheck();
       res.json({ success: true, message: 'Workflow health check completed' });
     } catch (error) {
@@ -1194,12 +1208,18 @@ module.exports = function (app) {
   // Graceful shutdown handler for workflow scheduler
   process.on('SIGTERM', () => {
     console.log('Received SIGTERM, stopping workflow scheduler...');
-    workflowScheduler.stop();
+    const scheduler = app.get('workflowScheduler');
+    if (scheduler) {
+      scheduler.stop();
+    }
   });
 
   process.on('SIGINT', () => {
     console.log('Received SIGINT, stopping workflow scheduler...');
-    workflowScheduler.stop();
+    const scheduler = app.get('workflowScheduler');
+    if (scheduler) {
+      scheduler.stop();
+    }
   });
 
   // Make authentication middleware available to other parts of the app
