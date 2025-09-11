@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Lock, User, Briefcase, ArrowLeft, CheckCircle, ArrowRight, Plus, Trash2, GraduationCap } from 'lucide-react';
+import { Mail, Lock, User, Briefcase, ArrowLeft, CheckCircle, ArrowRight, Plus, Trash2, GraduationCap, Heart, Building, Calendar } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,7 +138,7 @@ export default function RegisterPage() {
     formState: { errors },
     reset,
   } = useForm<any>({
-    resolver: zodResolver(getCurrentSchema()),
+    // resolver: zodResolver(getCurrentSchema()),
     defaultValues: formData,
   });
 
@@ -779,7 +779,547 @@ export default function RegisterPage() {
     </motion.div>
   );
 
-  // Placeholder for remaining steps (6-8)
+  // Step 6: Interests
+  const renderStep6 = () => (
+    <motion.div
+      className="w-full max-w-2xl space-y-8"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="text-center">
+        <button
+          onClick={goToPreviousStep}
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back
+        </button>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Interests</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Tell us about your interests and hobbies (optional)
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {interestEntries.map((entry, index) => (
+          <div key={index} className="p-6 border border-gray-200 rounded-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Heart className="h-5 w-5 text-red-500" />
+                <h3 className="font-medium text-gray-900">Interest {index + 1}</h3>
+              </div>
+              {interestEntries.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setInterestEntries(prev => prev.filter((_, i) => i !== index))}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Interest Title"
+                  value={entry.title}
+                  onChange={(e) => {
+                    const newEntries = [...interestEntries];
+                    newEntries[index].title = e.target.value;
+                    setInterestEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <textarea
+                  placeholder="Interest Description (optional)"
+                  value={entry.description}
+                  onChange={(e) => {
+                    const newEntries = [...interestEntries];
+                    newEntries[index].description = e.target.value;
+                    setInterestEntries(newEntries);
+                  }}
+                  className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="url"
+                  placeholder="Social Link (optional)"
+                  value={entry.socialLink}
+                  onChange={(e) => {
+                    const newEntries = [...interestEntries];
+                    newEntries[index].socialLink = e.target.value;
+                    setInterestEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => setInterestEntries(prev => [...prev, {
+            title: '', description: '', socialLink: ''
+          }])}
+          className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors"
+        >
+          <Plus className="h-5 w-5 mx-auto mb-2" />
+          Add Another Interest
+        </button>
+      </div>
+
+      <div className="flex gap-4">
+        <Button
+          onClick={() => {
+            setFormData(prev => ({ ...prev, interests: [] }));
+            setCurrentStep(7);
+          }}
+          variant="outline"
+          className="flex-1 h-12"
+        >
+          Skip This Step
+        </Button>
+        <Button
+          onClick={() => {
+            setFormData(prev => ({ ...prev, interests: interestEntries }));
+            setCurrentStep(7);
+          }}
+          className="flex-1 h-12 bg-blue-600 hover:bg-blue-500"
+        >
+          Continue to Work Experience
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    </motion.div>
+  );
+
+  // Step 7: Work Experience
+  const renderStep7 = () => (
+    <motion.div
+      className="w-full max-w-2xl space-y-8"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="text-center">
+        <button
+          onClick={goToPreviousStep}
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back
+        </button>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Work Experience</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Add your previous work experience (optional)
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {workExperienceEntries.map((entry, index) => (
+          <div key={index} className="p-6 border border-gray-200 rounded-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building className="h-5 w-5 text-blue-600" />
+                <h3 className="font-medium text-gray-900">Work Experience {index + 1}</h3>
+              </div>
+              {workExperienceEntries.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setWorkExperienceEntries(prev => prev.filter((_, i) => i !== index))}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Company Name"
+                  value={entry.companyName}
+                  onChange={(e) => {
+                    const newEntries = [...workExperienceEntries];
+                    newEntries[index].companyName = e.target.value;
+                    setWorkExperienceEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <select
+                  value={entry.industry}
+                  onChange={(e) => {
+                    const newEntries = [...workExperienceEntries];
+                    newEntries[index].industry = e.target.value;
+                    setWorkExperienceEntries(newEntries);
+                  }}
+                  className="w-full h-12 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Industry</option>
+                  <option value="technology">Technology</option>
+                  <option value="finance">Finance</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="education">Education</option>
+                  <option value="retail">Retail</option>
+                  <option value="manufacturing">Manufacturing</option>
+                  <option value="consulting">Consulting</option>
+                  <option value="media">Media & Entertainment</option>
+                  <option value="government">Government</option>
+                  <option value="nonprofit">Non-profit</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Job Title"
+                  value={entry.jobTitle}
+                  onChange={(e) => {
+                    const newEntries = [...workExperienceEntries];
+                    newEntries[index].jobTitle = e.target.value;
+                    setWorkExperienceEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <select
+                  value={entry.employmentType}
+                  onChange={(e) => {
+                    const newEntries = [...workExperienceEntries];
+                    newEntries[index].employmentType = e.target.value as 'part-time' | 'full-time';
+                    setWorkExperienceEntries(newEntries);
+                  }}
+                  className="w-full h-12 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="part-time">Part-time</option>
+                  <option value="full-time">Full-time</option>
+                </select>
+              </div>
+
+              <div>
+                <Input
+                  type="date"
+                  placeholder="Start Date"
+                  value={entry.startDate}
+                  onChange={(e) => {
+                    const newEntries = [...workExperienceEntries];
+                    newEntries[index].startDate = e.target.value;
+                    setWorkExperienceEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="date"
+                  placeholder="End Date"
+                  value={entry.endDate}
+                  onChange={(e) => {
+                    const newEntries = [...workExperienceEntries];
+                    newEntries[index].endDate = e.target.value;
+                    setWorkExperienceEntries(newEntries);
+                  }}
+                  className="h-12"
+                  disabled={entry.isOngoing}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={entry.isOngoing}
+                    onChange={(e) => {
+                      const newEntries = [...workExperienceEntries];
+                      newEntries[index].isOngoing = e.target.checked;
+                      if (e.target.checked) {
+                        newEntries[index].endDate = '';
+                      }
+                      setWorkExperienceEntries(newEntries);
+                    }}
+                    className="rounded"
+                  />
+                  <span className="text-sm text-gray-700">Currently working here</span>
+                </label>
+              </div>
+
+              <div className="md:col-span-2">
+                <textarea
+                  placeholder="Job Description (optional)"
+                  value={entry.jobDescription}
+                  onChange={(e) => {
+                    const newEntries = [...workExperienceEntries];
+                    newEntries[index].jobDescription = e.target.value;
+                    setWorkExperienceEntries(newEntries);
+                  }}
+                  className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => setWorkExperienceEntries(prev => [...prev, {
+            companyName: '', industry: '', jobTitle: '', employmentType: 'part-time' as const,
+            startDate: '', endDate: '', isOngoing: false, jobDescription: ''
+          }])}
+          className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors"
+        >
+          <Plus className="h-5 w-5 mx-auto mb-2" />
+          Add Another Work Experience
+        </button>
+      </div>
+
+      <div className="flex gap-4">
+        <Button
+          onClick={() => {
+            setFormData(prev => ({ ...prev, workExperience: [] }));
+            setCurrentStep(8);
+          }}
+          variant="outline"
+          className="flex-1 h-12"
+        >
+          Skip This Step
+        </Button>
+        <Button
+          onClick={() => {
+            setFormData(prev => ({ ...prev, workExperience: workExperienceEntries }));
+            setCurrentStep(8);
+          }}
+          className="flex-1 h-12 bg-blue-600 hover:bg-blue-500"
+        >
+          Continue to Event Experience
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    </motion.div>
+  );
+
+  // Step 8: Event Experience (Final Step)
+  const renderStep8 = () => (
+    <motion.div
+      className="w-full max-w-2xl space-y-8"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="text-center">
+        <button
+          onClick={goToPreviousStep}
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back
+        </button>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Event Experience</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Add your event participation experience (optional - final step!)
+        </p>
+      </div>
+
+      {registerError && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-500">{registerError}</p>
+        </div>
+      )}
+
+      <div className="space-y-6">
+        {eventExperienceEntries.map((entry, index) => (
+          <div key={index} className="p-6 border border-gray-200 rounded-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-purple-600" />
+                <h3 className="font-medium text-gray-900">Event Experience {index + 1}</h3>
+              </div>
+              {eventExperienceEntries.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setEventExperienceEntries(prev => prev.filter((_, i) => i !== index))}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Event Name"
+                  value={entry.eventName}
+                  onChange={(e) => {
+                    const newEntries = [...eventExperienceEntries];
+                    newEntries[index].eventName = e.target.value;
+                    setEventExperienceEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Event Position (optional)"
+                  value={entry.eventPosition}
+                  onChange={(e) => {
+                    const newEntries = [...eventExperienceEntries];
+                    newEntries[index].eventPosition = e.target.value;
+                    setEventExperienceEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="date"
+                  placeholder="Start Date"
+                  value={entry.startDate}
+                  onChange={(e) => {
+                    const newEntries = [...eventExperienceEntries];
+                    newEntries[index].startDate = e.target.value;
+                    setEventExperienceEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="date"
+                  placeholder="End Date (optional)"
+                  value={entry.endDate}
+                  onChange={(e) => {
+                    const newEntries = [...eventExperienceEntries];
+                    newEntries[index].endDate = e.target.value;
+                    setEventExperienceEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Event Location (optional)"
+                  value={entry.eventLocation}
+                  onChange={(e) => {
+                    const newEntries = [...eventExperienceEntries];
+                    newEntries[index].eventLocation = e.target.value;
+                    setEventExperienceEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <textarea
+                  placeholder="Event Description (optional)"
+                  value={entry.eventDescription}
+                  onChange={(e) => {
+                    const newEntries = [...eventExperienceEntries];
+                    newEntries[index].eventDescription = e.target.value;
+                    setEventExperienceEntries(newEntries);
+                  }}
+                  className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => setEventExperienceEntries(prev => [...prev, {
+            eventName: '', eventDescription: '', eventPosition: '', startDate: '', endDate: '', eventLocation: ''
+          }])}
+          className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors"
+        >
+          <Plus className="h-5 w-5 mx-auto mb-2" />
+          Add Another Event Experience
+        </button>
+      </div>
+
+      <div className="flex gap-4">
+        <Button
+          onClick={async () => {
+            setIsLoading(true);
+            try {
+              const completeData = {
+                ...formData,
+                eventExperience: [],
+                // Add any additional interests from this step
+                interests: [...(formData.interests || []), ...interestEntries.filter(i => i.title)]
+              };
+              await registerUser(completeData as any);
+
+              setTimeout(() => {
+                router.push(`/auth/registration-success?email=${encodeURIComponent(completeData.email || '')}`);
+              }, 100);
+            } catch (error: any) {
+              setRegisterError(error.message || 'An error occurred during registration. Please try again.');
+            } finally {
+              setIsLoading(false);
+            }
+          }}
+          variant="outline"
+          className="flex-1 h-12"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Creating Account...' : 'Skip & Complete Registration'}
+        </Button>
+        <Button
+          onClick={async () => {
+            setIsLoading(true);
+            try {
+              const completeData = {
+                ...formData,
+                eventExperience: eventExperienceEntries,
+                // Add any additional interests from this step
+                interests: [...(formData.interests || []), ...interestEntries.filter(i => i.title)]
+              };
+              await registerUser(completeData as any);
+
+              setTimeout(() => {
+                router.push(`/auth/registration-success?email=${encodeURIComponent(completeData.email || '')}`);
+              }, 100);
+            } catch (error: any) {
+              setRegisterError(error.message || 'An error occurred during registration. Please try again.');
+            } finally {
+              setIsLoading(false);
+            }
+          }}
+          className="flex-1 h-12 bg-blue-600 hover:bg-blue-500"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Creating Account...' : 'Complete Registration'}
+          {!isLoading && <CheckCircle className="ml-2 h-4 w-4" />}
+        </Button>
+      </div>
+    </motion.div>
+  );
+
+  // Placeholder function (no longer used)
   const renderPlaceholderStep = (stepNumber: number, title: string, nextTitle: string) => (
     <motion.div
       className="w-full max-w-md space-y-8"
@@ -829,11 +1369,11 @@ export default function RegisterPage() {
       case 5:
         return renderStep5();
       case 6:
-        return renderPlaceholderStep(6, "Interests", "Work Experience");
+        return renderStep6();
       case 7:
-        return renderPlaceholderStep(7, "Work Experience", "Event Experience");
+        return renderStep7();
       case 8:
-        return renderPlaceholderStep(8, "Event Experience", "Complete Registration");
+        return renderStep8();
       default:
         return renderRoleSelection();
     }
