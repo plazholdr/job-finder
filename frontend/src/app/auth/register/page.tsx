@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Lock, User, Briefcase, ArrowLeft, CheckCircle, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, Briefcase, ArrowLeft, CheckCircle, ArrowRight, Plus, Trash2, GraduationCap } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -101,6 +101,24 @@ export default function RegisterPage() {
   const [selectedRole, setSelectedRole] = useState<'student' | 'company' | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<Partial<RegisterFormValues>>({});
+
+  // Dynamic form arrays
+  const [educationEntries, setEducationEntries] = useState([{
+    level: '', institution: '', qualification: '', startDate: '', endDate: '', fieldOfStudy: ''
+  }]);
+  const [certificationEntries, setCertificationEntries] = useState([{
+    title: '', issuer: '', acquiredDate: '', description: ''
+  }]);
+  const [interestEntries, setInterestEntries] = useState([{
+    title: '', description: '', socialLink: ''
+  }]);
+  const [workExperienceEntries, setWorkExperienceEntries] = useState([{
+    companyName: '', industry: '', jobTitle: '', employmentType: 'part-time' as const,
+    startDate: '', endDate: '', isOngoing: false, jobDescription: ''
+  }]);
+  const [eventExperienceEntries, setEventExperienceEntries] = useState([{
+    eventName: '', eventDescription: '', eventPosition: '', startDate: '', endDate: '', eventLocation: ''
+  }]);
 
   // Dynamic form for current step
   const getCurrentSchema = () => {
@@ -456,7 +474,312 @@ export default function RegisterPage() {
     </motion.div>
   );
 
-  // Placeholder for remaining steps (4-8)
+  // Step 4: Education Background
+  const renderStep4 = () => (
+    <motion.div
+      className="w-full max-w-2xl space-y-8"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="text-center">
+        <button
+          onClick={goToPreviousStep}
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back
+        </button>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Education Background</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Add your educational qualifications (you can add multiple entries)
+        </p>
+      </div>
+
+      {registerError && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-500">{registerError}</p>
+        </div>
+      )}
+
+      <div className="space-y-6">
+        {educationEntries.map((entry, index) => (
+          <div key={index} className="p-6 border border-gray-200 rounded-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-blue-600" />
+                <h3 className="font-medium text-gray-900">Education {index + 1}</h3>
+              </div>
+              {educationEntries.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setEducationEntries(prev => prev.filter((_, i) => i !== index))}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <select
+                  value={entry.level}
+                  onChange={(e) => {
+                    const newEntries = [...educationEntries];
+                    newEntries[index].level = e.target.value;
+                    setEducationEntries(newEntries);
+                  }}
+                  className="w-full h-12 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Education Level</option>
+                  <option value="high-school">High School</option>
+                  <option value="diploma">Diploma</option>
+                  <option value="bachelor">Bachelor's Degree</option>
+                  <option value="master">Master's Degree</option>
+                  <option value="phd">PhD</option>
+                  <option value="certificate">Certificate</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Institution Name"
+                  value={entry.institution}
+                  onChange={(e) => {
+                    const newEntries = [...educationEntries];
+                    newEntries[index].institution = e.target.value;
+                    setEducationEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Qualification / Programme"
+                  value={entry.qualification}
+                  onChange={(e) => {
+                    const newEntries = [...educationEntries];
+                    newEntries[index].qualification = e.target.value;
+                    setEducationEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Field of Study"
+                  value={entry.fieldOfStudy}
+                  onChange={(e) => {
+                    const newEntries = [...educationEntries];
+                    newEntries[index].fieldOfStudy = e.target.value;
+                    setEducationEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="date"
+                  placeholder="Start Date"
+                  value={entry.startDate}
+                  onChange={(e) => {
+                    const newEntries = [...educationEntries];
+                    newEntries[index].startDate = e.target.value;
+                    setEducationEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="date"
+                  placeholder="End Date"
+                  value={entry.endDate}
+                  onChange={(e) => {
+                    const newEntries = [...educationEntries];
+                    newEntries[index].endDate = e.target.value;
+                    setEducationEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => setEducationEntries(prev => [...prev, {
+            level: '', institution: '', qualification: '', startDate: '', endDate: '', fieldOfStudy: ''
+          }])}
+          className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors"
+        >
+          <Plus className="h-5 w-5 mx-auto mb-2" />
+          Add Another Education Entry
+        </button>
+      </div>
+
+      <Button
+        onClick={() => {
+          setFormData(prev => ({ ...prev, education: educationEntries }));
+          setCurrentStep(5);
+        }}
+        className="w-full h-12 bg-blue-600 hover:bg-blue-500"
+        disabled={educationEntries.some(entry => !entry.level || !entry.institution || !entry.qualification)}
+      >
+        Continue to Certifications
+        <ArrowRight className="ml-2 h-4 w-4" />
+      </Button>
+    </motion.div>
+  );
+
+  // Step 5: Certifications
+  const renderStep5 = () => (
+    <motion.div
+      className="w-full max-w-2xl space-y-8"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="text-center">
+        <button
+          onClick={goToPreviousStep}
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back
+        </button>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Certifications</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Add your professional certifications (optional - you can skip this step)
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {certificationEntries.map((entry, index) => (
+          <div key={index} className="p-6 border border-gray-200 rounded-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <h3 className="font-medium text-gray-900">Certification {index + 1}</h3>
+              </div>
+              {certificationEntries.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setCertificationEntries(prev => prev.filter((_, i) => i !== index))}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Certificate Title"
+                  value={entry.title}
+                  onChange={(e) => {
+                    const newEntries = [...certificationEntries];
+                    newEntries[index].title = e.target.value;
+                    setCertificationEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Certificate Issuer"
+                  value={entry.issuer}
+                  onChange={(e) => {
+                    const newEntries = [...certificationEntries];
+                    newEntries[index].issuer = e.target.value;
+                    setCertificationEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="date"
+                  placeholder="Acquired Date"
+                  value={entry.acquiredDate}
+                  onChange={(e) => {
+                    const newEntries = [...certificationEntries];
+                    newEntries[index].acquiredDate = e.target.value;
+                    setCertificationEntries(newEntries);
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <textarea
+                  placeholder="Description (optional)"
+                  value={entry.description}
+                  onChange={(e) => {
+                    const newEntries = [...certificationEntries];
+                    newEntries[index].description = e.target.value;
+                    setCertificationEntries(newEntries);
+                  }}
+                  className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => setCertificationEntries(prev => [...prev, {
+            title: '', issuer: '', acquiredDate: '', description: ''
+          }])}
+          className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors"
+        >
+          <Plus className="h-5 w-5 mx-auto mb-2" />
+          Add Another Certification
+        </button>
+      </div>
+
+      <div className="flex gap-4">
+        <Button
+          onClick={() => {
+            setFormData(prev => ({ ...prev, certifications: [] }));
+            setCurrentStep(6);
+          }}
+          variant="outline"
+          className="flex-1 h-12"
+        >
+          Skip This Step
+        </Button>
+        <Button
+          onClick={() => {
+            setFormData(prev => ({ ...prev, certifications: certificationEntries }));
+            setCurrentStep(6);
+          }}
+          className="flex-1 h-12 bg-blue-600 hover:bg-blue-500"
+        >
+          Continue to Interests
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    </motion.div>
+  );
+
+  // Placeholder for remaining steps (6-8)
   const renderPlaceholderStep = (stepNumber: number, title: string, nextTitle: string) => (
     <motion.div
       className="w-full max-w-md space-y-8"
@@ -502,9 +825,9 @@ export default function RegisterPage() {
       case 3:
         return renderStep3();
       case 4:
-        return renderPlaceholderStep(4, "Education Background", "Certifications");
+        return renderStep4();
       case 5:
-        return renderPlaceholderStep(5, "Certifications", "Interests");
+        return renderStep5();
       case 6:
         return renderPlaceholderStep(6, "Interests", "Work Experience");
       case 7:
