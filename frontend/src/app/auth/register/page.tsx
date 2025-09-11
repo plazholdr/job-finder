@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Lock, User, Briefcase, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Mail, Lock, User, Briefcase, ArrowLeft, CheckCircle, ArrowRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<'student' | 'company' | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
 
   const {
     register,
@@ -71,23 +72,110 @@ export default function RegisterPage() {
     }
   };
 
-  return (
-    <div className="w-full flex items-center justify-center p-8 md:p-16 bg-gradient-to-br from-blue-50 via-white to-blue-50">
-      <motion.div
-        className="w-full max-w-md space-y-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="text-center">
-          <div className="flex justify-center mb-6">
+  const handleRoleSelection = (role: 'student' | 'company') => {
+    setSelectedRole(role);
+    setValue('role', role);
+    // Move to next step after role selection
+    setTimeout(() => {
+      setCurrentStep(2);
+    }, 300);
+  };
 
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create your account</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign up to start your job search journey
-          </p>
+  const goBackToRoleSelection = () => {
+    setCurrentStep(1);
+  };
+
+  // Step 1: Role Selection
+  const renderRoleSelection = () => (
+    <motion.div
+      className="w-full max-w-lg space-y-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create your account</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Sign up to start your job search journey
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">I want to:</h2>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <motion.button
+            type="button"
+            onClick={() => handleRoleSelection('student')}
+            className="relative flex flex-col items-center justify-center p-8 rounded-xl border-2 border-gray-200 hover:border-blue-300 transition-all duration-200 group hover:shadow-lg"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-50 transition-colors">
+              <User className="h-8 w-8 text-gray-600 group-hover:text-blue-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Find Jobs</h3>
+            <p className="text-sm text-gray-500 text-center">I'm looking for work</p>
+          </motion.button>
+
+          <motion.button
+            type="button"
+            onClick={() => handleRoleSelection('company')}
+            className="relative flex flex-col items-center justify-center p-8 rounded-xl border-2 border-blue-500 bg-blue-50 transition-all duration-200 group hover:shadow-lg"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
+              <Briefcase className="h-8 w-8 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-blue-900 mb-2">Hire Talent</h3>
+            <p className="text-sm text-blue-600 text-center">I'm looking to hire</p>
+            <div className="absolute top-3 right-3">
+              <CheckCircle className="h-5 w-5 text-blue-500" />
+            </div>
+          </motion.button>
+        </div>
+      </div>
+
+      <div className="text-center">
+        <p className="text-sm text-gray-500">
+          Already have an account?{' '}
+          <Link href="/auth/login" className="text-blue-600 hover:text-blue-500 font-medium">
+            Sign in
+          </Link>
+        </p>
+      </div>
+    </motion.div>
+  );
+
+  // Step 2: Registration Form
+  const renderRegistrationForm = () => (
+    <motion.div
+      className="w-full max-w-md space-y-8"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="text-center">
+        <button
+          onClick={goBackToRoleSelection}
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to role selection
+        </button>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+          Create {selectedRole === 'company' ? 'Employer' : 'Job Seeker'} Account
+        </h1>
+        <p className="mt-2 text-sm text-gray-600">
+          {selectedRole === 'company'
+            ? 'Start hiring top talent today'
+            : 'Sign up to start your job search journey'
+          }
+        </p>
+      </div>
 
         {registerError && (
           <motion.div
@@ -101,135 +189,94 @@ export default function RegisterPage() {
           </motion.div>
         )}
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="relative">
-                  <User className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="First name"
-                    className={`pl-10 h-12 ${errors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                    {...register('firstName')}
-                  />
-                </div>
-                {errors.firstName && (
-                  <p className="text-sm text-red-500">{errors.firstName.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="relative">
-                  <User className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Last name"
-                    className={`pl-10 h-12 ${errors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                    {...register('lastName')}
-                  />
-                </div>
-                {errors.lastName && (
-                  <p className="text-sm text-red-500">{errors.lastName.message}</p>
-                )}
-              </div>
-            </div>
-
+      <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="relative">
-                <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <User className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
                 <Input
-                  type="email"
-                  placeholder="Email address"
-                  className={`pl-10 h-12 ${errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                  {...register('email')}
+                  type="text"
+                  placeholder="First name"
+                  className={`pl-10 h-12 ${errors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  {...register('firstName')}
                 />
               </div>
-              {errors.email && (
-                <p className="text-sm text-red-500">{errors.email.message}</p>
+              {errors.firstName && (
+                <p className="text-sm text-red-500">{errors.firstName.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <div className="relative">
-                <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <User className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
                 <Input
-                  type="password"
-                  placeholder="Password"
-                  className={`pl-10 h-12 ${errors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                  {...register('password')}
+                  type="text"
+                  placeholder="Last name"
+                  className={`pl-10 h-12 ${errors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  {...register('lastName')}
                 />
               </div>
-              {errors.password && (
-                <p className="text-sm text-red-500">{errors.password.message}</p>
-              )}
-            </div>
-
-            {/* Role Selection */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-gray-700">
-                I want to:
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedRole('student');
-                    setValue('role', 'student');
-                  }}
-                  className={`relative flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${
-                    watchedRole === 'student'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                  }`}
-                >
-                  <User className="h-6 w-6 mb-2" />
-                  <span className="text-sm font-medium">Find Jobs</span>
-                  <span className="text-xs text-gray-500 mt-1">I'm looking for work</span>
-                  {watchedRole === 'student' && (
-                    <div className="absolute top-2 right-2">
-                      <CheckCircle className="h-4 w-4 text-blue-500" />
-                    </div>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedRole('company');
-                    setValue('role', 'company');
-                  }}
-                  className={`relative flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${
-                    watchedRole === 'company'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                  }`}
-                >
-                  <Briefcase className="h-6 w-6 mb-2" />
-                  <span className="text-sm font-medium">Hire Talent</span>
-                  <span className="text-xs text-gray-500 mt-1">I'm looking to hire</span>
-                  {watchedRole === 'company' && (
-                    <div className="absolute top-2 right-2">
-                      <CheckCircle className="h-4 w-4 text-blue-500" />
-                    </div>
-                  )}
-                </button>
-              </div>
-              {errors.role && (
-                <p className="text-sm text-red-500">{errors.role.message}</p>
+              {errors.lastName && (
+                <p className="text-sm text-red-500">{errors.lastName.message}</p>
               )}
             </div>
           </div>
+
+          <div className="space-y-2">
+            <div className="relative">
+              <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+              <Input
+                type="email"
+                placeholder="Email address"
+                className={`pl-10 h-12 ${errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                {...register('email')}
+              />
+            </div>
+            {errors.email && (
+              <p className="text-sm text-red-500">{errors.email.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="relative">
+              <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+              <Input
+                type="password"
+                placeholder="Password"
+                className={`pl-10 h-12 ${errors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                {...register('password')}
+              />
+            </div>
+            {errors.password && (
+              <p className="text-sm text-red-500">{errors.password.message}</p>
+            )}
+          </div>
+
+          {/* Show selected role */}
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-3">
+              {selectedRole === 'company' ? (
+                <Briefcase className="h-5 w-5 text-blue-600" />
+              ) : (
+                <User className="h-5 w-5 text-blue-600" />
+              )}
+              <span className="text-sm font-medium text-blue-900">
+                Creating {selectedRole === 'company' ? 'Employer' : 'Job Seeker'} Account
+              </span>
+            </div>
+          </div>
+        </div>
 
           <div>
             <Button
               type="submit"
               className="relative w-full h-12 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isLoading || !watchedRole}
+              disabled={isLoading}
             >
               <span className={`${isLoading ? 'opacity-0' : 'opacity-100'}`}>
-                {watchedRole === 'student' ? 'Create Job Seeker Account' :
-                 watchedRole === 'company' ? 'Create Employer Account' :
+                {selectedRole === 'student' ? 'Create Job Seeker Account' :
+                 selectedRole === 'company' ? 'Create Employer Account' :
                  'Create Account'}
               </span>
               {isLoading && (
@@ -265,13 +312,17 @@ export default function RegisterPage() {
           Already have an account?{' '}
           <Link
             href="/auth/login"
-            className="font-medium text-blue-600 hover:text-blue-500 inline-flex items-center"
+            className="font-medium text-blue-600 hover:text-blue-500"
           >
-            <ArrowLeft className="mr-1 h-3 w-3" />
             Sign in
           </Link>
         </p>
       </motion.div>
+    );
+
+  return (
+    <div className="w-full flex items-center justify-center p-8 md:p-16 bg-gradient-to-br from-blue-50 via-white to-blue-50">
+      {currentStep === 1 ? renderRoleSelection() : renderRegistrationForm()}
     </div>
   );
 }
