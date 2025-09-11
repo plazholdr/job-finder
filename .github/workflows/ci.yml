@@ -1,10 +1,10 @@
-name: CI
+name: CI/CD Sebastian Branch
 
 on:
   push:
-    branches: [ master ]
+    branches: [ sebastian ]
   pull_request:
-    branches: [ master ]
+    branches: [ sebastian ]
 
 jobs:
   lint:
@@ -58,3 +58,26 @@ jobs:
         run: yarn install
       - name: Build
         run: yarn build
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/sebastian'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy to Production Environment
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: 103.209.156.198
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/job-finder-production
+            git fetch origin
+            git checkout sebastian
+            git pull origin sebastian
+            yarn install
+            cd frontend && yarn install && yarn build && cd ..
+            cd backend && yarn install && cd ..
+            pm2 restart job-finder-backend-prod
+            pm2 restart job-finder-frontend-prod
