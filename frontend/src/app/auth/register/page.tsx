@@ -229,7 +229,8 @@ export default function RegisterPage() {
               <User className="h-8 w-8 text-gray-600 group-hover:text-blue-600" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Find Jobs</h3>
-            <p className="text-sm text-gray-500 text-center">I'm looking for work</p>
+            <p className="text-sm text-gray-500 text-center">I'm a student/job seeker</p>
+            <p className="text-xs text-blue-600 mt-1 font-medium">8-step profile setup</p>
           </motion.button>
 
           <motion.button
@@ -243,7 +244,8 @@ export default function RegisterPage() {
               <Briefcase className="h-8 w-8 text-blue-600" />
             </div>
             <h3 className="text-lg font-semibold text-blue-900 mb-2">Hire Talent</h3>
-            <p className="text-sm text-blue-600 text-center">I'm looking to hire</p>
+            <p className="text-sm text-blue-600 text-center">I'm a company/employer</p>
+            <p className="text-xs text-blue-500 mt-1 font-medium">Simplified setup (for now)</p>
             <div className="absolute top-3 right-3">
               <CheckCircle className="h-5 w-5 text-blue-500" />
             </div>
@@ -1319,6 +1321,133 @@ export default function RegisterPage() {
     </motion.div>
   );
 
+  // Company registration step 2 (placeholder for now)
+  const renderCompanyStep2 = () => (
+    <motion.div
+      className="w-full max-w-md space-y-8"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="text-center">
+        <button
+          onClick={goToPreviousStep}
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back
+        </button>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Company Registration</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Basic company information (simplified for now)
+        </p>
+      </div>
+
+      {registerError && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-500">{registerError}</p>
+        </div>
+      )}
+
+      <form className="mt-8 space-y-6" onSubmit={handleSubmit(async (data) => {
+        setIsLoading(true);
+        try {
+          const completeData = {
+            ...formData,
+            ...data,
+            role: 'company'
+          };
+          await registerUser(completeData as any);
+
+          setTimeout(() => {
+            router.push(`/auth/registration-success?email=${encodeURIComponent(completeData.email || '')}`);
+          }, 100);
+        } catch (error: any) {
+          setRegisterError(error.message || 'An error occurred during registration. Please try again.');
+        } finally {
+          setIsLoading(false);
+        }
+      })}>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="relative">
+                <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <Input
+                  type="email"
+                  placeholder="Company Email"
+                  className="pl-10 h-12"
+                  {...register('email')}
+                  defaultValue={formData.email || ''}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="relative">
+                <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  className="pl-10 h-12"
+                  {...register('password')}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Input
+              type="text"
+              placeholder="Company Name"
+              className="h-12"
+              {...register('firstName')} // Using firstName field for company name for now
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Input
+              type="text"
+              placeholder="Contact Person Name"
+              className="h-12"
+              {...register('lastName')} // Using lastName field for contact person for now
+            />
+          </div>
+
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-3">
+              <Briefcase className="h-5 w-5 text-blue-600" />
+              <span className="text-sm font-medium text-blue-900">
+                Creating Employer Account
+              </span>
+            </div>
+            <p className="text-xs text-blue-700 mt-1">
+              Full company registration flow coming soon!
+            </p>
+          </div>
+        </div>
+
+        <Button
+          type="submit"
+          className="relative w-full h-12 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isLoading}
+        >
+          <span className={`${isLoading ? 'opacity-0' : 'opacity-100'}`}>
+            Create Employer Account
+          </span>
+          {isLoading && (
+            <span className="absolute inset-0 flex items-center justify-center">
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </span>
+          )}
+        </Button>
+      </form>
+    </motion.div>
+  );
+
   // Placeholder function (no longer used)
   const renderPlaceholderStep = (stepNumber: number, title: string, nextTitle: string) => (
     <motion.div
@@ -1357,26 +1486,43 @@ export default function RegisterPage() {
   );
 
   const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 1:
-        return renderRoleSelection();
-      case 2:
-        return renderStep2();
-      case 3:
-        return renderStep3();
-      case 4:
-        return renderStep4();
-      case 5:
-        return renderStep5();
-      case 6:
-        return renderStep6();
-      case 7:
-        return renderStep7();
-      case 8:
-        return renderStep8();
-      default:
-        return renderRoleSelection();
+    // Role selection is always step 1
+    if (currentStep === 1) {
+      return renderRoleSelection();
     }
+
+    // Different flows based on selected role
+    if (selectedRole === 'student') {
+      // 8-step flow for job seekers (Find Jobs)
+      switch (currentStep) {
+        case 2:
+          return renderStep2();
+        case 3:
+          return renderStep3();
+        case 4:
+          return renderStep4();
+        case 5:
+          return renderStep5();
+        case 6:
+          return renderStep6();
+        case 7:
+          return renderStep7();
+        case 8:
+          return renderStep8();
+        default:
+          return renderRoleSelection();
+      }
+    } else if (selectedRole === 'company') {
+      // Simplified flow for employers (Hire Talent) - placeholder for now
+      switch (currentStep) {
+        case 2:
+          return renderCompanyStep2();
+        default:
+          return renderRoleSelection();
+      }
+    }
+
+    return renderRoleSelection();
   };
 
   return (
