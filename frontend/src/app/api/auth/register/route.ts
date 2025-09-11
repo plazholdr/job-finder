@@ -4,7 +4,22 @@ import config from '@/config';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, firstName, lastName, role } = body;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      role,
+      // Extended profile data from multi-step form
+      icPassport,
+      phone,
+      photo,
+      education,
+      certifications,
+      interests,
+      workExperience,
+      eventExperience
+    } = body;
 
     if (!email || !password || !firstName || !lastName || !role) {
       return NextResponse.json(
@@ -24,19 +39,31 @@ export async function POST(request: NextRequest) {
     // otherwise fall back to public config api base URL
     const backendUrl = process.env.BACKEND_URL || config.api.baseUrl;
 
+    // Prepare extended user data for backend
+    const userData = {
+      email,
+      password,
+      firstName,
+      lastName,
+      role,
+      // Extended profile data
+      icPassport,
+      phone,
+      photo,
+      education,
+      certifications,
+      interests,
+      workExperience,
+      eventExperience
+    };
+
     // Call backend API to create user
     const response = await fetch(`${backendUrl}/users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        email,
-        password,
-        firstName,
-        lastName,
-        role,
-      }),
+      body: JSON.stringify(userData),
     });
 
     const data = await response.json();

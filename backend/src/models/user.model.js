@@ -21,7 +21,22 @@ class UserModel {
   }
 
   async create(userData) {
-    const { email, password, firstName, lastName, role = 'student' } = userData;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      role = 'student',
+      // Extended profile data from multi-step registration
+      icPassport,
+      phone,
+      photo,
+      education,
+      certifications,
+      interests,
+      workExperience,
+      eventExperience
+    } = userData;
 
     // Validate required fields
     if (!email || !password || !firstName || !lastName) {
@@ -60,9 +75,9 @@ class UserModel {
       isActive: true,
       emailVerified: false,
       profile: {
-        avatar: null,
+        avatar: photo || null,
         bio: null,
-        phone: null,
+        phone: phone || null,
         location: null,
         website: null,
         linkedin: null,
@@ -130,17 +145,20 @@ class UserModel {
             firstName: firstName,
             lastName: lastName,
             email: email.toLowerCase(),
-            phone: null,
+            phone: phone || null,
+            icPassport: icPassport || null,
             location: null,
             bio: null,
             linkedin: null,
             github: null,
-            portfolio: null
+            portfolio: null,
+            photo: photo || null
           },
-          educationBackground: [],
-          certifications: [],
-          interests: [],
-          workExperience: []
+          educationBackground: education || [],
+          certifications: certifications || [],
+          interests: interests || [],
+          workExperience: workExperience || [],
+          eventExperience: eventExperience || []
         },
         details: {
           duration: {
