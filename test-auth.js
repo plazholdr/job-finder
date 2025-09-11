@@ -1,7 +1,7 @@
 // Simple test script to verify authentication works
 const fetch = require('node-fetch');
 
-const API_BASE = 'http://localhost:3030';
+const API_BASE = 'http://localhost:4030';
 
 async function testAuth() {
   console.log('🧪 Testing Authentication System...\n');
@@ -63,11 +63,11 @@ async function testAuth() {
       console.log('✅ User login successful');
       console.log('   Token received:', authData.accessToken ? 'Yes' : 'No');
       console.log('   User:', authData.user.firstName, authData.user.lastName);
-      
+
       // Test 4: Protected Route
       console.log('\n4. Testing protected route...');
       const meResponse = await fetch(`${API_BASE}/users/me`, {
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${authData.accessToken}`,
           'Content-Type': 'application/json'
         }
@@ -87,7 +87,7 @@ async function testAuth() {
 
   } catch (error) {
     console.error('❌ Test failed:', error.message);
-    console.log('\n💡 Make sure the backend server is running on port 3030');
+    console.log('\n💡 Make sure the backend server is running on port 4030');
     console.log('   Run: cd backend && npm run dev');
   }
 }

@@ -18,7 +18,10 @@ export async function POST(request: NextRequest) {
       certifications,
       interests,
       workExperience,
-      eventExperience
+      eventExperience,
+      // Company registration specific
+      username,
+      requireEmailVerification
     } = body;
 
     if (!email || !password || !firstName || !lastName || !role) {
@@ -41,11 +44,13 @@ export async function POST(request: NextRequest) {
 
     // Prepare extended user data for backend
     const userData = {
-      email,
+      email: email || username, // Use email or username as email
       password,
       firstName,
       lastName,
       role,
+      username,
+      requireEmailVerification,
       // Extended profile data
       icPassport,
       phone,

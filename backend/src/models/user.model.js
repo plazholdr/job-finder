@@ -35,7 +35,10 @@ class UserModel {
       certifications,
       interests,
       workExperience,
-      eventExperience
+      eventExperience,
+      // Company registration specific
+      username,
+      requireEmailVerification
     } = userData;
 
     // Validate required fields
@@ -114,8 +117,20 @@ class UserModel {
           title: null,
           email: null,
           phone: null
-        }
+        },
+        // Malaysian company registration specific
+        registrationNumber: null,
+        contactNumber: null,
+        superform: null,
+        setupComplete: false,
+        approvalStatus: 'pending' // pending, approved, rejected
       };
+
+      // For companies requiring email verification, don't activate immediately
+      if (requireEmailVerification) {
+        user.isActive = false;
+        user.emailVerified = false;
+      }
     } else if (role === 'admin') {
       user.admin = {
         permissions: ['read', 'write'], // read, write, delete, super_admin

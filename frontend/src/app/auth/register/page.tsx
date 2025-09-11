@@ -1321,7 +1321,7 @@ export default function RegisterPage() {
     </motion.div>
   );
 
-  // Company registration step 2 (placeholder for now)
+  // Company registration step 2 - Basic credentials
   const renderCompanyStep2 = () => (
     <motion.div
       className="w-full max-w-md space-y-8"
@@ -1337,9 +1337,9 @@ export default function RegisterPage() {
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back
         </button>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Company Registration</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Company Admin Setup</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Basic company information (simplified for now)
+          Create your company admin account - Step 1 of 2
         </p>
       </div>
 
@@ -1352,16 +1352,29 @@ export default function RegisterPage() {
       <form className="mt-8 space-y-6" onSubmit={handleSubmit(async (data) => {
         setIsLoading(true);
         try {
-          const completeData = {
+          // Step 1: Create company admin account and send verification email
+          const adminData = {
             ...formData,
             ...data,
-            role: 'company'
+            role: 'company',
+            requireEmailVerification: true
           };
-          await registerUser(completeData as any);
 
-          setTimeout(() => {
-            router.push(`/auth/registration-success?email=${encodeURIComponent(completeData.email || '')}`);
-          }, 100);
+          // Call registration API which will send verification email
+          const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(adminData),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Registration failed');
+          }
+
+          // Redirect to email sent page
+          router.push(`/auth/email-sent?email=${encodeURIComponent(data.email || data.username)}&type=company`);
+
         } catch (error: any) {
           setRegisterError(error.message || 'An error occurred during registration. Please try again.');
         } finally {
@@ -1369,60 +1382,60 @@ export default function RegisterPage() {
         }
       })}>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="relative">
-                <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                <Input
-                  type="email"
-                  placeholder="Company Email"
-                  className="pl-10 h-12"
-                  {...register('email')}
-                  defaultValue={formData.email || ''}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="relative">
-                <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                <Input
-                  type="password"
-                  placeholder="Password"
-                  className="pl-10 h-12"
-                  {...register('password')}
-                />
-              </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Username (can be email)
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Username or Email"
+                className="pl-10 h-12"
+                {...register('username')}
+              />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Input
-              type="text"
-              placeholder="Company Name"
-              className="h-12"
-              {...register('firstName')} // Using firstName field for company name for now
-            />
+            <label className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+              <Input
+                type="password"
+                placeholder="Password"
+                className="pl-10 h-12"
+                {...register('password')}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Input
-              type="text"
-              placeholder="Contact Person Name"
-              className="h-12"
-              {...register('lastName')} // Using lastName field for contact person for now
-            />
+            <label className="block text-sm font-medium text-gray-700">
+              Email (if username is not email)
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+              <Input
+                type="email"
+                placeholder="Company Email (optional if username is email)"
+                className="pl-10 h-12"
+                {...register('email')}
+              />
+            </div>
           </div>
 
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-center gap-3">
               <Briefcase className="h-5 w-5 text-blue-600" />
               <span className="text-sm font-medium text-blue-900">
-                Creating Employer Account
+                Company Admin Account
               </span>
             </div>
             <p className="text-xs text-blue-700 mt-1">
-              Full company registration flow coming soon!
+              You'll receive a verification email (valid for 24 hours)
             </p>
           </div>
         </div>
@@ -1433,7 +1446,7 @@ export default function RegisterPage() {
           disabled={isLoading}
         >
           <span className={`${isLoading ? 'opacity-0' : 'opacity-100'}`}>
-            Create Employer Account
+            Create Admin Account & Send Verification
           </span>
           {isLoading && (
             <span className="absolute inset-0 flex items-center justify-center">
