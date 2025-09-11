@@ -1,12 +1,12 @@
 module.exports = {
   apps: [
-    // Production Backend (Sebastian Branch - env=staging)
+    // Production Backend (Sebastian Branch - env=production)
     {
       name: 'job-finder-backend-prod',
       script: 'src/index.js',
       cwd: '/home/ubuntu/job-finder-production/backend',
       env: {
-        NODE_ENV: 'staging',
+        NODE_ENV: 'production',
         PORT: 3030
       },
       instances: 1,
@@ -22,14 +22,14 @@ module.exports = {
       min_uptime: '10s'
     },
 
-    // Production Frontend (Sebastian Branch - env=staging)
+    // Production Frontend (Sebastian Branch - env=production)
     {
       name: 'job-finder-frontend-prod',
       script: 'npm',
       args: 'run start',
       cwd: '/home/ubuntu/job-finder-production/frontend',
       env: {
-        NODE_ENV: 'staging',
+        NODE_ENV: 'production',
         PORT: 3000
       },
       instances: 1,
