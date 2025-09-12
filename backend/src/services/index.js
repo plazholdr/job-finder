@@ -192,7 +192,12 @@ module.exports = function (app) {
 
       const usersService = new UsersService(app);
       const result = await usersService.verifyEmail(token);
-      res.json({ success: true, message: result.message });
+      res.json({
+        success: true,
+        message: result.message,
+        role: result.role,
+        needsCompanySetup: result.needsCompanySetup
+      });
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
@@ -568,6 +573,96 @@ module.exports = function (app) {
       } else {
         res.status(500).json({ error: error.message });
       }
+    }
+  });
+
+  // Company registration helpers
+  app.post('/companies/check-registration', async (req, res) => {
+    try {
+      const { registrationNumber } = req.body || {};
+      if (!registrationNumber) {
+        return res.status(400).json({ error: 'Registration number is required' });
+      }
+
+      const usersService = new UsersService(app);
+      // Directly query the user collection via model for uniqueness
+      const normalized = String(registrationNumber).trim();
+      const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existing = await usersService.userModel.collection.findOne({
+        role: 'company',
+        'company.registrationNumber': { $regex: `^${escaped}$`, $options: 'i' }
+      });
+
+      return res.json({ isUnique: !existing });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post('/companies/setup', upload.single('superform'), async (req, res) => {
+    try {
+      const { token, companyName, companyRegistrationNumber, companyContactNumber } = req.body || {};
+      if (!token || !companyName || !companyRegistrationNumber || !companyContactNumber) {
+        return res.status(400).json({ error: 'All fields are required' });
+      }
+
+      // Validate file presence
+      if (!req.file) {
+        return res.status(400).json({ error: 'Superform file is required' });
+      }
+
+      const usersService = new UsersService(app);
+      const user = await usersService.userModel.findByEmailVerificationToken(token);
+      if (!user) {
+        return res.status(400).json({ error: 'Invalid or expired token' });
+      }
+      if (user.role !== 'company') {
+        return res.status(400).json({ error: 'Only company users can complete company setup' });
+      }
+
+      // Upload superform to S3-compatible storage
+      const uploadResult = await S3StorageUtils.uploadUserResume(
+        req.file.buffer,
+        req.file.originalname,
+        String(user._id),
+        req.file.mimetype
+      );
+
+      // Update user company fields and mark pending approval
+  const update = {
+        company: {
+          ...(user.company || {}),
+      name: companyName,
+      registrationNumber: String(companyRegistrationNumber).trim().toUpperCase(),
+          contactNumber: companyContactNumber,
+          superform: uploadResult.filePath,
+      approvalStatus: 'pending',
+      approvalStatusCode: 0,
+      verificationStatus: 'pending',
+      verificationStatusCode: 0,
+          setupComplete: false
+        },
+        updatedAt: new Date()
+      };
+
+      await usersService.userModel.updateById(user._id, update);
+
+      // Now that setup is submitted, clear the verification token
+      await usersService.userModel.collection.updateOne(
+        { _id: user._id },
+        {
+          $unset: {
+            emailVerificationToken: 1,
+            emailVerificationExpires: 1
+          },
+          $set: { updatedAt: new Date() }
+        }
+      );
+
+      return res.json({ success: true, message: 'Company setup submitted for approval' });
+    } catch (error) {
+      console.error('Company setup error:', error);
+      res.status(400).json({ error: error.message });
     }
   });
 

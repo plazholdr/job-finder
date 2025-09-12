@@ -11,6 +11,8 @@ class UserModel {
     try {
       // Create unique index on email
       await this.collection.createIndex({ email: 1 }, { unique: true });
+  // Create unique sparse index on username (allow documents without username)
+  await this.collection.createIndex({ username: 1 }, { unique: true, sparse: true });
       // Create index on role for faster queries
       await this.collection.createIndex({ role: 1 });
       // Create index on createdAt for sorting
@@ -22,11 +24,12 @@ class UserModel {
 
   async create(userData) {
     const {
-      email,
-      password,
-      firstName,
-      lastName,
-      role = 'student',
+  email,
+  username,
+  password,
+  firstName,
+  lastName,
+  role = 'student',
       // Extended profile data from multi-step registration
       icPassport,
       phone,
@@ -36,21 +39,11 @@ class UserModel {
       interests,
       workExperience,
       eventExperience,
-      // Company registration specific
-      username,
       requireEmailVerification
     } = userData;
 
-    // Validate required fields
-    if (!email || !password || !firstName || !lastName) {
-      throw new Error('Missing required fields: email, password, firstName, lastName');
-    }
-
-    // Validate email format
+    // Common validations
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      throw new Error('Invalid email format');
-    }
 
     // Validate role
     const validRoles = ['student', 'company', 'admin'];
@@ -58,11 +51,42 @@ class UserModel {
       throw new Error('Invalid role. Must be student, company, or admin');
     }
 
-    // Check if user already exists
-    const existingUser = await this.collection.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      throw new Error('User with this email already exists');
+    // Derive and validate email/username per role rules
+    let normalizedEmail = email ? email.trim().toLowerCase() : null;
+    const providedUsername = username ? username.trim() : null;
+    const usernameLooksLikeEmail = providedUsername ? emailRegex.test(providedUsername) : false;
+
+    if (role === 'company') {
+      // Companies shouldn't submit first/last name
+      if (firstName || lastName) {
+        throw new Error('Company users must not include firstName or lastName');
+      }
+
+      if (usernameLooksLikeEmail && !normalizedEmail) {
+        // If username is an email and email not provided, use it for both
+        normalizedEmail = providedUsername.toLowerCase();
+      }
+
+      if (!normalizedEmail) {
+        throw new Error('Email is required for company accounts');
+      }
+
+      if (!emailRegex.test(normalizedEmail)) {
+        throw new Error('Invalid email format');
+      }
+    } else {
+      // Non-company users must provide normal fields
+      if (!normalizedEmail || !password || !firstName || !lastName) {
+        throw new Error('Missing required fields: email, password, firstName, lastName');
+      }
+
+      if (!emailRegex.test(normalizedEmail)) {
+        throw new Error('Invalid email format');
+      }
     }
+
+    // If no username provided, default to email (for all roles)
+    const normalizedUsername = (providedUsername || normalizedEmail || '').toLowerCase();
 
     // Hash password
     const saltRounds = 12;
@@ -70,10 +94,11 @@ class UserModel {
 
     // Create user document
     const user = {
-      email: email.toLowerCase(),
+      email: normalizedEmail,
+      username: normalizedUsername || null,
       password: hashedPassword,
-      firstName,
-      lastName,
+      // Only store first/last for non-company roles
+      ...(role !== 'company' ? { firstName, lastName } : {}),
       role,
       isActive: true,
       emailVerified: false,
@@ -94,10 +119,22 @@ class UserModel {
       updatedAt: new Date(),
     };
 
+    // Enforce uniqueness (email and username)
+    const existingByEmail = await this.collection.findOne({ email: user.email });
+    if (existingByEmail) {
+      throw new Error('User with this email already exists');
+    }
+    if (user.username) {
+      const existingByUsername = await this.collection.findOne({ username: user.username });
+      if (existingByUsername) {
+        throw new Error('Username is already taken');
+      }
+    }
+
     // Add role-specific fields
     if (role === 'company') {
       user.company = {
-        name: null,
+        name: null, // will be set during company setup flow
         description: null,
         industry: null,
         size: null,
@@ -105,7 +142,8 @@ class UserModel {
         headquarters: null,
         website: null,
         logo: null,
-        verificationStatus: 'pending', // pending, verified, rejected
+        verificationStatus: 'pending', // pending, verified, rejected (legacy string)
+        verificationStatusCode: 0, // 0=pending,1=verified,2=rejected
         verificationDocuments: [],
         verificationNotes: null,
         verifiedAt: null,
@@ -123,7 +161,8 @@ class UserModel {
         contactNumber: null,
         superform: null,
         setupComplete: false,
-        approvalStatus: 'pending' // pending, approved, rejected
+        approvalStatus: 'pending', // pending, approved, rejected (legacy string)
+        approvalStatusCode: 0 // 0=pending,1=approved,2=rejected
       };
 
       // For companies requiring email verification, don't activate immediately
@@ -159,7 +198,7 @@ class UserModel {
           profileInformation: {
             firstName: firstName,
             lastName: lastName,
-            email: email.toLowerCase(),
+            email: normalizedEmail,
             phone: phone || null,
             icPassport: icPassport || null,
             location: null,

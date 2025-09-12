@@ -114,7 +114,7 @@ export default function RegisterPage() {
     title: '', description: '', socialLink: ''
   }]);
   const [workExperienceEntries, setWorkExperienceEntries] = useState([{
-    companyName: '', industry: '', jobTitle: '', employmentType: 'part-time' as const,
+    companyName: '', industry: '', jobTitle: '', employmentType: 'part-time' as 'part-time' | 'full-time',
     startDate: '', endDate: '', isOngoing: false, jobDescription: ''
   }]);
   const [eventExperienceEntries, setEventExperienceEntries] = useState([{
@@ -306,7 +306,7 @@ export default function RegisterPage() {
               />
             </div>
             {errors.email && (
-              <p className="text-sm text-red-500">{errors.email.message}</p>
+              <p className="text-sm text-red-500">{String(errors.email?.message || '')}</p>
             )}
           </div>
 
@@ -321,7 +321,7 @@ export default function RegisterPage() {
               />
             </div>
             {errors.password && (
-              <p className="text-sm text-red-500">{errors.password.message}</p>
+              <p className="text-sm text-red-500">{String(errors.password?.message || '')}</p>
             )}
           </div>
 
@@ -398,7 +398,7 @@ export default function RegisterPage() {
                 />
               </div>
               {errors.firstName && (
-                <p className="text-sm text-red-500">{errors.firstName.message}</p>
+                <p className="text-sm text-red-500">{String(errors.firstName?.message || '')}</p>
               )}
             </div>
 
@@ -413,7 +413,7 @@ export default function RegisterPage() {
                 />
               </div>
               {errors.lastName && (
-                <p className="text-sm text-red-500">{errors.lastName.message}</p>
+                <p className="text-sm text-red-500">{String(errors.lastName?.message || '')}</p>
               )}
             </div>
           </div>
@@ -426,7 +426,7 @@ export default function RegisterPage() {
               {...register('icPassport')}
             />
             {errors.icPassport && (
-              <p className="text-sm text-red-500">{errors.icPassport.message}</p>
+              <p className="text-sm text-red-500">{String(errors.icPassport?.message || '')}</p>
             )}
           </div>
 
@@ -438,7 +438,7 @@ export default function RegisterPage() {
               {...register('phone')}
             />
             {errors.phone && (
-              <p className="text-sm text-red-500">{errors.phone.message}</p>
+              <p className="text-sm text-red-500">{String(errors.phone?.message || '')}</p>
             )}
           </div>
 
@@ -1362,13 +1362,22 @@ export default function RegisterPage() {
           };
 
           // Call backend users endpoint directly (backend sends verification email on create)
-          const email = (data.email || data.username || '').trim();
+          const username = (data.username || '').trim();
+          const providedEmail = (data.email || '').trim();
+          const looksLikeEmail = /.+@.+\..+/.test(username);
+          const email = providedEmail || (looksLikeEmail ? username : '');
+
+          // Client-side validation: if username isn't an email, email is required
+          if (!email) {
+            throw new Error('Email is required if username is not an email');
+          }
+
+          // Build payload without firstName/lastName for company role
+          const { firstName: _fn, lastName: _ln, ...restAdmin } = adminData as any;
           const payload = {
-            ...adminData,
+            ...restAdmin,
+            username: username || undefined,
             email,
-            // Ensure required fields for backend
-            firstName: (adminData as any).firstName || 'Company',
-            lastName: (adminData as any).lastName || 'Admin',
             password: data.password,
           };
 

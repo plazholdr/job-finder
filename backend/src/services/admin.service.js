@@ -143,7 +143,11 @@ class AdminService {
       const companies = await this.userModel.collection
         .find({
           role: 'company',
-          'company.verificationStatus': 'pending'
+          // support either code or legacy string for pending
+          $or: [
+            { 'company.verificationStatusCode': { $in: [null, 0] } },
+            { 'company.verificationStatus': 'pending' }
+          ]
         })
         .project({
           password: 0,
@@ -164,11 +168,16 @@ class AdminService {
 
   async verifyCompany(companyId, adminId, status, notes = null) {
     try {
+      const normalized = typeof status === 'string' ? status.toLowerCase() : status;
+      const statusName = typeof normalized === 'string' ? normalized : (normalized === 1 ? 'verified' : normalized === 2 ? 'rejected' : 'pending');
+      const statusCode = statusName === 'verified' ? 1 : statusName === 'rejected' ? 2 : 0;
+
       const updateData = {
-        'company.verificationStatus': status,
+        'company.verificationStatus': statusName,
+        'company.verificationStatusCode': statusCode,
         'company.verificationNotes': notes,
-        'company.verifiedAt': status === 'verified' ? new Date() : null,
-        'company.verifiedBy': status === 'verified' ? adminId : null,
+        'company.verifiedAt': statusName === 'verified' ? new Date() : null,
+        'company.verifiedBy': statusName === 'verified' ? adminId : null,
         updatedAt: new Date()
       };
 
@@ -191,7 +200,8 @@ class AdminService {
 
       logger.info(`Company verification updated`, {
         companyId,
-        status,
+        status: statusName,
+        statusCode,
         adminId,
         notes
       });

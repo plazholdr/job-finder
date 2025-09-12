@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import config from '@/config';
+import CompanySetupForm from '@/components/auth/CompanySetupForm';
 
 export default function VerifyEmailPage() {
   return (
@@ -23,6 +24,7 @@ function VerifyEmailPageInner() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'invalid'>('loading');
   const [message, setMessage] = useState('');
   const [isResending, setIsResending] = useState(false);
+  const [needsCompanySetup, setNeedsCompanySetup] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -36,7 +38,8 @@ function VerifyEmailPageInner() {
 
   const verifyEmail = async (verificationToken: string) => {
     try {
-      const response = await fetch(`${config.api.baseUrl}/email-verification/verify`, {
+  // Call backend directly via Nginx /api prefix to avoid Next API route shadowing
+  const response = await fetch(`/api/email-verification/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,11 +47,14 @@ function VerifyEmailPageInner() {
         body: JSON.stringify({ token: verificationToken }),
       });
 
-      const data = await response.json();
+  const data = await response.json();
 
       if (response.ok) {
         setStatus('success');
         setMessage(data.message || 'Email verified successfully!');
+        if (data.needsCompanySetup || data.role === 'company') {
+          setNeedsCompanySetup(true);
+        }
       } else {
         setStatus('error');
         setMessage(data.message || data.error || 'Verification failed. Please try again.');
@@ -91,7 +97,7 @@ function VerifyEmailPageInner() {
       case 'loading':
         return 'Verifying your email...';
       case 'success':
-        return 'Email verified successfully!';
+        return needsCompanySetup ? 'Complete your company setup' : 'Email verified successfully!';
       case 'error':
         return 'Verification failed';
       case 'invalid':
@@ -103,69 +109,65 @@ function VerifyEmailPageInner() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center mb-6">
-              {getStatusIcon()}
+      <div className="sm:mx-auto sm:w-full sm:max-w-2xl">
+        <div className="bg-white py-8 px-6 shadow sm:rounded-lg sm:px-10">
+          {status !== 'success' || !needsCompanySetup ? (
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center mb-6">
+                {getStatusIcon()}
+              </div>
+
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                {getStatusTitle()}
+              </h1>
+
+              <p className="text-gray-600 mb-8">{message}</p>
+
+              <div className="space-y-4">
+                {status === 'success' && !needsCompanySetup && (
+                  <div className="space-y-4">
+                    <Link href="/auth/login">
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700">Continue to Login</Button>
+                    </Link>
+                    <Link href="/dashboard">
+                      <Button variant="outline" className="w-full">Go to Dashboard</Button>
+                    </Link>
+                  </div>
+                )}
+
+                {(status === 'error' || status === 'invalid') && (
+                  <div className="space-y-4">
+                    <Button onClick={resendVerification} disabled={isResending} className="w-full bg-blue-600 hover:bg-blue-700">
+                      {isResending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Redirecting...
+                        </>
+                      ) : (
+                        'Resend verification email'
+                      )}
+                    </Button>
+
+                    <Link href="/auth/login">
+                      <Button variant="outline" className="w-full">Back to Login</Button>
+                    </Link>
+                  </div>
+                )}
+
+                {status === 'loading' && (
+                  <div className="text-sm text-gray-500">Please wait while we verify your email address...</div>
+                )}
+              </div>
             </div>
-
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">
-              {getStatusTitle()}
-            </h1>
-
-            <p className="text-gray-600 mb-8">
-              {message}
-            </p>
-
-            <div className="space-y-4">
-              {status === 'success' && (
-                <div className="space-y-4">
-                  <Link href="/auth/login">
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                      Continue to Login
-                    </Button>
-                  </Link>
-                  <Link href="/dashboard">
-                    <Button variant="outline" className="w-full">
-                      Go to Dashboard
-                    </Button>
-                  </Link>
-                </div>
-              )}
-
-              {(status === 'error' || status === 'invalid') && (
-                <div className="space-y-4">
-                  <Button
-                    onClick={resendVerification}
-                    disabled={isResending}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    {isResending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Redirecting...
-                      </>
-                    ) : (
-                      'Resend verification email'
-                    )}
-                  </Button>
-
-                  <Link href="/auth/login">
-                    <Button variant="outline" className="w-full">
-                      Back to Login
-                    </Button>
-                  </Link>
-                </div>
-              )}
-
-              {status === 'loading' && (
-                <div className="text-sm text-gray-500">
-                  Please wait while we verify your email address...
-                </div>
-              )}
+          ) : (
+            <div>
+              <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-900">Complete your company setup</h1>
+                <p className="text-gray-600">Provide your company details to submit for admin approval</p>
+              </div>
+              <CompanySetupForm token={token!} />
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
