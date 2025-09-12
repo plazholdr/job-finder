@@ -36,46 +36,57 @@ export default function ApplicationDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchApplicationDetails = useCallback(async () => {
-    try {
-      setLoading(true);
-      console.log('Fetching application details for ID:', params.id);
-
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        console.error('No auth token found');
-        return;
-      }
-
-      const response = await fetch(`/api/applications/${params.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      console.log('Application details response status:', response.status);
-      const data = await response.json();
-      console.log('Application details response data:', data);
-
-      if (data.success) {
-        console.log('Setting application data:', data.data);
-        console.log('Application data type:', typeof data.data);
-        console.log('Application data keys:', Object.keys(data.data || {}));
-        console.log('Application status:', data.data?.status);
-        console.log('Application status type:', typeof data.data?.status);
-
-        // Ensure all data is properly serialized
-        const cleanData = JSON.parse(JSON.stringify(data.data));
-        console.log('Clean application data:', cleanData);
-
-        setApplication(cleanData);
-      } else {
-        console.error('Failed to fetch application details:', data.error);
-      }
-    } catch (error) {
-      console.error('Error fetching application details:', error);
-    } finally {
-      setLoading(false);
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.error('No auth token found');
+      setApplication(null);
+      return;
     }
-  }, [params.id]);
+
+    const res = await fetch(`/api/applications/${params.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const payload = await res.json();
+
+    const raw = payload?.data ?? payload;
+    if (!raw || typeof raw !== 'object') throw new Error('Invalid application payload');
+
+    const idStr = String(raw._id ?? raw.id ?? '');
+    const jobIdStr =
+      typeof raw.jobId === 'object' && raw.jobId !== null && 'toString' in raw.jobId
+        ? String(raw.jobId)
+        : String(raw.jobId ?? '');
+
+    const status = String(raw.status ?? 'submitted').toLowerCase();
+
+    const createdAt = raw.createdAt ?? raw.submittedAt ?? new Date().toISOString();
+    const updatedAt = raw.updatedAt ?? createdAt;
+
+    const normalized: Application = {
+      ...raw,
+      id: idStr,
+      _id: idStr,       
+      jobId: jobIdStr,
+      status,
+      createdAt,
+      updatedAt,
+      jobInfo: raw.jobInfo ?? raw.job ?? raw.job_data ?? undefined,
+      companyInfo: raw.companyInfo ?? raw.company ?? raw.company_data ?? undefined,
+    };
+
+    setApplication(normalized);
+  } catch (err) {
+    console.error('Error fetching application details:', err);
+    setApplication(null);
+  } finally {
+    setLoading(false);
+  }
+}, [params.id]);
+
 
   useEffect(() => {
     if (params.id) {
@@ -892,7 +903,7 @@ export default function ApplicationDetailPage() {
                     </div>
 
                     <Link href={`/jobs/${application.jobId}`}>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button variant="outline" size="sm" className="w-full mt-8">
                         <FileText className="h-4 w-4 mr-2" />
                         View Job Details
                       </Button>
@@ -944,7 +955,7 @@ export default function ApplicationDetailPage() {
                   ) : null}
 
                   <Link href="/applications">
-                    <Button variant="outline" size="sm" className="w-full">
+                    <Button variant="outline" size="sm" className="w-full mt-4">
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Back to Applications
                     </Button>
@@ -967,10 +978,6 @@ export default function ApplicationDetailPage() {
                   <div>
                     <span className="font-medium text-gray-600">Last Updated:</span>
                     <p>{formatDate(application.updatedAt)}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Application ID:</span>
-                    <p className="font-mono text-xs">{application._id || application.id}</p>
                   </div>
                 </div>
               </CardContent>
