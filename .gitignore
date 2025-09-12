@@ -22,13 +22,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# env files
+# env files (ignore all .env variants everywhere, but keep examples)
+**/.env
+**/.env.*
+!**/.env.example
 
-*/.env
-*/.env.production
-*/.env.development
-*/.env.staging
-*/.env.uat
 
 # turbo
 .turbo
