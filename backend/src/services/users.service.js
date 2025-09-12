@@ -14,7 +14,8 @@ class UsersService {
 
   async create(data) {
     try {
-      const user = await this.userModel.create(data);
+  // Creation rules (email/username/role) are enforced in the model
+  const user = await this.userModel.create(data);
 
       // Send email verification
       try {
@@ -169,22 +170,38 @@ class UsersService {
         throw new Error('Invalid or expired verification token');
       }
 
+      // Mark email verified
       await this.userModel.updateEmailVerification(user._id, true);
 
-      // Clear verification token
-      await this.userModel.collection.updateOne(
-        { _id: user._id },
-        {
-          $unset: {
-            emailVerificationToken: 1,
-            emailVerificationExpires: 1
-          },
-          $set: { updatedAt: new Date() }
-        }
-      );
+      // For company admins who haven't completed setup, keep the token for the setup step
+      const needsCompanySetup = user.role === 'company' && !(user.company?.setupComplete);
+
+      if (!needsCompanySetup) {
+        // Clear verification token immediately for non-company or completed setups
+        await this.userModel.collection.updateOne(
+          { _id: user._id },
+          {
+            $unset: {
+              emailVerificationToken: 1,
+              emailVerificationExpires: 1
+            },
+            $set: { updatedAt: new Date() }
+          }
+        );
+      } else {
+        // Keep token valid until company setup completes, just refresh updatedAt
+        await this.userModel.collection.updateOne(
+          { _id: user._id },
+          { $set: { updatedAt: new Date() } }
+        );
+      }
 
       logger.info(`Email verified for user: ${user.email}`);
-      return { message: 'Email verified successfully' };
+      return {
+        message: 'Email verified successfully',
+        role: user.role,
+        needsCompanySetup
+      };
     } catch (error) {
       logger.error('Email verification failed', { token, error: error.message });
       throw error;

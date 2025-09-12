@@ -44,13 +44,14 @@ class EmailService {
   async sendEmailVerification(user, verificationToken) {
     try {
       const verificationUrl = `${this.config.app.frontendUrl}/auth/verify-email?token=${verificationToken}`;
+      const greeting = (user.role === 'company' || !user.firstName) ? 'Hi,' : `Hi ${user.firstName},`;
 
       const mailOptions = {
         from: this.config.email.from,
         to: user.email,
         subject: 'Verify Your Email Address - Job Finder',
         html: this.getEmailVerificationTemplate(user, verificationUrl),
-        text: `Hi ${user.firstName},\n\nPlease verify your email address by clicking the following link:\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nBest regards,\nJob Finder Team`
+        text: `${greeting}\n\nPlease verify your email address by clicking the following link:\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nBest regards,\nJob Finder Team`
       };
 
       // Check if we're in development mode without real credentials
@@ -205,6 +206,7 @@ class EmailService {
   }
 
   getEmailVerificationTemplate(user, verificationUrl) {
+    const greeting = (user.role === 'company' || !user.firstName) ? 'Hi,' : `Hi ${user.firstName},`;
     return `
       <!DOCTYPE html>
       <html>
@@ -227,7 +229,7 @@ class EmailService {
             <h1>Welcome to Job Finder!</h1>
           </div>
           <div class="content">
-            <h2>Hi ${user.firstName},</h2>
+            <h2>${greeting}</h2>
             <p>Thank you for registering with Job Finder. To complete your registration and start exploring opportunities, please verify your email address.</p>
             <p>Click the button below to verify your email:</p>
             <a href="${verificationUrl}" class="button">Verify Email Address</a>

@@ -18,7 +18,7 @@ import LoginIllustration from '@/components/auth/login-illustration';
 import { useAuth } from '@/contexts/auth-context';
 
 const loginSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address' }),
+  identifier: z.string().min(1, { message: 'Please enter your email or username' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
   rememberMe: z.boolean().optional(),
 });
@@ -39,7 +39,7 @@ export default function LoginPage() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      identifier: '',
       password: '',
       rememberMe: false,
     },
@@ -51,7 +51,7 @@ export default function LoginPage() {
 
     try {
       // Use the auth context login method
-      await login(data.email, data.password);
+  await login(data.identifier, data.password);
 
       // The auth context will handle storing tokens and user data
       // We need to wait a bit for the auth context to update
@@ -122,14 +122,14 @@ export default function LoginPage() {
                 <div className="relative">
                   <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
                   <Input
-                    type="email"
-                    placeholder="Email address"
-                    className={`pl-10 h-12 ${errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                    {...register('email')}
+                    type="text"
+                    placeholder="Email or Username"
+                    className={`pl-10 h-12 ${errors.identifier ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                    {...register('identifier')}
                   />
                 </div>
-                {errors.email && (
-                  <p className="text-sm text-red-500">{errors.email.message}</p>
+                {errors.identifier && (
+                  <p className="text-sm text-red-500">{errors.identifier.message}</p>
                 )}
               </div>
 

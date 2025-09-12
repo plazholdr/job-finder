@@ -11,19 +11,23 @@ class AuthenticationService {
   }
 
   async create(data) {
-    const { email, password, strategy = 'local' } = data;
+    const { email, username, password, strategy = 'local' } = data;
 
     if (strategy !== 'local') {
       throw new Error('Only local authentication strategy is supported');
     }
 
-    if (!email || !password) {
-      throw new Error('Email and password are required');
+    if ((!email && !username) || !password) {
+      throw new Error('Email/username and password are required');
     }
 
     try {
-      // Find user by email
-      const user = await this.userModel.findByEmail(email);
+      // Determine identifier and find user by email or username
+      const identifier = (email || username || '').trim();
+      const looksLikeEmail = /.+@.+\..+/.test(identifier);
+      const user = looksLikeEmail
+        ? await this.userModel.findByEmail(identifier)
+        : await this.userModel.collection.findOne({ username: identifier.toLowerCase() });
       if (!user) {
         throw new Error('Invalid email or password');
       }
@@ -126,7 +130,7 @@ const authenticateToken = (app) => {
       // Add user info to request
       req.user = authResult.user;
       req.userId = authResult.userId;
-      
+
       next();
     } catch (error) {
       return res.status(401).json({ error: error.message });
