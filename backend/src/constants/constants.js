@@ -4,6 +4,12 @@ const STATUS = {
   REJECTED: 2,
 };
 
+const STATUS_TEST = {
+  PENDING: 0,
+  ACCEPTED: 1,
+  REJECTED: 2,
+};
+
 const LABELS = {
   PENDING: 'pending',
   ACCEPTED: 'accepted',
