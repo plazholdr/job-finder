@@ -24,11 +24,11 @@ yarn-error.log*
 
 # env files
 
-**/.env
-**/.env.production
-**/.env.development
-**/.env.staging
-**/.env.uat
+*/.env
+*/.env.production
+*/.env.development
+*/.env.staging
+*/.env.uat
 
 # turbo
 .turbo
