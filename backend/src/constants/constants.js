@@ -1,48 +1,41 @@
-// Central constants only — no logic functions here.
-// Tri-state code mapping used across the app.
-// 0=pending, 1=accepted/approved/verified, 2=rejected/declined
-
-const STATUS = Object.freeze({
+const STATUS = {
   PENDING: 0,
   ACCEPTED: 1,
   REJECTED: 2,
-});
+};
 
-// Canonical string labels to use when also storing string alongside code
-const LABELS = Object.freeze({
+const LABELS = {
   PENDING: 'pending',
-  ACCEPTED: 'accepted', // or 'approved'/'verified' depending on domain usage
-  REJECTED: 'rejected', // or 'declined'
-});
+  ACCEPTED: 'accepted',
+  REJECTED: 'rejected',
+};
 
-// Domain-specific status groups (string names expected by existing UI/routes)
-const ENTITY = Object.freeze({
-  OFFER: Object.freeze({
-    // legacy string names still used by FE in some places
-    STRINGS: Object.freeze({
+const ENTITY = {
+  OFFER: {
+    STRINGS: {
       PENDING: 'pending',
       ACCEPTED: 'accepted',
       REJECTED: 'rejected',
       WITHDRAWN: 'withdrawn',
       EXPIRED: 'expired',
       NEGOTIATING: 'negotiating',
-    }),
-  }),
-  VERIFICATION: Object.freeze({
-    STRINGS: Object.freeze({
+    },
+  },
+  VERIFICATION: {
+    STRINGS: {
       PENDING: 'pending',
-      VERIFIED: 'verified', // maps to code 1
-      REJECTED: 'rejected', // maps to code 2
-    }),
-  }),
-  APPROVAL: Object.freeze({
-    STRINGS: Object.freeze({
+      VERIFIED: 'verified',
+      REJECTED: 'rejected',
+    },
+  },
+  APPROVAL: {
+    STRINGS: {
       PENDING: 'pending',
-      APPROVED: 'approved', // maps to code 1
-      REJECTED: 'rejected', // maps to code 2
-    }),
-  }),
-});
+      APPROVED: 'approved',
+      REJECTED: 'rejected',
+    },
+  },
+};
 
 module.exports = {
   STATUS,
