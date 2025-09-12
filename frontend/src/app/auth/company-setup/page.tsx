@@ -30,11 +30,11 @@ function CompanySetupPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token'); // Email verification token
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [duplicateCompany, setDuplicateCompany] = useState(false);
-  
+
   const {
     register,
     handleSubmit,
@@ -54,8 +54,8 @@ function CompanySetupPageInner() {
       const checkResponse = await fetch('/api/companies/check-registration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          registrationNumber: data.companyRegistrationNumber 
+        body: JSON.stringify({
+          registrationNumber: data.companyRegistrationNumber
         }),
       });
 
@@ -78,7 +78,7 @@ function CompanySetupPageInner() {
       formData.append('companyName', data.companyName);
       formData.append('companyRegistrationNumber', data.companyRegistrationNumber);
       formData.append('companyContactNumber', data.companyContactNumber);
-      
+
       if (data.superform && data.superform[0]) {
         formData.append('superform', data.superform[0]);
       }
@@ -183,7 +183,7 @@ function CompanySetupPageInner() {
                     type="text"
                     placeholder="Enter your company name"
                     className={`pl-10 h-12 ${errors.companyName ? 'border-red-300' : ''}`}
-                    {...register('companyName', { 
+                    {...register('companyName', {
                       required: 'Company name is required',
                       minLength: { value: 2, message: 'Company name must be at least 2 characters' }
                     })}
@@ -204,7 +204,7 @@ function CompanySetupPageInner() {
                     type="text"
                     placeholder="e.g., 123456-A"
                     className={`pl-10 h-12 ${errors.companyRegistrationNumber ? 'border-red-300' : ''}`}
-                    {...register('companyRegistrationNumber', { 
+                    {...register('companyRegistrationNumber', {
                       required: 'Company registration number is required',
                       pattern: {
                         value: /^[0-9]+-[A-Z]$/,
@@ -231,7 +231,7 @@ function CompanySetupPageInner() {
                     type="tel"
                     placeholder="+60 3-1234 5678"
                     className={`pl-10 h-12 ${errors.companyContactNumber ? 'border-red-300' : ''}`}
-                    {...register('companyContactNumber', { 
+                    {...register('companyContactNumber', {
                       required: 'Company contact number is required',
                       pattern: {
                         value: /^(\+?6?01)[0-46-9]-*[0-9]{7,8}$|^(\+?603)[0-9]{8}$/,
@@ -255,7 +255,7 @@ function CompanySetupPageInner() {
                     type="file"
                     accept=".pdf,.doc,.docx"
                     className={`pl-10 h-12 ${errors.superform ? 'border-red-300' : ''}`}
-                    {...register('superform', { 
+                    {...register('superform', {
                       required: 'Company Superform document is required'
                     })}
                   />

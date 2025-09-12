@@ -4,14 +4,14 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  User, 
-  Building2, 
-  Briefcase, 
-  FileText, 
-  Star, 
-  Target, 
-  Award, 
+import {
+  User,
+  Building2,
+  Briefcase,
+  FileText,
+  Star,
+  Target,
+  Award,
   CheckCircle,
   ArrowRight,
   TrendingUp,
@@ -28,7 +28,7 @@ export const dynamic = 'force-dynamic';
 
 export default function WorkflowPage() {
   const { state } = useInternWorkflow();
-  
+
   const profileCompletion = workflowSelectors.getProfileCompletion(state);
   const activeApplications = workflowSelectors.getActiveApplications(state);
   const overallProgress = workflowSelectors.getOverallProgress(state);
@@ -196,14 +196,14 @@ export default function WorkflowPage() {
                 {overallProgress}% Complete
               </Badge>
             </div>
-            
+
             <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
-              <div 
-                className="bg-blue-600 h-3 rounded-full transition-all duration-300" 
+              <div
+                className="bg-blue-600 h-3 rounded-full transition-all duration-300"
                 style={{ width: `${overallProgress}%` }}
               ></div>
             </div>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="text-center">
                 <p className="font-medium text-gray-900">{state.completedSteps.length}</p>
@@ -229,7 +229,7 @@ export default function WorkflowPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {workflowFeatures.map((feature) => {
             const IconComponent = feature.icon;
-            
+
             return (
               <Card key={feature.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
@@ -242,7 +242,7 @@ export default function WorkflowPage() {
                         <CardTitle className="text-lg">{feature.title}</CardTitle>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       {feature.count !== undefined && (
                         <Badge variant="secondary">{feature.count}</Badge>
@@ -254,10 +254,10 @@ export default function WorkflowPage() {
                     </div>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent>
                   <p className="text-gray-600 text-sm mb-4">{feature.description}</p>
-                  
+
                   {feature.progress !== undefined && (
                     <div className="mb-4">
                       <div className="flex justify-between text-sm mb-1">
@@ -265,14 +265,14 @@ export default function WorkflowPage() {
                         <span className="font-medium">{feature.progress}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${feature.progress}%` }}
                         ></div>
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="space-y-2 mb-4">
                     <p className="text-xs font-medium text-gray-700">Features:</p>
                     <ul className="text-xs text-gray-600 space-y-1">
@@ -287,11 +287,11 @@ export default function WorkflowPage() {
                       )}
                     </ul>
                   </div>
-                  
+
                   <Link href={feature.href}>
                     <Button className="w-full">
-                      {feature.status === 'completed' ? 'Review' : 
-                       feature.status === 'active' || feature.status === 'in-progress' ? 'Continue' : 
+                      {feature.status === 'completed' ? 'Review' :
+                       feature.status === 'active' || feature.status === 'in-progress' ? 'Continue' :
                        'Get Started'}
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>

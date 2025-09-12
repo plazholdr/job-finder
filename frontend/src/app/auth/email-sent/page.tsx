@@ -20,7 +20,7 @@ function EmailSentPageInner() {
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
   const type = searchParams.get('type'); // 'company' or 'student'
-  
+
   const [isResending, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [timeLeft, setTimeLeft] = useState(24 * 60 * 60); // 24 hours in seconds
@@ -50,7 +50,7 @@ function EmailSentPageInner() {
   const handleResendEmail = async () => {
     setIsResending(true);
     setResendMessage('');
-    
+
     try {
       const response = await fetch(`${config.api.baseUrl}/email-verification/resend`, {
         method: 'POST',

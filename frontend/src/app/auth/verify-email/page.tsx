@@ -109,11 +109,11 @@ function VerifyEmailPageInner() {
             <div className="mx-auto flex items-center justify-center mb-6">
               {getStatusIcon()}
             </div>
-            
+
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
               {getStatusTitle()}
             </h1>
-            
+
             <p className="text-gray-600 mb-8">
               {message}
             </p>
@@ -150,7 +150,7 @@ function VerifyEmailPageInner() {
                       'Resend verification email'
                     )}
                   </Button>
-                  
+
                   <Link href="/auth/login">
                     <Button variant="outline" className="w-full">
                       Back to Login

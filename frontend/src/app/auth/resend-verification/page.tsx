@@ -35,7 +35,7 @@ export default function ResendVerificationPage() {
   const onSubmit = async (data: ResendFormValues) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
   const response = await fetch(`${config.api.baseUrl}/email-verification/resend`, {
         method: 'POST',
@@ -66,7 +66,7 @@ export default function ResendVerificationPage() {
           <div className="mx-auto h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
             <Mail className="h-6 w-6 text-blue-600" />
           </div>
-          
+
           {!isSubmitted ? (
             <>
               <h1 className="text-3xl font-bold tracking-tight text-gray-900">Resend verification email</h1>
@@ -138,7 +138,7 @@ export default function ResendVerificationPage() {
                   Didn&apos;t receive the email? Check your spam folder or try again in a few minutes.
                 </p>
               </div>
-              
+
               <div className="space-y-3">
                 <Button
                   onClick={() => {
@@ -150,7 +150,7 @@ export default function ResendVerificationPage() {
                 >
                   Send another email
                 </Button>
-                
+
                 <Link href="/auth/login">
                   <Button variant="outline" className="w-full">
                     Back to Login

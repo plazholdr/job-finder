@@ -25,7 +25,7 @@ export default function EmailVerificationBanner({ onDismiss, className = '' }: E
   const resendVerification = async () => {
     setIsResending(true);
     setResendMessage('');
-    
+
     try {
   const response = await fetch(`${config.api.baseUrl}/email-verification/resend`, {
         method: 'POST',
@@ -66,15 +66,15 @@ export default function EmailVerificationBanner({ onDismiss, className = '' }: E
           </h3>
           <div className="mt-2 text-sm text-yellow-700">
             <p>
-              Please verify your email address to access all features. 
+              Please verify your email address to access all features.
               We sent a verification link to <span className="font-medium">{user.email}</span>.
             </p>
           </div>
-          
+
           {resendMessage && (
             <div className={`mt-2 text-sm ${
-              resendMessage.includes('successfully') 
-                ? 'text-green-700' 
+              resendMessage.includes('successfully')
+                ? 'text-green-700'
                 : 'text-red-700'
             }`}>
               {resendMessage}
@@ -101,7 +101,7 @@ export default function EmailVerificationBanner({ onDismiss, className = '' }: E
                 </>
               )}
             </Button>
-            
+
             <button
               onClick={handleDismiss}
               className="text-sm text-yellow-600 hover:text-yellow-500"

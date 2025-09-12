@@ -7,10 +7,10 @@ export const dynamic = 'force-dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  CheckCircle, 
-  Clock, 
-  Users, 
+import {
+  CheckCircle,
+  Clock,
+  Users,
   Building2,
   Calendar,
   TrendingUp,
@@ -46,7 +46,7 @@ export default function HiringPage() {
   const fetchHiredInterns = async () => {
     try {
       setLoading(true);
-      
+
       // Mock data - in a real app, this would come from API
       const mockHiredInterns: HiredIntern[] = [
         {
@@ -74,7 +74,7 @@ export default function HiringPage() {
           department: 'Engineering'
         }
       ];
-      
+
       setHiredInterns(mockHiredInterns);
     } catch (error) {
       console.error('Error fetching hired interns:', error);
@@ -281,13 +281,13 @@ export default function HiringPage() {
                               </span>
                             </div>
                           </div>
-                          
+
                           <Badge className={`${getStatusColor(intern.status)} flex items-center space-x-1`}>
                             {getStatusIcon(intern.status)}
                             <span className="capitalize">{intern.status}</span>
                           </Badge>
                         </div>
-                        
+
                         {intern.status === 'onboarding' && (
                           <div className="mb-3">
                             <div className="flex items-center justify-between text-sm mb-1">
@@ -295,14 +295,14 @@ export default function HiringPage() {
                               <span className="font-medium">{intern.progress}%</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                              <div
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                                 style={{ width: `${intern.progress}%` }}
                               ></div>
                             </div>
                           </div>
                         )}
-                        
+
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4 text-sm text-gray-600">
                             <span className="flex items-center space-x-1">
@@ -311,7 +311,7 @@ export default function HiringPage() {
                             </span>
                             <span>{intern.department}</span>
                           </div>
-                          
+
                           <Link href={`/hiring/${intern.applicationId}`}>
                             <Button variant="outline" size="sm">
                               View Details
@@ -363,14 +363,14 @@ export default function HiringPage() {
                       View Applications
                     </Button>
                   </Link>
-                  
+
                   <Link href="/jobs">
                     <Button variant="outline" className="w-full justify-start">
                       <Star className="h-4 w-4 mr-2" />
                       Browse Jobs
                     </Button>
                   </Link>
-                  
+
                   <Link href="/companies">
                     <Button variant="outline" className="w-full justify-start">
                       <Building2 className="h-4 w-4 mr-2" />
