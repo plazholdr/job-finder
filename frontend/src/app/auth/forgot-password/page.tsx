@@ -11,6 +11,7 @@ import { Mail, Briefcase, ArrowLeft, CheckCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import config from '@/config';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address' }),
@@ -38,7 +39,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/forgot-password', {
+  const response = await fetch(`${config.api.baseUrl}/password-reset/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -364,6 +364,7 @@ class UserModel {
           password: hashedPassword,
           updatedAt: new Date()
         },
+        // Always clear reset token fields if present to prevent reuse
         $unset: {
           passwordResetToken: 1,
           passwordResetExpires: 1
@@ -398,27 +399,7 @@ class UserModel {
     return await this.findById(id);
   }
 
-  async updatePassword(id, newPassword) {
-    const objectId = typeof id === 'string' ? new ObjectId(id) : id;
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    const result = await this.collection.updateOne(
-      { _id: objectId },
-      {
-        $set: {
-          password: hashedPassword,
-          updatedAt: new Date()
-        }
-      }
-    );
-
-    if (result.matchedCount === 0) {
-      throw new Error('User not found');
-    }
-
-    return true;
-  }
+  // Removed duplicate updatePassword method
 
   async deleteById(id) {
     const objectId = typeof id === 'string' ? new ObjectId(id) : id;

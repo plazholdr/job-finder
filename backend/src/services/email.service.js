@@ -90,14 +90,30 @@ class EmailService {
   async sendPasswordReset(user, resetToken) {
     try {
       const resetUrl = `${this.config.app.frontendUrl}/auth/reset-password?token=${resetToken}`;
+      const greeting = (user.role === 'company' || !user.firstName) ? 'Hi,' : `Hi ${user.firstName},`;
 
       const mailOptions = {
         from: this.config.email.from,
         to: user.email,
         subject: 'Reset Your Password - Job Finder',
         html: this.getPasswordResetTemplate(user, resetUrl),
-        text: `Hi ${user.firstName},\n\nYou requested to reset your password. Click the following link to reset it:\n${resetUrl}\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nJob Finder Team`
+        text: `${greeting}\n\nYou requested to reset your password. Click the following link to reset it:\n${resetUrl}\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nJob Finder Team`
       };
+
+      // Development fallback without real SMTP credentials
+      const hasRealCredentials = this.config.email.smtp.auth.user &&
+                                this.config.email.smtp.auth.pass &&
+                                this.config.email.smtp.auth.pass !== 'REPLACE_WITH_YOUR_BREVO_SMTP_KEY';
+
+      if (this.config.env === 'development' && !hasRealCredentials) {
+        logger.info('📧 PASSWORD RESET (Development Mode - Console Only)', {
+          to: user.email,
+          subject: mailOptions.subject,
+          resetUrl,
+          userId: user._id
+        });
+        return { messageId: 'dev-' + Date.now() };
+      }
 
       const result = await this.transporter.sendMail(mailOptions);
       logger.info('Password reset email sent', {
@@ -248,7 +264,8 @@ class EmailService {
   }
 
   getPasswordResetTemplate(user, resetUrl) {
-    return `
+  const greeting = (user.role === 'company' || !user.firstName) ? 'Hi,' : `Hi ${user.firstName},`;
+  return `
       <!DOCTYPE html>
       <html>
       <head>
@@ -270,7 +287,7 @@ class EmailService {
             <h1>Password Reset Request</h1>
           </div>
           <div class="content">
-            <h2>Hi ${user.firstName},</h2>
+            <h2>${greeting}</h2>
             <p>You requested to reset your password for your Job Finder account.</p>
             <p>Click the button below to reset your password:</p>
             <a href="${resetUrl}" class="button">Reset Password</a>
