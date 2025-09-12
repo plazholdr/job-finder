@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
@@ -15,7 +15,18 @@ interface CompanySetupForm {
   superform: FileList;
 }
 
+// Required in Next.js App Router: useSearchParams must be within a Suspense boundary
 export default function CompanySetupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-6">Loading…</div>
+    }>
+      <CompanySetupPageInner />
+    </Suspense>
+  );
+}
+
+function CompanySetupPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token'); // Email verification token

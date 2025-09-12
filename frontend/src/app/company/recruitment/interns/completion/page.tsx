@@ -53,9 +53,9 @@ import {
   Trophy,
   ThumbsUp,
   MessageSquare,
-  PresentationChart,
+  Presentation,
   FileCheck,
-  Certificate,
+  Award as Certificate,
   Handshake,
   Network
 } from 'lucide-react';
@@ -318,11 +318,11 @@ export default function InternCompletionPage() {
     switch (status) {
       case 'active': return <Award className="h-4 w-4" />;
       case 'pre_completion': return <Clock className="h-4 w-4" />;
-      case 'project_review': return <PresentationChart className="h-4 w-4" />;
+  case 'project_review': return <Presentation className="h-4 w-4" />;
       case 'performance_evaluation': return <Trophy className="h-4 w-4" />;
       case 'exit_interview': return <MessageSquare className="h-4 w-4" />;
       case 'documentation_finalization': return <FileCheck className="h-4 w-4" />;
-      case 'certificate_generation': return <Certificate className="h-4 w-4" />;
+  case 'certificate_generation': return <Certificate className="h-4 w-4" />;
       case 'alumni_network': return <Network className="h-4 w-4" />;
       case 'completed': return <Target className="h-4 w-4" />;
       case 'extended': return <Timer className="h-4 w-4" />;

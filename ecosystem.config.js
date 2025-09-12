@@ -26,7 +26,7 @@ module.exports = {
     {
       name: 'job-finder-frontend-prod',
       script: 'npm',
-      args: 'run start',
+  args: 'run start',
       cwd: '/home/ubuntu/job-finder-production/frontend',
       env: {
         NODE_ENV: 'production',

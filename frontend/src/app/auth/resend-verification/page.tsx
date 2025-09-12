@@ -7,6 +7,7 @@ import { z } from 'zod';
 import Link from 'next/link';
 import { Mail, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import config from '@/config';
 import { Input } from '@/components/ui/input';
 
 const resendSchema = z.object({
@@ -36,7 +37,7 @@ export default function ResendVerificationPage() {
     setError(null);
     
     try {
-      const response = await fetch('/api/auth/resend-verification', {
+  const response = await fetch(`${config.api.baseUrl}/email-verification/resend`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

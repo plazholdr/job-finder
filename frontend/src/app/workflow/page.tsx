@@ -23,6 +23,9 @@ import AppLayout from '@/components/layout/AppLayout';
 import InternWorkflowIntegration from '@/components/workflow/InternWorkflowIntegration';
 import { useInternWorkflow, workflowSelectors } from '@/contexts/InternWorkflowContext';
 
+// Disable static generation for this page since it uses client-side context
+export const dynamic = 'force-dynamic';
+
 export default function WorkflowPage() {
   const { state } = useInternWorkflow();
   

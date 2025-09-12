@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, Mail, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import config from '@/config';
 
 export default function RegistrationSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-6">Loading…</div>}>
+      <RegistrationSuccessPageInner />
+    </Suspense>
+  );
+}
+
+function RegistrationSuccessPageInner() {
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
   const [isResending, setIsResending] = useState(false);
@@ -19,7 +28,7 @@ export default function RegistrationSuccessPage() {
     setResendMessage('');
     
     try {
-      const response = await fetch('/api/auth/resend-verification', {
+      const response = await fetch(`${config.api.baseUrl}/email-verification/resend`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -32,7 +41,7 @@ export default function RegistrationSuccessPage() {
       if (response.ok) {
         setResendMessage('Verification email sent successfully!');
       } else {
-        setResendMessage(data.error || 'Failed to resend verification email');
+        setResendMessage(data.message || data.error || 'Failed to resend verification email');
       }
     } catch (error) {
       setResendMessage('Network error. Please try again.');

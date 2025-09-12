@@ -1,0 +1,46 @@
+🔧 Loading environment configuration...
+📁 Environment file: /home/ubuntu/job-finder-production/backend/.env.development
+🌍 Environment: development
+🚪 Port: 3030
+📦 Loading dependencies...
+✅ Feathers Express loaded
+✅ Feathers core loaded
+✅ Socket.IO loaded
+✅ CORS loaded
+✅ Helmet loaded
+📋 Loading application modules...
+✅ Config loaded
+✅ Logger loaded
+✅ Services loaded
+✅ Middleware loaded
+✅ Database module loaded
+✅ Redis module loaded
+🚀 Creating Feathers application...
+✅ Feathers app created
+🔒 Setting up security and middleware...
+✅ Helmet configured
+✅ CORS configured
+✅ Body parsing configured
+✅ Config set on app
+🔌 Configuring plugins...
+✅ REST API configured
+✅ Socket.IO configured
+⚙️ Configuring services and middleware...
+✅ Services configured
+✅ Middleware configured
+[32minfo[39m: Connected to MongoDB (development) {"environment":"development","service":"Job Finder API","timestamp":"2025-09-06 06:13:03"}
+[32minfo[39m: Connected to Redis (development) {"environment":"development","service":"Job Finder API","timestamp":"2025-09-06 06:13:03"}
+[32minfo[39m: Job Finder API started on http://0.0.0.0:3030 in development mode {"environment":"development","service":"Job Finder API","timestamp":"2025-09-06 06:13:03"}
+[32minfo[39m: Starting workflow scheduler {"environment":"development","service":"Job Finder API","timestamp":"2025-09-06 06:13:04"}
+[32minfo[39m: Workflow scheduler started successfully {"environment":"development","service":"Job Finder API","timestamp":"2025-09-06 06:13:04"}
+✅ Workflow services initialized successfully
+[32minfo[39m: Starting automated workflow processing {"environment":"development","service":"Job Finder API","timestamp":"2025-09-06 06:15:00"}
+[32minfo[39m: Automated workflow processing completed {"environment":"development","errors":0,"processed":0,"service":"Job Finder API","timestamp":"2025-09-06 06:15:00","totalApplications":0}
+[32minfo[39m: Starting automated workflow processing {"environment":"development","service":"Job Finder API","timestamp":"2025-09-06 06:30:00"}
+[32minfo[39m: Monitoring SLA compliance {"environment":"development","service":"Job Finder API","timestamp":"2025-09-06 06:30:00"}
+[32minfo[39m: Automated workflow processing completed {"environment":"development","errors":0,"processed":0,"service":"Job Finder API","timestamp":"2025-09-06 06:30:00","totalApplications":0}
+[32minfo[39m: No SLA violations detected {"environment":"development","service":"Job Finder API","timestamp":"2025-09-06 06:30:00"}
+Received SIGTERM, stopping workflow scheduler...
+❌ Uncaught Exception: ReferenceError: workflowScheduler is not defined
+    at process.<anonymous> (/home/ubuntu/job-finder-production/backend/src/services/index.js:1198:5)
+    at process.emit (node:events:519:28)

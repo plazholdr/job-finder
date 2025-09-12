@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, CheckCircle, AlertCircle, Clock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import config from '@/config';
 
 export default function EmailSentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-6">Loading…</div>}>
+      <EmailSentPageInner />
+    </Suspense>
+  );
+}
+
+function EmailSentPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
@@ -43,10 +52,10 @@ export default function EmailSentPage() {
     setResendMessage('');
     
     try {
-      const response = await fetch('/api/auth/resend-verification', {
+      const response = await fetch(`${config.api.baseUrl}/email-verification/resend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, type }),
+        body: JSON.stringify({ email }),
       });
 
       if (response.ok) {
@@ -54,7 +63,7 @@ export default function EmailSentPage() {
         setTimeLeft(24 * 60 * 60); // Reset timer
       } else {
         const error = await response.json();
-        setResendMessage(error.message || 'Failed to resend email');
+        setResendMessage(error.message || error.error || 'Failed to resend email');
       }
     } catch (error) {
       setResendMessage('Failed to resend email. Please try again.');

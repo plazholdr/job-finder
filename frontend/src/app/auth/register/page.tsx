@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import SocialLoginButtons from '@/components/auth/social-login-buttons';
 import { useAuth } from '@/contexts/auth-context';
+import config from '@/config';
 
 // Step-by-step schemas
 const step1Schema = z.object({
@@ -1360,11 +1361,21 @@ export default function RegisterPage() {
             requireEmailVerification: true
           };
 
-          // Call registration API which will send verification email
-          const response = await fetch('/api/auth/register', {
+          // Call backend users endpoint directly (backend sends verification email on create)
+          const email = (data.email || data.username || '').trim();
+          const payload = {
+            ...adminData,
+            email,
+            // Ensure required fields for backend
+            firstName: (adminData as any).firstName || 'Company',
+            lastName: (adminData as any).lastName || 'Admin',
+            password: data.password,
+          };
+
+          const response = await fetch(`${config.api.baseUrl}/users`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(adminData),
+            body: JSON.stringify(payload),
           });
 
           if (!response.ok) {
@@ -1373,7 +1384,7 @@ export default function RegisterPage() {
           }
 
           // Redirect to email sent page
-          router.push(`/auth/email-sent?email=${encodeURIComponent(data.email || data.username)}&type=company`);
+          router.push(`/auth/email-sent?email=${encodeURIComponent(email)}&type=company`);
 
         } catch (error: any) {
           setRegisterError(error.message || 'An error occurred during registration. Please try again.');

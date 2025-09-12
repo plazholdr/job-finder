@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { withAuth } from '@/contexts/auth-context';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -1023,4 +1023,12 @@ function InternshipSetup() {
   );
 }
 
-export default withAuth(InternshipSetup);
+function InternshipSetupWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-6">Loading…</div>}>
+      <InternshipSetup />
+    </Suspense>
+  );
+}
+
+export default withAuth(InternshipSetupWrapper);

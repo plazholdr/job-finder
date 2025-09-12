@@ -1,7 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import type { InternshipProfile, InternshipDetails, CourseInformation, AssignmentInformation } from '@/types/internship';
 import { api } from '@/lib/api';
+import config from '@/config';
 
 interface User {
   _id: string;
@@ -19,6 +21,13 @@ interface User {
     website?: string;
     linkedin?: string;
     github?: string;
+  };
+  // Optional internship setup data stored on the user record
+  internship?: {
+    profile?: Partial<InternshipProfile>;
+    details?: Partial<InternshipDetails>;
+    courses?: CourseInformation[];
+    assignments?: AssignmentInformation[];
   };
   createdAt: string;
   updatedAt: string;
@@ -126,12 +135,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (userData: RegisterData) => {
+    const register = async (userData: RegisterData) => {
     try {
       setIsLoading(true);
 
-      // First, create the user on the backend via Nginx-proxied route
-      const createRes = await fetch('/api/users', {
+      // Call the backend API directly
+      const response = await fetch(`${config.api.baseUrl}/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,17 +148,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(userData),
       });
 
-      if (!createRes.ok) {
+      if (!response.ok) {
         let message = 'Registration failed';
         try {
-          const err = await createRes.json();
+          const err = await response.json();
           message = err.error || err.message || message;
         } catch (_e) {}
         throw new Error(message);
       }
 
       // Then auto-login using the same credentials
-      const loginRes = await fetch('/api/authentication', {
+      const loginRes = await fetch(`${config.api.baseUrl}/authentication`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

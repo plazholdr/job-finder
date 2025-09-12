@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import config from '@/config';
 
 export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-6">Verifying…</div>}>
+      <VerifyEmailPageInner />
+    </Suspense>
+  );
+}
+
+function VerifyEmailPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -27,7 +36,7 @@ export default function VerifyEmailPage() {
 
   const verifyEmail = async (verificationToken: string) => {
     try {
-      const response = await fetch('/api/auth/verify-email', {
+      const response = await fetch(`${config.api.baseUrl}/email-verification/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -42,7 +51,7 @@ export default function VerifyEmailPage() {
         setMessage(data.message || 'Email verified successfully!');
       } else {
         setStatus('error');
-        setMessage(data.error || 'Verification failed. Please try again.');
+        setMessage(data.message || data.error || 'Verification failed. Please try again.');
       }
     } catch (error) {
       setStatus('error');

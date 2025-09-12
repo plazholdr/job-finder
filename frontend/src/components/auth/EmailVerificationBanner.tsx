@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { AlertTriangle, Mail, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
+import config from '@/config';
 
 interface EmailVerificationBannerProps {
   onDismiss?: () => void;
@@ -26,7 +27,7 @@ export default function EmailVerificationBanner({ onDismiss, className = '' }: E
     setResendMessage('');
     
     try {
-      const response = await fetch('/api/auth/resend-verification', {
+  const response = await fetch(`${config.api.baseUrl}/email-verification/resend`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -50,19 +50,21 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
 
+    // Prepare headers - include Authorization only if present
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
     const response = await fetch(`${API_BASE_URL}/jobs${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': authHeader,
-      },
+      headers,
     });
 
     const data = await response.json();
