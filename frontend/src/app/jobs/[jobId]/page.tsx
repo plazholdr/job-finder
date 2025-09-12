@@ -88,66 +88,81 @@ export default function JobDetailsPage() {
     }
   };
 
+
+  const fetchJob = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/jobs/${jobId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+
+    
+      const raw = payload?.data ?? payload;
+      if (!raw || typeof raw !== 'object') throw new Error('Invalid job payload');
+
+      
+      const idStr = String(raw._id ?? raw.id ?? '');
+
+      
+      const techSkills = Array.isArray(raw.skills?.technical)
+        ? raw.skills.technical
+        : typeof raw.skills?.technical === 'string'
+          ? raw.skills.technical.split(/[,\s]+/).filter(Boolean)
+          : [];
+
+      const transformedJob: JobDetails = {
+        id: idStr,
+        title: raw.title,
+        company: {
+          id: String(raw.companyId ?? ''),
+          name: raw.companyName || raw.companyInfo?.name || 'Company Name',
+          logo: "/api/placeholder/80/80",
+          industry: raw.companyInfo?.industry || "Technology",
+          size: raw.companyInfo?.size || "Unknown",
+          location: raw.companyInfo?.location || raw.location,
+          website: raw.companyInfo?.website || "",
+          description: raw.companyInfo?.description || "Company description not available."
+        },
+        location: raw.location,
+        type: "Internship",
+        level: "Entry",
+        salary: {
+          min: raw.salary?.minimum ?? 0,
+          max: raw.salary?.maximum ?? 0,
+          currency: raw.salary?.currency || "USD",
+          period: raw.salary?.type || "hour"
+        },
+        posted: raw.createdAt,
+        deadline: raw.duration?.endDate,
+        description: raw.description,
+        requirements: typeof raw.requirements === 'string'
+          ? raw.requirements.split('\n').map(s => s.trim()).filter(Boolean)
+          : [],
+        responsibilities: [],
+        benefits: [],
+        skills: techSkills,
+        experience: "Entry level",
+        education: "Currently enrolled in relevant field",
+        remote: !!raw.remoteWork,
+        applications: raw.applications ?? 0,
+        views: raw.views ?? 0,
+        
+        status: (raw.status && String(raw.status).toLowerCase() === 'active') ? 'active' : 'closed'
+      };
+
+      setJob(transformedJob);
+    } catch (err) {
+      console.error('Error fetching job:', err);
+      setJob(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [jobId]);
+
   useEffect(() => {
-    const fetchJob = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/jobs/${jobId}`);
-        const data = await response.json();
-
-        if (data.success) {
-          // Transform backend data to frontend format
-          const transformedJob: JobDetails = {
-            id: data.data._id || data.data.id,
-            title: data.data.title,
-            company: {
-              id: data.data.companyId,
-              name: data.data.companyName || data.data.companyInfo?.name || 'Company Name',
-              logo: "/api/placeholder/80/80",
-              industry: data.data.companyInfo?.industry || "Technology",
-              size: data.data.companyInfo?.size || "Unknown",
-              location: data.data.companyInfo?.location || data.data.location,
-              website: data.data.companyInfo?.website || "",
-              description: data.data.companyInfo?.description || "Company description not available."
-            },
-            location: data.data.location,
-            type: "Internship",
-            level: "Entry",
-            salary: {
-              min: data.data.salary?.minimum || 0,
-              max: data.data.salary?.maximum || 0,
-              currency: data.data.salary?.currency || "USD",
-              period: data.data.salary?.type || "hour"
-            },
-            posted: data.data.createdAt,
-            deadline: data.data.duration?.endDate,
-            description: data.data.description,
-            requirements: data.data.requirements ? data.data.requirements.split('\n').filter(req => req.trim()) : [],
-            responsibilities: [],
-            benefits: [],
-            skills: data.data.skills?.technical ? data.data.skills.technical.split(' ') : [],
-            experience: "Entry level",
-            education: "Currently enrolled in relevant field",
-            remote: data.data.remoteWork || false,
-            applications: data.data.applications || 0,
-            views: data.data.views || 0,
-            status: data.data.status?.toLowerCase() || 'active'
-          };
-
-          setJob(transformedJob);
-        } else {
-          console.error('Failed to fetch job:', data.error);
-        }
-      } catch (error) {
-        console.error('Error fetching job:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchJob();
     checkApplicationStatus();
-  }, [jobId, user]);
+  }, [jobId, user, fetchJob]);
 
   const handleSaveJob = () => {
     setIsSaved(!isSaved);

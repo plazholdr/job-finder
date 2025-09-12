@@ -43,120 +43,152 @@ class JobsService {
   }
 
   async find(params = {}) {
-    try {
-      const companyId = params.user?._id;
-      const userRole = params.user?.role;
+  try {
+    // DEBUG ESCAPE: return ALL *Active* jobs, ignore auth/filters
+    if (params.query?.__public === 'true') {
+      const jobs = await this.jobModel.find(
+        { status: 'Active', isActive: true },
+        { limit: 200, skip: 0, sort: { createdAt: -1 } }
+      );
+      const data = jobs.map(j => ({ ...j, _id: String(j._id), companyId: String(j.companyId) }));
+      return { total: data.length, limit: 200, skip: 0, data };
+    }
 
 
 
-      let query = {};
 
-      if (userRole === 'company') {
-        // Companies can only see their own jobs
-        query.companyId = companyId;
-      } else if (userRole === 'admin') {
-        // Admins can see all jobs
-        // Apply any filters from params.query
-        query = { ...params.query };
-      } else if (userRole === 'student' || !userRole) {
-        // Students and unauthenticated users can only see active jobs
-        query.status = 'Active';
-        query.isActive = true;
-      } else {
-        throw new Error('Access denied');
-      }
+    const companyId = params.user?._id;
+    const userRole = params.user?.role;
 
-      const { $limit = 50, $skip = 0, $sort = { createdAt: -1 }, status, search } = params.query || {};
+    let query = {};
 
-      // Add status filter if provided
-      if (status && userRole === 'company') {
-        query.status = status;
-      }
+    if (userRole === 'company') {
+      // Companies can only see their own jobs
+      // NOTE: we won't push companyId into 'query' here; we will use findByCompanyId below
+      // to ensure proper ObjectId matching. (See below)
+    } else if (userRole === 'admin') {
+      // Admins can see all jobs
+      query = {}; // keep clean; other filters handled below
+    } else if (userRole === 'student' || !userRole) {
+      // Students and unauthenticated users can only see active jobs
+      query.status = 'Active';
+      query.isActive = true;
+    } else {
+      throw new Error('Access denied');
+    }
 
-      const options = {
-        limit: parseInt($limit),
-        skip: parseInt($skip),
-        sort: $sort,
-      };
+    const { $limit = 50, $skip = 0, $sort = { createdAt: -1 }, status, search } = params.query || {};
 
-      let jobs;
-      let total;
+    // Add status filter if provided
+    if (status && (userRole === 'company' || userRole === 'admin')) {
+      query.status = status;
+    }
 
-      if (search) {
-        // Use text search
-        jobs = await this.jobModel.search(search, {
-          ...options,
-          companyId: userRole === 'company' ? companyId : undefined,
-          status: query.status
-        });
-        total = jobs.length; // Approximate count for search results
-      } else {
-        jobs = await this.jobModel.find(query, options);
-        total = await this.jobModel.count(query);
-      }
+    const options = {
+      limit: parseInt($limit),
+      skip: parseInt($skip),
+      sort: $sort,
+    };
 
-      // For students and unauthenticated users, include company information
-      if (userRole === 'student' || !userRole) {
-        const jobsWithCompanyInfo = await Promise.all(
-          jobs.map(async (job) => {
-            try {
-              const company = await this.userModel.findById(job.companyId, {
-                projection: {
-                  password: 0,
-                  resetPasswordToken: 0,
-                  resetPasswordExpires: 0
-                }
-              });
+    let jobs;
+    let total;
 
-              if (company && company.role === 'company') {
-                return {
-                  ...job,
-                  companyInfo: company.company,
-                  companyName: company.company?.name || `${company.firstName} ${company.lastName}`,
-                  companyEmail: company.email
-                };
-              } else {
-                return {
-                  ...job,
-                  companyName: 'Company Name Not Available'
-                };
+    if (search) {
+      // Use text search
+      jobs = await this.jobModel.search(search, {
+        ...options,
+        companyId: userRole === 'company' ? companyId : undefined,
+        status: query.status
+      });
+      total = jobs.length; // Approximate count for search results
+    } else if (userRole === 'company') {
+      // ADDED: use model helper that converts companyId to ObjectId internally
+      jobs = await this.jobModel.findByCompanyId(companyId, {
+        ...options,
+        status: query.status
+      });
+
+      // ADDED: accurate count for company using ObjectId to match DB shape
+      total = await this.jobModel.count({
+        companyId: new ObjectId(companyId), // ADDED: ensure ObjectId match
+        ...(query.status ? { status: query.status } : {})
+      });
+    } else {
+      jobs = await this.jobModel.find(query, options);
+      total = await this.jobModel.count(query);
+    }
+
+    // ADDED: normalize IDs to strings so React keys are stable (prevents "only last item" render)
+    const normalize = (doc) => ({
+      ...doc,
+      _id: String(doc._id),
+      companyId: String(doc.companyId),
+    });
+    const plainJobs = jobs.map(normalize); // ADDED
+
+    // For students and unauthenticated users, include company information
+    if (userRole === 'student' || !userRole) {
+      const jobsWithCompanyInfo = await Promise.all(
+        plainJobs.map(async (job) => {
+          try {
+            const company = await this.userModel.findById(job.companyId, {
+              projection: {
+                password: 0,
+                resetPasswordToken: 0,
+                resetPasswordExpires: 0
               }
-            } catch (companyError) {
-              logger.warn('Failed to fetch company info for job', {
-                jobId: job._id,
-                companyId: job.companyId,
-                error: companyError.message
-              });
+            });
+
+            if (company && company.role === 'company') {
+              return {
+                ...job,
+                companyInfo: company.company,
+                companyName: company.company?.name || `${company.firstName} ${company.lastName}`,
+                companyEmail: company.email
+              };
+            } else {
               return {
                 ...job,
                 companyName: 'Company Name Not Available'
               };
             }
-          })
-        );
-
-        return {
-          total,
-          limit: options.limit,
-          skip: options.skip,
-          data: jobsWithCompanyInfo,
-        };
-      }
+          } catch (companyError) {
+            logger.warn('Failed to fetch company info for job', {
+              jobId: job._id,
+              companyId: job.companyId,
+              error: companyError.message
+            });
+            return {
+              ...job,
+              companyName: 'Company Name Not Available'
+            };
+          }
+        })
+      );
 
       return {
         total,
         limit: options.limit,
         skip: options.skip,
-        data: jobs,
+        data: jobsWithCompanyInfo,
       };
-    } catch (error) {
-      logger.error('Jobs find failed', {
-        userId: params.user?._id,
-        error: error.message
-      });
-      throw error;
     }
+
+    return {
+      total,
+      limit: options.limit,
+      skip: options.skip,
+      data: plainJobs, // ADDED: return normalized array
+    };
+  } catch (error) {
+    logger.error('Jobs find failed', {
+      userId: params.user?._id,
+      error: error.message
+    });
+    throw error;
   }
+}
+
 
   async get(id, params) {
     try {
