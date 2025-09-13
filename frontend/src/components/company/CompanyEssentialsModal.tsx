@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
+import config from '@/config';
 
 interface Props {
   open: boolean;
@@ -59,7 +60,7 @@ export default function CompanyEssentialsModal({ open, onOpenChange }: Props) {
       if (website) formData.append('website', website);
       if (logo) formData.append('logo', logo);
 
-      const res = await fetch('/api/company/essentials', {
+  const res = await fetch(`${config.api.baseUrl}/companies/essentials`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
