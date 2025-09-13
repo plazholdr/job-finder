@@ -79,6 +79,8 @@ function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [notesByCompany, setNotesByCompany] = useState<Record<string, string>>({});
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeTab === 'overview') {
@@ -97,7 +99,7 @@ function AdminDashboard() {
       setLoading(true);
       const response = await fetch('/api/admin/stats', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }
       });
       const data = await response.json();
@@ -119,9 +121,9 @@ function AdminDashboard() {
       if (roleFilter !== 'all') params.append('role', roleFilter);
       if (statusFilter !== 'all') params.append('status', statusFilter);
 
-      const response = await fetch(`/api/admin/users?${params.toString()}`, {
+    const response = await fetch(`/api/admin/users?${params.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }
       });
       const data = await response.json();
@@ -138,9 +140,9 @@ function AdminDashboard() {
   const fetchPendingCompanies = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/companies/pending', {
+      const response = await fetch(`/api/admin/companies?status=${encodeURIComponent(statusFilter)}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }
       });
       const data = await response.json();
@@ -159,7 +161,7 @@ function AdminDashboard() {
       setLoading(true);
       const response = await fetch('/api/admin/logs', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }
       });
       const data = await response.json();
@@ -179,7 +181,7 @@ function AdminDashboard() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify({ status, reason })
       });
@@ -194,63 +196,35 @@ function AdminDashboard() {
 
   const verifyCompany = async (companyId: string, status: string, notes?: string) => {
     try {
+      setProcessingId(companyId);
       const response = await fetch(`/api/admin/companies/${companyId}/verify`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify({ status, notes })
       });
 
       if (response.ok) {
         fetchPendingCompanies(); // Refresh the pending companies list
+        setNotesByCompany((prev) => ({ ...prev, [companyId]: '' }));
       }
     } catch (error) {
       console.error('Error verifying company:', error);
+    } finally {
+      setProcessingId(null);
     }
   };
 
-  const recentUsers: User[] = [
-    {
-      id: '1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      role: 'student',
-      status: 'pending',
-      joinDate: '2024-01-15',
-      lastActive: '2 hours ago'
-    },
-    {
-      id: '2',
-      name: 'TechCorp Inc',
-      email: 'hr@techcorp.com',
-      role: 'company',
-      status: 'active',
-      joinDate: '2024-01-10',
-      lastActive: '1 day ago'
-    }
+  const recentUsers = [
+    { key: '1', displayName: 'John Doe', email: 'john@example.com', role: 'student', status: 'pending', joinDate: '2024-01-15', lastActive: '2 hours ago' },
+    { key: '2', displayName: 'TechCorp Inc', email: 'hr@techcorp.com', role: 'company', status: 'active', joinDate: '2024-01-10', lastActive: '1 day ago' },
   ];
 
-  const pendingJobs: JobPosting[] = [
-    {
-      id: '1',
-      title: 'Senior Software Engineer',
-      company: 'TechCorp Inc',
-      status: 'pending',
-      applications: 0,
-      posted: '2 hours ago',
-      salary: '$120k-150k'
-    },
-    {
-      id: '2',
-      title: 'Data Scientist',
-      company: 'DataWorks',
-      status: 'pending',
-      applications: 0,
-      posted: '1 day ago',
-      salary: '$100k-130k'
-    }
+  const pendingJobs = [
+    { id: '1', title: 'Senior Software Engineer', company: 'TechCorp Inc', status: 'pending', posted: '2 hours ago', salary: '$120k-150k' },
+    { id: '2', title: 'Data Scientist', company: 'DataWorks', status: 'pending', posted: '1 day ago', salary: '$100k-130k' },
   ];
 
   const getStatusBadge = (status: string) => {
@@ -474,11 +448,11 @@ function AdminDashboard() {
                 <div className="p-6">
                   <div className="space-y-4">
                     {recentUsers.map((user) => (
-                      <div key={user.id} className="flex items-center justify-between">
+                      <div key={user.key} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {getRoleIcon(user.role)}
                           <div>
-                            <p className="font-medium text-gray-900">{user.name}</p>
+                            <p className="font-medium text-gray-900">{user.displayName}</p>
                             <p className="text-sm text-gray-500">{user.email}</p>
                           </div>
                         </div>
@@ -559,12 +533,12 @@ function AdminDashboard() {
                 </thead>
                 <tbody>
                   {recentUsers.map((user) => (
-                    <tr key={user.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                    <tr key={user.key} className="border-b last:border-b-0 hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           {getRoleIcon(user.role)}
                           <div>
-                            <div className="font-medium text-gray-900">{user.name}</div>
+                            <div className="font-medium text-gray-900">{user.displayName}</div>
                             <div className="text-sm text-gray-500">{user.email}</div>
                           </div>
                         </div>
@@ -683,12 +657,112 @@ function AdminDashboard() {
         {/* Companies Tab */}
         {activeTab === 'companies' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="text-center py-12">
-                <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Company Management</h3>
-                <p className="text-gray-500">Manage company registrations, profiles, and permissions.</p>
+    <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+      <h3 className="text-lg font-semibold text-gray-900">Company Management</h3>
+      <p className="text-sm text-gray-500">Browse and manage company registrations by status.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <select
+                    className="px-2 py-1.5 border border-gray-300 rounded text-sm"
+                    value={statusFilter}
+                    onChange={async (e) => {
+                      const v = e.target.value;
+                      setStatusFilter(v);
+                      setLoading(true);
+                      try {
+                        const res = await fetch(`/api/admin/companies?status=${encodeURIComponent(v)}`, {
+                          headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+                        });
+                        const data = await res.json();
+                        if (data?.success) setPendingCompanies(data.data);
+                      } catch (e) {}
+                      setLoading(false);
+                    }}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="verified">Verified</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="suspended">Suspended</option>
+                    <option value="all">All</option>
+                  </select>
+                  <button
+                  onClick={fetchPendingCompanies}
+                  className="px-3 py-2 text-sm rounded border border-gray-300 hover:bg-gray-50"
+                  disabled={loading}
+                >
+                  Refresh
+                  </button>
+                </div>
               </div>
+
+        {loading ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+        ) : pendingCompanies.length === 0 ? (
+                <div className="text-center py-10">
+                  <Building2 className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-600">No companies found for the selected status.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Company</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Registered</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Notes</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingCompanies.map((c) => (
+                        <tr key={c._id} className="border-b last:border-b-0 hover:bg-gray-50 align-top">
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-gray-900">{c.company?.name || '—'}</div>
+                            <div className="text-xs text-gray-500">ID: {c._id}</div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-900">{c.email}</td>
+                          <td className="px-6 py-4 text-gray-500">{c.createdAt ? new Date(c.createdAt).toLocaleString() : '—'}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(c.company?.verificationStatus || 'pending')}`}>
+                              {c.company?.verificationStatus || 'pending'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="text"
+                              placeholder="Optional notes or reason"
+                              className="w-64 max-w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              value={notesByCompany[c._id] || ''}
+                              onChange={(e) => setNotesByCompany((prev) => ({ ...prev, [c._id]: e.target.value }))}
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <select
+                                className="px-2 py-1.5 border border-gray-300 rounded text-sm"
+                                defaultValue={c.company?.verificationStatus || 'pending'}
+                                onChange={(e) => verifyCompany(c._id, e.target.value, notesByCompany[c._id])}
+                                disabled={processingId === c._id}
+                              >
+                                <option value="verified">Approved</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="pending">Pending</option>
+                                <option value="suspended">Suspended</option>
+                              </select>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}

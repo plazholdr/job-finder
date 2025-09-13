@@ -22,6 +22,24 @@ interface User {
     linkedin?: string;
     github?: string;
   };
+  // Company profile (for role === 'company')
+  company?: {
+    name?: string | null;
+    description?: string | null;
+    industry?: string | null;
+    headquarters?: string | null;
+    website?: string | null;
+    logo?: string | null;
+    approvalStatus?: 'pending' | 'approved' | 'rejected';
+    approvalStatusCode?: 0 | 1 | 2;
+    inputEssentials?: boolean;
+    contactPerson?: {
+      name?: string | null;
+      title?: string | null;
+      email?: string | null;
+      phone?: string | null;
+    };
+  };
   // Optional internship setup data stored on the user record
   internship?: {
     profile?: Partial<InternshipProfile>;
@@ -212,15 +230,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const updatedUser = await api.patch<User>('/users/me', userData, {
+      const updatedUser = await api.patch<User>('/users/me', userData as any, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      setUser(updatedUser);
+      // Merge to preserve fields like company flags
+      const merged = { ...(user as any), ...(updatedUser as any) } as User;
+      setUser(merged);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('authUser', JSON.stringify(updatedUser));
+        localStorage.setItem('authUser', JSON.stringify(merged));
       }
     } catch (error) {
       console.error('Update user error:', error);

@@ -1,5 +1,3 @@
-// Pure mappings only — keep in sync with backend constants
-
 export const STATUS = {
   PENDING: 0,
   ACCEPTED: 1,
