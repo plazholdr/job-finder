@@ -67,6 +67,84 @@ interface CompanyJob {
   remote: boolean;
 }
 
+const withBase = (p?: string) =>
+  !p ? '' : p.startsWith('http') ? p : p; // tweak if you need to prefix a CDN/base URL
+
+function normalizeJob(j: any) {
+  return {
+    id: String(j.id ?? j._id),
+    title: j.title ?? j.name ?? '',
+    location: j.location ?? j.city ?? j.address ?? '',
+    type: j.type ?? j.employmentType ?? 'Full-time',
+    salary: {
+      min: Number(j.salary?.min ?? j.minSalary ?? 0),
+      max: Number(j.salary?.max ?? j.maxSalary ?? 0),
+      currency: j.salary?.currency ?? j.currency ?? 'USD',
+      period: j.salary?.period ?? 'year',
+    },
+    posted: j.posted ?? j.createdAt ?? new Date().toISOString(),
+    description: j.description ?? '',
+    skills: j.skills ?? [],
+    experienceLevel: j.experienceLevel ?? j.level ?? 'Not specified',
+    remote: Boolean(j.remote ?? j.isRemote),
+  };
+}
+
+function normalizeCompanyDetails(c: any): CompanyDetails {
+  return {
+    id: String(c.id ?? c._id ?? c.companyId),
+    name: c.name ?? c.company?.name ?? '',
+    logo: withBase(c.logo?.url ?? c.logo ?? c.company?.logo ?? ''),
+    coverImage: withBase(c.coverImage?.url ?? c.coverImage ?? ''),
+    industry: c.industry ?? c.nature ?? '',
+    size: c.size ?? c.companySize ?? '',
+    founded: String(c.founded ?? c.yearFounded ?? ''),
+    headquarters:
+      c.headquarters ??
+      [c.address?.city, c.address?.state, c.address?.country].filter(Boolean).join(', '),
+    website: c.website ?? c.links?.website ?? '',
+    email: c.email ?? c.contact?.email,
+    phone: c.phone ?? c.contact?.phone,
+    description: c.description ?? '',
+    mission: c.mission ?? '',
+    values: c.values ?? [],
+    benefits: c.benefits ?? [],
+    culture: c.culture ?? '',
+    rating: Number(c.rating ?? 0),
+    reviewCount: Number(c.reviewCount ?? 0),
+    stats: {
+      employees: c.stats?.employees ?? c.size ?? '',
+      locations: Number(c.stats?.locations ?? c.locations?.length ?? 1),
+      openPositions: Number(c.stats?.openPositions ?? c.openPositions ?? c.jobs?.length ?? 0),
+      avgSalary: c.stats?.avgSalary ?? '',
+    },
+    jobs: (c.jobs ?? c.openRoles ?? []).map(normalizeJob),
+  };
+}
+
+async function fetchCompanyJobsRaw(companyId: string) {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+  const res = await fetch(`/api/jobs?companyId=${encodeURIComponent(companyId)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  const data = await res.json();
+  const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+  const filtered = list.filter((j: any) => {
+    const cid = String(companyId);
+    const candidates = [
+      j.companyId,
+      j.company_id,
+      j.company?.id,
+      j.company?._id,
+      j.company,       
+    ].filter(Boolean).map((x: any) => String(x));
+    return candidates.includes(cid);
+  });
+  return filtered;
+}
+
+
+
 export default function CompanyProfilePage() {
   const params = useParams();
   const router = useRouter();
@@ -77,110 +155,33 @@ export default function CompanyProfilePage() {
   const companyId = params.companyId as string;
 
   useEffect(() => {
-    // Mock company data - replace with actual API call
-    const mockCompany: CompanyDetails = {
-      id: companyId,
-      name: "TechCorp Inc.",
-      logo: "/api/placeholder/120/120",
-      coverImage: "/api/placeholder/800/300",
-      industry: "Technology",
-      size: "100-500 employees",
-      founded: "2015",
-      headquarters: "San Francisco, CA",
-      website: "https://techcorp.com",
-      email: "careers@techcorp.com",
-      phone: "+1 (555) 123-4567",
-      description: "TechCorp is a leading technology company focused on building innovative solutions for the modern world. We specialize in cloud computing, artificial intelligence, and enterprise software solutions that help businesses transform and scale.",
-      mission: "To empower businesses worldwide with cutting-edge technology solutions that drive growth and innovation.",
-      values: [
-        "Innovation First",
-        "Customer Success",
-        "Team Collaboration",
-        "Continuous Learning",
-        "Ethical Leadership"
-      ],
-      benefits: [
-        "Comprehensive health, dental, and vision insurance",
-        "401(k) with company matching up to 6%",
-        "Unlimited PTO policy",
-        "Professional development budget ($2,000/year)",
-        "Flexible work arrangements",
-        "Stock options",
-        "Free meals and snacks",
-        "Gym membership reimbursement",
-        "Mental health support",
-        "Parental leave"
-      ],
-      culture: "At TechCorp, we believe in fostering a culture of innovation, collaboration, and continuous learning. Our diverse team of passionate professionals works together to solve complex challenges and create meaningful impact for our customers.",
-      rating: 4.5,
-      reviewCount: 127,
-      stats: {
-        employees: "350+",
-        locations: 5,
-        openPositions: 12,
-        avgSalary: "$125k"
-      },
-      jobs: [
-        {
-          id: "1",
-          title: "Senior Frontend Developer",
-          location: "San Francisco, CA",
-          type: "Full-time",
-          salary: {
-            min: 120000,
-            max: 180000,
-            currency: "USD",
-            period: "year"
-          },
-          posted: "2024-01-15",
-          description: "We are looking for a talented Senior Frontend Developer to join our growing team...",
-          skills: ["React", "TypeScript", "Redux"],
-          experienceLevel: "Senior Level",
-          remote: true
-        },
-        {
-          id: "2",
-          title: "Product Manager",
-          location: "San Francisco, CA",
-          type: "Full-time",
-          salary: {
-            min: 140000,
-            max: 200000,
-            currency: "USD",
-            period: "year"
-          },
-          posted: "2024-01-12",
-          description: "Join our product team to drive the vision and strategy for our core platform...",
-          skills: ["Product Strategy", "Analytics", "Agile"],
-          experienceLevel: "Mid Level",
-          remote: false
-        },
-        {
-          id: "3",
-          title: "DevOps Engineer",
-          location: "Remote",
-          type: "Full-time",
-          salary: {
-            min: 110000,
-            max: 160000,
-            currency: "USD",
-            period: "year"
-          },
-          posted: "2024-01-10",
-          description: "Help us scale our infrastructure and improve our deployment processes...",
-          skills: ["AWS", "Docker", "Kubernetes"],
-          experienceLevel: "Mid Level",
-          remote: true
-        }
-      ]
-    };
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/companies/${companyId}`);
+        const raw = await res.json();
+        const payload = Array.isArray(raw) ? raw[0] : (raw.data ?? raw.result ?? raw);
+        const normalized = normalizeCompanyDetails(payload || {});
 
-    // Simulate API call delay
-    setTimeout(() => {
-      setCompany(mockCompany);
-      setLoading(false);
-    }, 500);
+        // fetch jobs for this company
+        const rawJobs = await fetchCompanyJobsRaw(normalized.id);
+        const normalizedJobs = rawJobs.map(normalizeJob);
+
+        if (!cancelled) {
+          setCompany({ ...normalized, jobs: normalizedJobs });
+        }
+      } catch (e) {
+        console.error('Error loading company:', e);
+        if (!cancelled) setCompany(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [companyId]);
+
+
 
   if (loading) {
     return (
@@ -224,16 +225,26 @@ export default function CompanyProfilePage() {
       </div>
 
       {/* Cover Image */}
-      {company.coverImage && (
-        <div className="h-64 bg-gradient-to-r from-blue-600 to-purple-600 relative">
-          <img
-            src={company.coverImage}
-            alt={`${company.name} cover`}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-        </div>
-      )}
+      <div className="relative h-56 md:h-64 lg:h-72">
+      {/* gradient base (always visible) */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
+
+      {/* cover image (optional) */}
+      {company.coverImage ? (
+        <img
+          src={company.coverImage}
+          alt={`${company.name} cover`}
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={(e) => {
+            // if the image can’t load, hide it so the gradient shows
+            (e.currentTarget as HTMLImageElement).style.display = 'none';
+          }}
+        />
+      ) : null}
+
+      {/* subtle dark overlay for readability */}
+      <div className="absolute inset-0 bg-black/25" />
+    </div>
 
       {/* Company Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

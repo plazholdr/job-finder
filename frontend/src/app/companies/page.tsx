@@ -10,6 +10,20 @@ import { Company, CompanyFilters, LikedCompany } from '@/types/company-job';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 
+function normalizeCompany(c: any) {
+  return {
+    id: c.id ?? c._id ?? c.companyId,
+    name: c.name ?? c.company?.name ?? c.profile?.name ?? '',
+    logo: c.logo ?? c.logoUrl ?? c.company?.logo ?? c.profile?.logo ?? c.logo?.url ?? '',
+    description: c.description ?? c.about ?? c.company?.description ?? '',
+    nature: c.nature ?? c.type ?? c.industry ?? 'Company',
+    address: c.address ?? [c.city, c.state, c.country].filter(Boolean).join(', '),
+    website: c.website ?? c.site ?? c.links?.website ?? '',
+    activeJobsCount: c.activeJobsCount ?? c.jobsCount ?? c.openingsCount,
+  };
+}
+
+
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [likedCompanies, setLikedCompanies] = useState<Set<string>>(new Set());
@@ -23,39 +37,42 @@ export default function CompaniesPage() {
   }, [filters]);
 
   const fetchCompanies = async () => {
-    try {
-      setLoading(true);
-      const queryParams = new URLSearchParams();
-      if (filters.search) queryParams.append('search', filters.search);
-      if (filters.nature?.length) queryParams.append('nature', filters.nature.join(','));
-      if (filters.location?.length) queryParams.append('location', filters.location.join(','));
+      try {
+        setLoading(true);
+        const queryParams = new URLSearchParams();
+        if (filters.search) queryParams.append('search', filters.search);
+        if (filters.nature?.length) queryParams.append('nature', filters.nature.join(','));
+        if (filters.location?.length) queryParams.append('location', filters.location.join(','));
 
-      const response = await fetch(`/api/companies?${queryParams}`);
-      const data = await response.json();
+        const res = await fetch(`/api/companies?${queryParams.toString()}`);
+        const raw = await res.json();
+        // Your API might return an array directly OR { success, data } OR { results: [...] }
+        const list = Array.isArray(raw) ? raw : (raw.data ?? raw.results ?? raw.items ?? []);
+        const normalized = list.map(normalizeCompany);
 
-      if (data.success) {
-        setCompanies(data.data);
+        setCompanies(normalized);
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
 
   const fetchLikedCompanies = async () => {
     try {
-      const response = await fetch('/api/companies/liked');
-      const data = await response.json();
-
-      if (data.success) {
-        const likedIds = new Set(data.data.map((liked: LikedCompany) => liked.companyId));
-        setLikedCompanies(likedIds);
-      }
+      const res = await fetch('/api/companies/liked');
+      const raw = await res.json();
+      const list = Array.isArray(raw) ? raw : (raw.data ?? []);
+      const likedIds = new Set(
+        list.map((x: any) => String(x.companyId ?? x.id ?? x._id))
+      );
+      setLikedCompanies(likedIds);
     } catch (error) {
       console.error('Error fetching liked companies:', error);
     }
   };
+
 
   const handleLikeCompany = async (companyId: string) => {
     try {

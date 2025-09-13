@@ -92,11 +92,23 @@ const completeRegistrationSchema = z.object({
   eventExperience: z.array(eventExperienceSchema).optional(),
 });
 
+async function uploadAvatarReturnPathWithUserId(file: File, userId: string) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('userId', userId);
+  fd.append('scope', 'avatar'); // backend saves to user-avatars/<userId>/...
+  const res = await fetch(`${config.api.baseUrl}/uploads/avatar`, { method: 'POST', body: fd });
+  const out = await res.json();
+  if (!res.ok) throw new Error(out?.error || 'Avatar upload failed');
+  return out.path as string; // e.g. "user-avatars/<id>/avatar_...jpg"
+}
+
+
 type RegisterFormValues = z.infer<typeof completeRegistrationSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register: registerUser } = useAuth();
+  const { register: registerUser, updateUser, user: authUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<'student' | 'company' | null>(null);
@@ -451,6 +463,10 @@ export default function RegisterPage() {
               accept="image/*"
               className="h-12"
               {...register('photo')}
+              onChange={(e) => {
+                const f = e.target.files?.[0] || null;
+                setFormData(prev => ({ ...prev, photo: f })); // store File only
+              }}
             />
           </div>
 
@@ -1268,19 +1284,32 @@ export default function RegisterPage() {
           onClick={async () => {
             setIsLoading(true);
             try {
-              const completeData = {
+              // 1) create user WITHOUT photo
+              const base: any = {
                 ...formData,
                 eventExperience: [],
-                // Add any additional interests from this step
-                interests: [...(formData.interests || []), ...interestEntries.filter(i => i.title)]
+                interests: [...(formData.interests || []), ...interestEntries.filter(i => i.title)],
+                photo: undefined
               };
-              await registerUser(completeData as any);
+              await registerUser(base as any); // your existing flow; no change
 
-              setTimeout(() => {
-                router.push(`/auth/registration-success?email=${encodeURIComponent(completeData.email || '')}`);
-              }, 100);
-            } catch (error: any) {
-              setRegisterError(error.message || 'An error occurred during registration. Please try again.');
+              // 2) upload avatar only if user picked a file
+              if (formData.photo instanceof File) {
+                const userId = authUser?._id;
+                if (!userId) throw new Error('Missing user id after registration');
+
+                const path = await uploadAvatarReturnPathWithUserId(formData.photo, userId);
+
+                // 3) patch self (no id needed) with the path string
+                await updateUser({
+                  'profile.avatar': path,
+                  'internship.profile.profileInformation.photo': path
+                } as any);
+              }
+
+              router.push(`/auth/registration-success?email=${encodeURIComponent((authUser?.email || base.email) ?? '')}`);
+            } catch (err: any) {
+              setRegisterError(err?.message || 'Registration failed');
             } finally {
               setIsLoading(false);
             }
@@ -1295,19 +1324,29 @@ export default function RegisterPage() {
           onClick={async () => {
             setIsLoading(true);
             try {
-              const completeData = {
+              const base: any = {
                 ...formData,
                 eventExperience: eventExperienceEntries,
-                // Add any additional interests from this step
-                interests: [...(formData.interests || []), ...interestEntries.filter(i => i.title)]
+                interests: [...(formData.interests || []), ...interestEntries.filter(i => i.title)],
+                photo: undefined
               };
-              await registerUser(completeData as any);
+              await registerUser(base as any);
 
-              setTimeout(() => {
-                router.push(`/auth/registration-success?email=${encodeURIComponent(completeData.email || '')}`);
-              }, 100);
-            } catch (error: any) {
-              setRegisterError(error.message || 'An error occurred during registration. Please try again.');
+              if (formData.photo instanceof File) {
+                const userId = authUser?._id;
+                if (!userId) throw new Error('Missing user id after registration');
+
+                const path = await uploadAvatarReturnPathWithUserId(formData.photo, userId);
+
+                await updateUser({
+                  'profile.avatar': path,
+                  'internship.profile.profileInformation.photo': path
+                } as any);
+              }
+
+              router.push(`/auth/registration-success?email=${encodeURIComponent((authUser?.email || base.email) ?? '')}`);
+            } catch (err: any) {
+              setRegisterError(err?.message || 'Registration failed');
             } finally {
               setIsLoading(false);
             }
