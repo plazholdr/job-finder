@@ -42,6 +42,8 @@ interface AuthContextType {
   register: (userData: RegisterData) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => Promise<void>;
+  requestPasswordReset?: (email: string) => Promise<void>;
+  resetPassword?: (token: string, newPassword: string) => Promise<void>;
 }
 
 interface RegisterData {
@@ -226,6 +228,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const requestPasswordReset = async (email: string) => {
+    await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+  };
+
+  const resetPassword = async (token: string, newPassword: string) => {
+    await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword })
+    });
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -234,7 +252,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     register,
     logout,
-    updateUser,
+  updateUser,
+  requestPasswordReset,
+  resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

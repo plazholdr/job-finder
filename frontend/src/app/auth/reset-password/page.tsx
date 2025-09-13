@@ -69,7 +69,7 @@ function ResetPasswordPageInner() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${config.api.baseUrl}/password-reset/reset`, {
+  const response = await fetch(`${config.api.baseUrl}/password-reset/reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
