@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import config from '@/config';
 
 export async function PATCH(
   request: NextRequest,
@@ -20,30 +21,28 @@ export async function PATCH(
     }
 
     // Validate status values
-    if (!['verified', 'rejected', 'pending'].includes(status)) {
+  if (!['verified', 'rejected', 'pending', 'suspended', 'approved'].includes(status)) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid status. Must be "verified", "rejected", or "pending"'
+      error: 'Invalid status. Must be "verified", "rejected", "pending", or "suspended"'
         },
         { status: 400 }
       );
     }
 
-    // In a real application, you would:
-    // 1. Verify admin authentication
-    // 2. Update company verification status in database
-    // 3. Log the admin action
-    // 4. Send email notification to company
-    // 5. Update company permissions based on verification status
-
-    console.log(`Admin updating company ${companyId} verification to ${status}`, { notes });
-
-    // Mock successful response
-    return NextResponse.json({
-      success: true,
-      message: `Company verification status updated to ${status} successfully`
+    // Forward to backend API
+    const auth = request.headers.get('authorization') || '';
+    const res = await fetch(`${config.api.baseUrl}/admin/companies/${companyId}/verify`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(auth ? { Authorization: auth } : {}),
+      },
+      body: JSON.stringify({ status, notes }),
     });
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
   } catch (error) {
     console.error('Error updating company verification:', error);
     return NextResponse.json(

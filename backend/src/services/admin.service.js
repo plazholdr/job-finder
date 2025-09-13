@@ -1,9 +1,12 @@
 const logger = require('../logger');
+const { getDB } = require('../db');
+const UserModel = require('../models/user.model');
 
 class AdminService {
   constructor(app) {
     this.app = app;
-    this.userModel = app.get('userModel');
+  // Ensure a valid UserModel instance backed by the active DB
+  this.userModel = new UserModel(getDB());
   }
 
   // User Management
@@ -166,18 +169,74 @@ class AdminService {
     }
   }
 
+  async getCompaniesByStatus(status = 'all') {
+    try {
+      const s = typeof status === 'string' ? status.toLowerCase() : 'all';
+      const query = { role: 'company' };
+      if (s !== 'all') {
+        if (s === 'pending') {
+          query.$or = [
+            { 'company.verificationStatusCode': { $in: [null, 0] } },
+            { 'company.verificationStatus': 'pending' }
+          ];
+        } else if (s === 'verified' || s === 'approved') {
+          query.$or = [
+            { 'company.verificationStatusCode': 1 },
+            { 'company.verificationStatus': 'verified' }
+          ];
+        } else if (s === 'rejected') {
+          query.$or = [
+            { 'company.verificationStatusCode': 2 },
+            { 'company.verificationStatus': 'rejected' }
+          ];
+        } else if (s === 'suspended') {
+          query.$or = [
+            { 'company.verificationStatusCode': 3 },
+            { 'company.verificationStatus': 'suspended' }
+          ];
+        }
+      }
+
+      const companies = await this.userModel.collection
+        .find(query)
+        .project({
+          password: 0,
+          emailVerificationToken: 0,
+          emailVerificationExpires: 0,
+          passwordResetToken: 0,
+          passwordResetExpires: 0,
+        })
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      return companies;
+    } catch (error) {
+      logger.error('Error fetching companies by status', { error: error.message, status });
+      throw error;
+    }
+  }
+
   async verifyCompany(companyId, adminId, status, notes = null) {
     try {
       const normalized = typeof status === 'string' ? status.toLowerCase() : status;
-      const statusName = typeof normalized === 'string' ? normalized : (normalized === 1 ? 'verified' : normalized === 2 ? 'rejected' : 'pending');
-      const statusCode = statusName === 'verified' ? 1 : statusName === 'rejected' ? 2 : 0;
+      // Map synonyms and codes
+      let statusName;
+      if (typeof normalized === 'number') {
+        statusName = normalized === 1 ? 'verified' : normalized === 2 ? 'rejected' : normalized === 3 ? 'suspended' : 'pending';
+      } else {
+        statusName = ['approved', 'verify', 'verified'].includes(normalized) ? 'verified'
+          : ['reject', 'rejected'].includes(normalized) ? 'rejected'
+          : ['suspend', 'suspended'].includes(normalized) ? 'suspended'
+          : 'pending';
+      }
+      const statusCode = statusName === 'verified' ? 1 : statusName === 'rejected' ? 2 : statusName === 'suspended' ? 3 : 0;
 
       const updateData = {
         'company.verificationStatus': statusName,
         'company.verificationStatusCode': statusCode,
         'company.verificationNotes': notes,
-        'company.verifiedAt': statusName === 'verified' ? new Date() : null,
-        'company.verifiedBy': statusName === 'verified' ? adminId : null,
+  'company.verifiedAt': statusName === 'verified' ? new Date() : null,
+  'company.verifiedBy': statusName === 'verified' ? adminId : null,
         updatedAt: new Date()
       };
 

@@ -7,6 +7,10 @@ class UserModel {
     this.createIndexes();
   }
 
+  toObjectId(id) {
+    return typeof id === 'string' ? new ObjectId(id) : id;
+  }
+
   async createIndexes() {
     try {
       // Create unique index on email
@@ -142,6 +146,7 @@ class UserModel {
         headquarters: null,
         website: null,
         logo: null,
+  inputEssentials: false,
         verificationStatus: 'pending', // pending, verified, rejected (legacy string)
         verificationStatusCode: 0, // 0=pending,1=verified,2=rejected
         verificationDocuments: [],

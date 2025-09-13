@@ -37,6 +37,11 @@ class AuthenticationService {
         throw new Error('Account is deactivated. Please contact support.');
       }
 
+      // Block login for rejected company accounts
+      if (user.role === 'company' && (user.company?.verificationStatusCode === 2 || user.company?.verificationStatus === 'rejected')) {
+        throw new Error('Your company registration was rejected. Please check the email we sent for the reason and appeal instructions.');
+      }
+
       // Validate password
       const isValidPassword = await this.userModel.validatePassword(password, user.password);
       if (!isValidPassword) {

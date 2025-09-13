@@ -7,7 +7,8 @@ module.exports = {
       cwd: '/home/ubuntu/job-finder-production/backend',
       env: {
         NODE_ENV: 'production',
-        PORT: 3030
+  PORT: 3030,
+  FRONTEND_URL: 'http://jobfinder.saino365.com'
       },
       instances: 1,
       exec_mode: 'fork',

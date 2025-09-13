@@ -30,6 +30,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { CompanyAnalytics, JobPosting, CandidateApplication } from '@/types/company';
+import { useAuth } from '@/contexts/auth-context';
+import dynamic from 'next/dynamic';
+const CompanyEssentialsModal = dynamic(() => import('@/components/company/CompanyEssentialsModal'), { ssr: false });
 
 interface DashboardStats {
   totalJobs: number;
@@ -41,6 +44,7 @@ interface DashboardStats {
 }
 
 export default function CompanyDashboardPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalJobs: 0,
     activeJobs: 0,
@@ -53,10 +57,17 @@ export default function CompanyDashboardPage() {
   const [recentJobs, setRecentJobs] = useState<JobPosting[]>([]);
   const [recentApplications, setRecentApplications] = useState<CandidateApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showEssentials, setShowEssentials] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (user?.role === 'company' && user.company?.approvalStatusCode === 1 && !user.company?.inputEssentials) {
+      setShowEssentials(true);
+    }
+  }, [user]);
 
   const fetchDashboardData = async () => {
     try {
@@ -148,6 +159,7 @@ export default function CompanyDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+  <CompanyEssentialsModal open={showEssentials} onOpenChange={setShowEssentials} />
       {/* Header */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

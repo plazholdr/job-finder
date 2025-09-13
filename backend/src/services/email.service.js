@@ -221,6 +221,69 @@ class EmailService {
     }
   }
 
+  async sendCompanyRejectionEmail(user, reason, appealUrl) {
+    try {
+      const mailOptions = {
+        from: this.config.email.from,
+        to: user.email,
+        subject: 'Company Registration Rejected',
+        html: this.getCompanyRejectionTemplate(user, reason, appealUrl),
+        text: `Hi,\n\nYour company registration was rejected.\n\nReason: ${reason || 'No reason provided'}\n\nYou can submit an appeal and updated information here: ${appealUrl}\n\nBest regards,\nJob Finder Team`
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      this.logger?.info?.('Company rejection email sent', { userId: user._id, email: user.email, messageId: result.messageId });
+      return result;
+    } catch (error) {
+      this.logger?.error?.('Failed to send company rejection email', { userId: user._id, email: user.email, error: error.message });
+      throw error;
+    }
+  }
+
+  getCompanyRejectionTemplate(user, reason, appealUrl) {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Company Registration Rejected</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #ef4444; color: white; padding: 20px; text-align: center; }
+          .content { padding: 30px 20px; background: #f9fafb; }
+          .reason { background: #fff1f2; border-left: 4px solid #ef4444; padding: 12px 16px; border-radius: 6px; }
+          .button { display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Registration Rejected</h1>
+          </div>
+          <div class="content">
+            <h2>Hi,</h2>
+            <p>We reviewed your company registration and unfortunately it was not approved at this time.</p>
+            <div class="reason">
+              <strong>Reason provided:</strong>
+              <p>${reason ? String(reason).replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'No reason provided.'}</p>
+            </div>
+            <p>You may submit an appeal with updated information or documents using the link below:</p>
+            <a class="button" href="${appealUrl}">Submit Appeal</a>
+            <p>If the button does not work, copy and paste this URL into your browser:</p>
+            <p style="word-break: break-all; color: #2563eb;">${appealUrl}</p>
+          </div>
+          <div class="footer">
+            <p>Best regards,<br/>The Job Finder Team</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
   getEmailVerificationTemplate(user, verificationUrl) {
     const greeting = (user.role === 'company' || !user.firstName) ? 'Hi,' : `Hi ${user.firstName},`;
     return `

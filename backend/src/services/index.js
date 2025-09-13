@@ -1,5 +1,6 @@
 const UsersService = require('./users.service');
 const AdminService = require('./admin.service');
+const EmailService = require('./email.service');
 const NotificationService = require('./notification.service');
 const JobsService = require('./jobs.service');
 const CompaniesService = require('./companies.service');
@@ -349,6 +350,24 @@ module.exports = function (app) {
     }
   });
 
+  // List companies by verification status (pending|verified|rejected|all)
+  app.get('/admin/companies', authenticateToken(app), async (req, res) => {
+    try {
+      const user = await new UsersService(app).getCurrentUser(req.userId);
+      if (user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      const { status } = req.query;
+      const adminService = new AdminService(app);
+      const companies = await adminService.getCompaniesByStatus((status || 'all'));
+
+      res.json({ success: true, data: companies });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.patch('/admin/companies/:companyId/verify', authenticateToken(app), async (req, res) => {
     try {
       const user = await new UsersService(app).getCurrentUser(req.userId);
@@ -360,6 +379,35 @@ module.exports = function (app) {
       const { status, notes } = req.body;
       const adminService = new AdminService(app);
       const result = await adminService.verifyCompany(companyId, req.userId, status, notes);
+
+      // If rejected, send rejection email with appeal link
+      const normalized = typeof status === 'string' ? status.toLowerCase() : status;
+      const statusName = typeof normalized === 'string' ? normalized : (normalized === 1 ? 'verified' : normalized === 2 ? 'rejected' : 'pending');
+      if (statusName === 'rejected') {
+        const usersService = new UsersService(app);
+        const emailService = new EmailService(app.get('config'));
+        const rejectedUser = await usersService.userModel.findById(companyId);
+        if (rejectedUser) {
+          const crypto = require('crypto');
+          const token = crypto.randomBytes(32).toString('hex');
+          const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days to appeal
+          await usersService.userModel.collection.updateOne(
+            { _id: usersService.userModel.toObjectId(companyId) },
+            { $set: { company: { ...(rejectedUser.company || {}), rejectionReason: notes || null }, appealToken: token, appealTokenExpires: expiresAt, updatedAt: new Date() } }
+          );
+          const appealUrl = `${app.get('config').app.frontendUrl || ''}/auth/company-appeal?token=${token}`;
+          // Send email
+          try {
+            if (emailService.sendCompanyRejectionEmail) {
+              await emailService.sendCompanyRejectionEmail(rejectedUser, notes || '', appealUrl);
+            } else {
+              await emailService.sendCompanyVerificationUpdate(rejectedUser, 'rejected', notes || '');
+            }
+          } catch (e) {
+            console.error('Failed sending rejection email:', e.message);
+          }
+        }
+      }
 
       res.json(result);
     } catch (error) {
@@ -663,6 +711,207 @@ module.exports = function (app) {
     } catch (error) {
       console.error('Company setup error:', error);
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Company essentials submission (post-approval onboarding)
+  app.post('/companies/essentials', authenticateToken(app), upload.single('logo'), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const authedUser = await usersService.getCurrentUser(req.userId);
+
+      if (!authedUser || authedUser.role !== 'company') {
+        return res.status(403).json({ error: 'Only company users can submit essentials' });
+      }
+
+      // Must be approved by admin
+      const approvalCode = authedUser.company?.approvalStatusCode ?? 0;
+      if (approvalCode !== 1) {
+        return res.status(400).json({ error: 'Company account must be approved before submitting essentials' });
+      }
+
+      // Parse fields
+      const {
+        description,
+        nature,
+        address,
+        picName,
+        picEmail,
+        picMobile,
+        website
+      } = req.body || {};
+
+      // Basic validation
+      if (!description || !nature || !address || !picName || !picEmail || !picMobile) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      // Handle optional logo upload
+      let logoUpdate = {};
+      if (req.file) {
+        try {
+          const uploadResult = await S3StorageUtils.uploadCompanyLogo(
+            req.file.buffer,
+            req.file.originalname,
+            String(authedUser._id),
+            req.file.mimetype
+          );
+          logoUpdate = { logo: uploadResult.filePath };
+        } catch (e) {
+          return res.status(400).json({ error: `Logo upload failed: ${e.message}` });
+        }
+      }
+
+      // Build update payload
+      const update = {
+        company: {
+          ...(authedUser.company || {}),
+          description: String(description).trim(),
+          industry: String(nature).trim(),
+          headquarters: String(address).trim(),
+          website: website ? String(website).trim() : (authedUser.company?.website || null),
+          contactPerson: {
+            ...(authedUser.company?.contactPerson || {}),
+            name: String(picName).trim(),
+            email: String(picEmail).trim(),
+            phone: String(picMobile).trim()
+          },
+          inputEssentials: true,
+          ...logoUpdate
+        },
+        updatedAt: new Date()
+      };
+
+      const updated = await usersService.userModel.updateById(authedUser._id, update);
+      // Remove sensitive fields if any
+      const { password, resetPasswordToken, resetPasswordExpires, ...safe } = updated;
+      return res.json({ success: true, data: safe });
+    } catch (error) {
+      console.error('Company essentials error:', error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Backward/lenient alias: singular path support
+  app.post('/company/essentials', authenticateToken(app), upload.single('logo'), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const authedUser = await usersService.getCurrentUser(req.userId);
+
+      if (!authedUser || authedUser.role !== 'company') {
+        return res.status(403).json({ error: 'Only company users can submit essentials' });
+      }
+
+      const approvalCode = authedUser.company?.approvalStatusCode ?? 0;
+      if (approvalCode !== 1) {
+        return res.status(400).json({ error: 'Company account must be approved before submitting essentials' });
+      }
+
+      const { description, nature, address, picName, picEmail, picMobile, website } = req.body || {};
+      if (!description || !nature || !address || !picName || !picEmail || !picMobile) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      let logoUpdate = {};
+      if (req.file) {
+        try {
+          const uploadResult = await S3StorageUtils.uploadCompanyLogo(
+            req.file.buffer,
+            req.file.originalname,
+            String(authedUser._id),
+            req.file.mimetype
+          );
+          logoUpdate = { logo: uploadResult.filePath };
+        } catch (e) {
+          return res.status(400).json({ error: `Logo upload failed: ${e.message}` });
+        }
+      }
+
+      const update = {
+        company: {
+          ...(authedUser.company || {}),
+          description: String(description).trim(),
+          industry: String(nature).trim(),
+          headquarters: String(address).trim(),
+          website: website ? String(website).trim() : (authedUser.company?.website || null),
+          contactPerson: {
+            ...(authedUser.company?.contactPerson || {}),
+            name: String(picName).trim(),
+            email: String(picEmail).trim(),
+            phone: String(picMobile).trim()
+          },
+          inputEssentials: true,
+          ...logoUpdate
+        },
+        updatedAt: new Date()
+      };
+
+      const updated = await usersService.userModel.updateById(authedUser._id, update);
+      const { password, resetPasswordToken, resetPasswordExpires, ...safe } = updated;
+      return res.json({ success: true, data: safe });
+    } catch (error) {
+      console.error('Company essentials (alias) error:', error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Company appeal: validate token (public)
+  app.get('/companies/appeal/validate', async (req, res) => {
+    try {
+      const token = req.query.token;
+      if (!token) return res.status(400).json({ error: 'Token is required' });
+      const usersService = new UsersService(app);
+      const user = await usersService.userModel.collection.findOne({ appealToken: token, appealTokenExpires: { $gt: new Date() } });
+      if (!user) return res.status(400).json({ error: 'Invalid or expired token' });
+      return res.json({ success: true, data: { companyName: user.company?.name || null, email: user.email } });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Company appeal submit (public, multipart allowed)
+  app.post('/companies/appeal', upload.single('document'), async (req, res) => {
+    try {
+      const { token, message } = req.body || {};
+      if (!token) return res.status(400).json({ error: 'Token is required' });
+      const usersService = new UsersService(app);
+      const user = await usersService.userModel.collection.findOne({ appealToken: token, appealTokenExpires: { $gt: new Date() } });
+      if (!user) return res.status(400).json({ error: 'Invalid or expired token' });
+
+      // Optional: handle document upload for appeal (reuse S3 temp folder)
+      let appealDocPath = null;
+      if (req.file) {
+        try {
+          const { s3 } = require('../utils/s3-storage');
+          const path = require('path');
+          const { v4: uuidv4 } = require('uuid');
+          const bucketName = require('../utils/s3-storage').storageConfig.bucketName || require('../config').storage.s3.bucket;
+          const fileName = `appeals/${String(user._id)}/appeal_${uuidv4()}${path.extname(req.file.originalname)}`;
+          await s3.upload({ Bucket: bucketName, Key: fileName, Body: req.file.buffer, ContentType: req.file.mimetype }).promise();
+          appealDocPath = fileName;
+        } catch (e) {
+          // proceed without document
+        }
+      }
+
+      // Reset to pending and store appeal message
+      await usersService.userModel.collection.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            'company.verificationStatus': 'pending',
+            'company.verificationStatusCode': 0,
+            'company.verificationNotes': message || null,
+            'company.appealDocument': appealDocPath,
+            updatedAt: new Date()
+          },
+          $unset: { appealToken: 1, appealTokenExpires: 1 }
+        }
+      );
+
+      return res.json({ success: true, message: 'Appeal submitted. Your registration will be re-reviewed.' });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
     }
   });
 
