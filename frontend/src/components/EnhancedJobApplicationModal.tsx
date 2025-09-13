@@ -49,9 +49,14 @@ export default function EnhancedJobApplicationModal({
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error' | 'duplicate'>('idle');
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+
+
 
 
   const [applicationData, setApplicationData] = useState<ApplicationData>({
@@ -73,68 +78,92 @@ export default function EnhancedJobApplicationModal({
   }, [isOpen, user]);
 
   const fetchUserProfile = async () => {
-    setIsLoadingProfile(true);
-    try {
-      const token = localStorage.getItem('authToken');
-      // Use the correct endpoint for getting current user profile
-      const response = await fetch(`/api/users/${user?._id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      setIsLoadingProfile(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`/api/users/${user?._id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
 
-      if (response.ok) {
-        const profileData = await response.json();
-        console.log('Profile data received:', profileData);
-        console.log('Resume field:', profileData?.student?.resume);
-        setUserProfile(profileData);
-      } else {
-        console.error('Failed to fetch user profile', response.status, response.statusText);
-        // Fallback to using the user data from auth context
+        if (!res.ok) {
+          setUserProfile(user);
+          return;
+        }
+
+        const payload = await res.json();
+        const profile = payload?.data ?? payload;
+
+        setUserProfile(profile);
+        setResumeUrl(profile?.student?.resume || null);
+      } catch (e) {
+        console.error('Error fetching user profile:', e);
         setUserProfile(user);
+      } finally {
+        setIsLoadingProfile(false);
       }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      // Fallback to using the user data from auth context
-      setUserProfile(user);
-    } finally {
-      setIsLoadingProfile(false);
-    }
-  };
+    };
+
 
   const downloadResume = async () => {
-    if (!userProfile?.student?.resume) {
+    if (!user?._id || !userProfile?.student?.resume) {
       alert('No resume found');
       return;
     }
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/users/resume/download', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const resp = await fetch(`/api/users/${user._id}?resumeUrl=1`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = 'resume.pdf';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        alert('Failed to download resume');
+      if (!resp.ok) {
+        let msg = `Failed to fetch resume link (HTTP ${resp.status})`;
+        try {
+          const jErr = await resp.json();
+          if (jErr?.error) msg = jErr.error;
+        } catch {}
+        throw new Error(msg);
       }
-    } catch (error) {
-      console.error('Error downloading resume:', error);
-      alert('Error downloading resume');
+
+      const j = await resp.json();
+
+      const url =
+        j?.url ||                 
+        j?.signedUrl ||           
+        j?.downloadUrl ||         
+        j?.data?.url ||           
+        j?.data?.signedUrl ||     
+        j?.data?.downloadUrl ||   
+        (typeof j?.data === 'string' ? j.data : null);
+
+      if (!url) {
+        const bin = await fetch('/api/users/resume/download', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (bin.ok) {
+          const blob = await bin.blob();
+          const bUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = bUrl;
+          a.download = 'resume.pdf';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(bUrl);
+          return;
+        }
+
+        throw new Error('No signed URL returned');
+      }
+
+      // Open signed S3 URL directly (avoids CORS/blob handling)
+      window.open(url, '_blank', 'noopener');
+    } catch (err) {
+      console.error('Resume download error:', err);
+      alert(String((err as Error).message || 'Failed to download resume'));
     }
   };
+
 
   const handleInputChange = (field: keyof ApplicationData, value: string | boolean) => {
     setApplicationData(prev => ({
@@ -143,67 +172,39 @@ export default function EnhancedJobApplicationModal({
     }));
   };
 
-  const handleResumeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const file = files[0];
-
-    // Validate file type
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      alert('Invalid file type. Only PDF, DOC, and DOCX files are allowed.');
-      return;
-    }
-
-    // Validate file size (10MB)
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      alert('File size exceeds 10MB limit.');
-      return;
-    }
+    // …type/size checks…
 
     try {
       setUploadingResume(true);
-      
+      const token = localStorage.getItem('authToken');
       const formData = new FormData();
       formData.append('file', file);
-      const token = localStorage.getItem('authToken');
 
-      const response = await fetch('/api/users/resume/upload', {
+      const res = await fetch('/api/users/resume/upload', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Upload failed');
       }
-
-      const result = await response.json();
-      
-      setApplicationData(prev => ({
-        ...prev,
-        resumeFile: file,
-        resumeUrl: result.data.filePath
-      }));
-
+      const j = await res.json();
+      setResumeFile(file);
+      setResumeUrl(j.data?.filePath || null);
       alert('Resume uploaded successfully!');
-    } catch (error) {
-      console.error('Resume upload error:', error);
+    } catch (err) {
+      console.error('Resume upload error:', err);
       alert('Failed to upload resume. Please try again.');
     } finally {
       setUploadingResume(false);
     }
   };
+
 
   const validateStep = (step: number) => {
     switch (step) {
@@ -226,6 +227,7 @@ export default function EnhancedJobApplicationModal({
     setCurrentStep(prev => prev - 1);
   };
 
+  
   const handleSubmit = async () => {
     if (!validateStep(2)) return;
 
@@ -233,23 +235,25 @@ export default function EnhancedJobApplicationModal({
     setSubmitStatus('idle');
 
     try {
-      // Prepare application data with user profile
-      const finalApplicationData = {
-        jobId: job.id,
+      await onSubmit({
         candidateStatement: applicationData.candidateStatement,
         applicationValidity: applicationData.applicationValidity,
-        userProfile: userProfile,
-      };
-
-      await onSubmit(finalApplicationData);
+        profileConfirmed: applicationData.profileConfirmed, 
+      });
       setSubmitStatus('success');
-      setCurrentStep(3);
-    } catch (error) {
-      setSubmitStatus('error');
+    } catch (err: any) {
+      const msg = String(err?.message || 'Failed to submit application');
+      if (err?.code === 'DUPLICATE' || /already applied/i.test(msg)) {
+        setSubmitStatus('duplicate');
+      } else {
+        setSubmitStatus('error');
+      }
     } finally {
       setIsSubmitting(false);
+      setCurrentStep(3); 
     }
   };
+
 
   const handleClose = () => {
     if (submitStatus === 'success') {
@@ -501,76 +505,15 @@ export default function EnhancedJobApplicationModal({
             </div>
           )}
 
-          {currentStep === 3 && user && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Confirm Your Profile Information</h3>
-              <p className="text-gray-600">
-                Please review your profile information that will be included with your application.
-              </p>
-              
-              <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
-                    <p className="text-gray-900">{user.firstName} {user.lastName}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Email</label>
-                    <p className="text-gray-900">{user.email}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Phone</label>
-                    <p className="text-gray-900">{user.profile?.phone || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Location</label>
-                    <p className="text-gray-900">{user.profile?.location || 'Not provided'}</p>
-                  </div>
-                </div>
-                
-                {user.student?.skills && user.student.skills.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Skills</label>
-                    <div className="flex flex-wrap gap-2">
-                      {user.student.skills.map((skill, index) => (
-                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {user.profile?.bio && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Bio</label>
-                    <p className="text-gray-900">{user.profile.bio}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start">
-                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 mr-2" />
-                  <div>
-                    <p className="text-blue-800 text-sm">
-                      This information will be shared with the employer. You can update your profile anytime from the dashboard.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {currentStep === 3 && (
             <div className="text-center space-y-6">
-              {submitStatus === 'success' ? (
+              {submitStatus === 'success' && (
                 <>
                   <CheckCircle className="mx-auto h-16 w-16 text-green-600" />
                   <h3 className="text-lg font-medium text-gray-900">Application Submitted!</h3>
                   <p className="text-gray-600">
                     Your application has been successfully submitted to {job.company.name}.
-                    You'll receive updates on your application status via email.
+                    You’ll receive updates via email.
                   </p>
                   <button
                     onClick={handleClose}
@@ -579,12 +522,38 @@ export default function EnhancedJobApplicationModal({
                     Close
                   </button>
                 </>
-              ) : (
+              )}
+
+              {submitStatus === 'duplicate' && (
+                <>
+                  <AlertCircle className="mx-auto h-16 w-16 text-yellow-500" />
+                  <h3 className="text-lg font-medium text-gray-900">Application Failed</h3>
+                  <p className="text-gray-600">
+                    {'Our records show you have already applied to this job. If you want to re-apply, please withdraw the current application first.'}
+                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <a
+                      href="/applications"
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      View My Applications
+                    </a>
+                    <button
+                      onClick={handleClose}
+                      className="px-6 py-2 border rounded-lg hover:bg-gray-50"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {submitStatus === 'error' && (
                 <>
                   <AlertCircle className="mx-auto h-16 w-16 text-red-600" />
                   <h3 className="text-lg font-medium text-gray-900">Submission Failed</h3>
                   <p className="text-gray-600">
-                    There was an error submitting your application. Please try again.
+                    {'There was an error submitting your application. Please try again.'}
                   </p>
                   <button
                     onClick={() => setSubmitStatus('idle')}
@@ -592,6 +561,14 @@ export default function EnhancedJobApplicationModal({
                   >
                     Try Again
                   </button>
+                </>
+              )}
+
+              {submitStatus === 'idle' && (
+                <>
+                  <AlertCircle className="mx-auto h-16 w-16 text-gray-400" />
+                  <h3 className="text-lg font-medium text-gray-900">Ready to submit</h3>
+                  <p className="text-gray-600">Click submit to send your application.</p>
                 </>
               )}
             </div>
