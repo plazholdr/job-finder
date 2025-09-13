@@ -71,41 +71,61 @@ const withBase = (p?: string) =>
   !p ? '' : p.startsWith('http') ? p : p; // tweak if you need to prefix a CDN/base URL
 
 function normalizeJob(j: any) {
-  return {
+  console.log('🔍 JOB NORMALIZE DEBUG: Job salary object:', j.salary);
+
+  const skills: string[] = Array.isArray(j.skills?.technical)
+    ? j.skills.technical
+    : Array.isArray(j.skills)
+      ? j.skills
+      : typeof j.skills === 'string'
+        ? j.skills.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : [];
+
+  const result = {
     id: String(j.id ?? j._id),
     title: j.title ?? j.name ?? '',
     location: j.location ?? j.city ?? j.address ?? '',
     type: j.type ?? j.employmentType ?? 'Full-time',
     salary: {
-      min: Number(j.salary?.min ?? j.minSalary ?? 0),
-      max: Number(j.salary?.max ?? j.maxSalary ?? 0),
+      min: Number(j.salary?.minimum ?? j.salary?.min ?? j.minSalary ?? 0),
+      max: Number(j.salary?.maximum ?? j.salary?.max ?? j.maxSalary ?? 0),
       currency: j.salary?.currency ?? j.currency ?? 'USD',
-      period: j.salary?.period ?? 'year',
+      period: j.salary?.type ?? j.salary?.period ?? 'year',
     },
     posted: j.posted ?? j.createdAt ?? new Date().toISOString(),
     description: j.description ?? '',
-    skills: j.skills ?? [],
+    skills,
     experienceLevel: j.experienceLevel ?? j.level ?? 'Not specified',
-    remote: Boolean(j.remote ?? j.isRemote),
+    remote: Boolean(j.remoteWork ?? j.remote ?? j.isRemote),
   };
+
+  console.log('🔍 JOB NORMALIZE DEBUG: Result salary:', result.salary);
+  return result;
 }
 
 function normalizeCompanyDetails(c: any): CompanyDetails {
-  return {
+  console.log('🔍 NORMALIZE DEBUG: Input keys:', Object.keys(c));
+  console.log('🔍 NORMALIZE DEBUG: firstName:', c.firstName, 'lastName:', c.lastName);
+  console.log('🔍 NORMALIZE DEBUG: company object:', c.company);
+
+  // Handle the actual API structure - company name from firstName + lastName
+  const companyName = c.firstName && c.lastName
+    ? `${c.firstName} ${c.lastName}`.trim()
+    : c.company?.name || c.name || '';
+
+  const result = {
     id: String(c.id ?? c._id ?? c.companyId),
-    name: c.name ?? c.company?.name ?? '',
-    logo: withBase(c.logo?.url ?? c.logo ?? c.company?.logo ?? ''),
+    name: companyName,
+    logo: withBase(c.company?.logo ?? c.logo ?? ''),
     coverImage: withBase(c.coverImage?.url ?? c.coverImage ?? ''),
-    industry: c.industry ?? c.nature ?? '',
-    size: c.size ?? c.companySize ?? '',
-    founded: String(c.founded ?? c.yearFounded ?? ''),
-    headquarters:
-      c.headquarters ??
-      [c.address?.city, c.address?.state, c.address?.country].filter(Boolean).join(', '),
-    website: c.website ?? c.links?.website ?? '',
-    email: c.email ?? c.contact?.email,
-    phone: c.phone ?? c.contact?.phone,
-    description: c.description ?? '',
+    industry: c.company?.industry ?? c.industry ?? '',
+    size: c.company?.size ?? c.size ?? '',
+    founded: String(c.company?.founded ?? c.founded ?? ''),
+    headquarters: c.company?.headquarters ?? c.headquarters ?? c.profile?.location ?? '',
+    website: c.company?.website ?? c.website ?? c.profile?.website ?? '',
+    email: c.email ?? '',
+    phone: c.phone ?? c.profile?.phone ?? '',
+    description: c.company?.description ?? c.description ?? '',
     mission: c.mission ?? '',
     values: c.values ?? [],
     benefits: c.benefits ?? [],
@@ -113,33 +133,64 @@ function normalizeCompanyDetails(c: any): CompanyDetails {
     rating: Number(c.rating ?? 0),
     reviewCount: Number(c.reviewCount ?? 0),
     stats: {
-      employees: c.stats?.employees ?? c.size ?? '',
-      locations: Number(c.stats?.locations ?? c.locations?.length ?? 1),
-      openPositions: Number(c.stats?.openPositions ?? c.openPositions ?? c.jobs?.length ?? 0),
-      avgSalary: c.stats?.avgSalary ?? '',
+      employees: String(c.company?.size ?? c.stats?.employees ?? '—'),
+      locations: Number(c.stats?.locations ?? 1),
+      openPositions: Number(c.activeJobsCount ?? c.stats?.openPositions ?? 0),
+      avgSalary: String(c.stats?.avgSalary ?? ''),
     },
-    jobs: (c.jobs ?? c.openRoles ?? []).map(normalizeJob),
+    jobs: [],
   };
+
+  console.log('🔍 NORMALIZE DEBUG: Result name:', result.name);
+  console.log('🔍 NORMALIZE DEBUG: Result industry:', result.industry);
+
+  return result;
 }
 
+
+
+
 async function fetchCompanyJobsRaw(companyId: string) {
+  // Fetch ALL jobs from the existing /api/jobs (as requested), then filter locally
   const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
-  const res = await fetch(`/api/jobs?companyId=${encodeURIComponent(companyId)}`, {
+  console.log('🔍 COMPANY DEBUG: Fetching /api/jobs with token?', Boolean(token));
+  const res = await fetch(`/api/jobs`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
-  const data = await res.json();
+  let data: any = null;
+  try { data = await res.json(); } catch (e) { console.log('🔍 COMPANY DEBUG: /api/jobs JSON parse failed:', e); }
   const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+  console.log('🔍 COMPANY DEBUG: Total jobs from API:', Array.isArray(list) ? list.length : 'not array', { status: res.status });
+
+  const cid = String(companyId);
   const filtered = list.filter((j: any) => {
-    const cid = String(companyId);
-    const candidates = [
+    // company match
+    const companyCandidates = [
       j.companyId,
       j.company_id,
       j.company?.id,
       j.company?._id,
-      j.company,       
+      j.company,
     ].filter(Boolean).map((x: any) => String(x));
-    return candidates.includes(cid);
+
+    const status = String(j.status ?? j.jobStatus ?? '').toLowerCase();
+    // treat missing status as active; also accept 'published'
+    const isActive = status === '' || status === 'active' || status === 'published';
+
+    return companyCandidates.includes(cid) && isActive;
   });
+
+  console.log('🔍 COMPANY DEBUG: Filtering jobs for companyId =', cid, ' total:', list.length, ' matched:', filtered.length);
+  if (list.length) {
+    const peek = list.slice(0, 3).map((j: any) => ({
+      id: j.id || j._id,
+      status: j.status || j.jobStatus,
+      companyId: j.companyId || j.company_id || j.company?._id || j.company?.id,
+      hasCompanyObj: Boolean(j.company),
+    }));
+    console.log('🔍 COMPANY DEBUG: Sample of incoming jobs:', peek);
+  }
+
   return filtered;
 }
 
@@ -154,32 +205,75 @@ export default function CompanyProfilePage() {
 
   const companyId = params.companyId as string;
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/companies/${companyId}`);
-        const raw = await res.json();
-        const payload = Array.isArray(raw) ? raw[0] : (raw.data ?? raw.result ?? raw);
-        const normalized = normalizeCompanyDetails(payload || {});
+  const fetchCompany = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log('🔍 COMPANY DEBUG: Starting fetch for companyId:', companyId);
 
-        // fetch jobs for this company
-        const rawJobs = await fetchCompanyJobsRaw(normalized.id);
-        const normalizedJobs = rawJobs.map(normalizeJob);
+      const res = await fetch(`/api/companies/${companyId}`);
+      console.log('🔍 COMPANY DEBUG: API response status:', res.status, res.ok);
 
-        if (!cancelled) {
-          setCompany({ ...normalized, jobs: normalizedJobs });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+      console.log('🔍 COMPANY DEBUG: Raw API response:', JSON.stringify(payload, null, 2));
+
+      // Extract the actual company data - same pattern as jobs page
+      const raw = payload?.data ?? payload;
+      console.log('🔍 COMPANY DEBUG: Extracted raw company:', JSON.stringify(raw, null, 2));
+
+      if (!raw || typeof raw !== 'object') throw new Error('Invalid company payload');
+
+      const normalized = normalizeCompanyDetails(raw);
+      console.log('🔍 COMPANY DEBUG: Normalized company:', JSON.stringify(normalized, null, 2));
+
+      // fetch jobs for this company
+      const rawJobs = await fetchCompanyJobsRaw(companyId);
+      console.log('🔍 COMPANY DEBUG: Raw jobs found:', rawJobs.length);
+
+      const normalizedJobs: CompanyJob[] = rawJobs.map(normalizeJob);
+
+      // Calculate stats
+      const avgSalaryDisplay = (() => {
+        const midpoints = normalizedJobs
+          .map((j: CompanyJob) => ((j.salary?.min ?? 0) + (j.salary?.max ?? 0)) / 2)
+          .filter((n: number) => Number.isFinite(n) && n > 0);
+        if (midpoints.length === 0) return '';
+        const avg = midpoints.reduce((a: number, b: number) => a + b, 0) / midpoints.length;
+        const currency = normalizedJobs[0]?.salary?.currency ?? 'USD';
+        try {
+          return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Math.round(avg));
+        } catch {
+          return `$${Math.round(avg).toLocaleString()}`;
         }
-      } catch (e) {
-        console.error('Error loading company:', e);
-        if (!cancelled) setCompany(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+      })();
+
+      const employeesDisplay = (normalized.stats.employees && String(normalized.stats.employees).trim() !== '')
+        ? String(normalized.stats.employees)
+        : (normalized.size || '—');
+
+      const updatedStats = {
+        ...normalized.stats,
+        openPositions: normalizedJobs.length,
+        avgSalary: avgSalaryDisplay,
+        employees: employeesDisplay,
+      };
+
+      console.log('🔍 COMPANY DEBUG: Final stats:', JSON.stringify(updatedStats, null, 2));
+      const finalCompany = { ...normalized, stats: updatedStats, jobs: normalizedJobs };
+      console.log('🔍 COMPANY DEBUG: Final company to set:', JSON.stringify(finalCompany, null, 2));
+
+      setCompany(finalCompany);
+    } catch (err) {
+      console.error('🔍 COMPANY DEBUG: Error fetching company:', err);
+      setCompany(null);
+    } finally {
+      setLoading(false);
+    }
   }, [companyId]);
+
+  useEffect(() => {
+    fetchCompany();
+  }, [companyId, fetchCompany]);
 
 
 
@@ -250,11 +344,17 @@ export default function CompanyProfilePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow -mt-16 relative z-10 p-6">
           <div className="flex items-start gap-6">
-            <img
-              src={company.logo}
-              alt={company.name}
-              className="w-24 h-24 rounded-lg object-cover border-4 border-white shadow-lg"
-            />
+            {company.logo ? (
+              <img
+                src={company.logo}
+                alt={company.name}
+                className="w-24 h-24 rounded-lg object-cover border-4 border-white shadow-lg"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-lg border-4 border-white shadow-lg bg-gray-100 flex items-center justify-center">
+                <Building2 className="h-10 w-10 text-blue-600" />
+              </div>
+            )}
             <div className="flex-1">
               <div className="flex items-start justify-between">
                 <div>
@@ -472,16 +572,18 @@ export default function CompanyProfilePage() {
 
                           <p className="mt-3 text-gray-700 line-clamp-2">{job.description}</p>
 
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {job.skills.map((skill, index) => (
-                              <span
-                                key={index}
-                                className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
+                          {Array.isArray(job.skills) && job.skills.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {job.skills.map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          )}
 
                           <div className="mt-4 flex items-center justify-between">
                             <div className="flex items-center gap-4">

@@ -11,9 +11,22 @@ import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 
 function normalizeCompany(c: any) {
+  const pickName = () => {
+    const candidates: Array<string | undefined> = [
+      typeof c.name === 'string' ? c.name : undefined,
+      typeof c.company?.name === 'string' ? c.company.name : undefined,
+      typeof c.profile?.name === 'string' ? c.profile.name : undefined,
+      [c.firstName, c.lastName].filter(Boolean).join(' ') || undefined,
+    ];
+    for (const v of candidates) {
+      if (v && v.toString().trim().length > 0) return v.toString().trim();
+    }
+    return 'Company';
+  };
+
   return {
     id: c.id ?? c._id ?? c.companyId,
-    name: c.name ?? c.company?.name ?? c.profile?.name ?? '',
+    name: pickName(),
     logo: c.logo ?? c.logoUrl ?? c.company?.logo ?? c.profile?.logo ?? c.logo?.url ?? '',
     description: c.description ?? c.about ?? c.company?.description ?? '',
     nature: c.nature ?? c.type ?? c.industry ?? 'Company',
