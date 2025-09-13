@@ -39,6 +39,7 @@ export default function JobsPage() {
       if (filters.deadline) queryParams.append('deadline', filters.deadline);
 
       const token = localStorage.getItem('authToken');
+      // const response = await fetch(`/api/jobs?${queryParams}`
       const response = await fetch(`/api/jobs?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -46,11 +47,14 @@ export default function JobsPage() {
       });
       const data = await response.json();
 
-      if (data.success || data.data) {
-        console.log('Jobs fetched from API:', data.data || data);
-        setJobs(data.data || data);
+      const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+
+      if (list.length || data?.data) {
+        console.log('Jobs fetched from API:', list);
+        setJobs(list);
       } else {
-        console.error('API returned error:', data);
+        console.error('API returned unexpected shape:', data);
+        setJobs([]);
       }
     } catch (error) {
       console.error('Error fetching jobs:', error);

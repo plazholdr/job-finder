@@ -146,55 +146,63 @@ export default function ApplicationsPage() {
   }, []);
 
   const fetchApplications = async () => {
-    try {
-      setLoading(true);
-      console.log('Fetching applications...');
+  try {
+    setLoading(true);
+    console.log('Fetching applications...');
 
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        console.error('No auth token found');
-        setApplications([]);
-        return;
-      }
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.error('No auth token found');
+      setApplications([]);
+      return;
+    }
 
-      const response = await fetch('/api/applications', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      console.log('Applications API response:', data);
+    const res = await fetch('/api/applications', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      if (data.success) {
-        console.log('Applications data:', data.data);
-        console.log('Applications data type:', typeof data.data);
-        console.log('Applications data length:', data.data?.length);
+    const payload = await res.json();
+    console.log('Applications API response:', payload);
 
-        // Check if data.data is an array
-        const applicationsArray = Array.isArray(data.data) ? data.data : [];
-        console.log('Applications array:', applicationsArray);
+    // Accept either { data: [...] } or [...]
+    const rawList: any[] =
+      Array.isArray(payload?.data) ? payload.data :
+      Array.isArray(payload) ? payload :
+      Array.isArray(payload?.results) ? payload.results : [];
 
-        if (applicationsArray.length === 0) {
-          console.log('No applications found');
-          setApplications([]);
-        } else {
-          // The backend already includes job information, so we don't need to fetch it separately
-          console.log('Setting applications directly from backend');
-          setApplications(applicationsArray);
-        }
-      } else {
-        console.error('Failed to fetch applications:', data.error);
-        // Fallback to empty array instead of mock data
-        setApplications([]);
-      }
+    // Normalize into what your UI expects
+    const normalized: Application[] = rawList.map((a: any) => {
+      const id = String(a._id ?? a.id ?? '');
+      const jobId =
+        typeof a.jobId === 'object' && a.jobId !== null && 'toString' in a.jobId
+          ? String(a.jobId)
+          : String(a.jobId ?? '');
+      const status = String(a.status ?? 'submitted').toLowerCase();
+
+      return {
+        ...a,
+        id,                // ensure string id for keys/links
+        jobId,             // ensure string jobId for /jobs/<id>
+        status,            // match your status filters (lowercase)
+        createdAt: a.createdAt ?? a.submittedAt ?? new Date().toISOString(),
+        updatedAt: a.updatedAt ?? a.createdAt ?? new Date().toISOString(),
+        // keep any jobInfo/companyInfo if backend supplies them
+        jobInfo: a.jobInfo ?? a.job ?? a.job_data ?? undefined,
+        companyInfo: a.companyInfo ?? a.company ?? a.company_data ?? undefined,
+      } as Application;
+    });
+
+      console.log('Normalized applications length:', normalized.length);
+      setApplications(normalized);
     } catch (error) {
       console.error('Error fetching applications:', error);
-      // Fallback to mock data
-      setApplications(mockApplications);
+      setApplications([]); // no mock fallback, keep it honest
     } finally {
       setLoading(false);
     }
   };
+
 
   // Mock applications data as fallback
   const mockApplications: Application[] = [];

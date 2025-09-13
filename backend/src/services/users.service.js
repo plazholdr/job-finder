@@ -1,8 +1,26 @@
 const { getDB } = require('../db');
 const UserModel = require('../models/user.model');
 const EmailService = require('./email.service');
-const StorageUtils = require('../utils/storage');
+const { S3StorageUtils, s3, storageConfig } = require('../utils/s3-storage');
 const logger = require('../logger');
+
+async function fetchFromS3(key) {
+  if (typeof key === 'string' && (key.startsWith('http://') || key.startsWith('https://'))) {
+    const idx = key.indexOf('/', key.indexOf('://') + 3);
+    key = idx >= 0 ? key.slice(idx + 1) : key;
+  }
+
+  const obj = await s3.getObject({
+    Bucket: storageConfig.bucketName,
+    Key: key
+  }).promise();
+
+  return {
+    fileBuffer: obj.Body,
+    mimeType: obj.ContentType || 'application/octet-stream',
+    fileName: (key && key.split('/').pop()) || 'resume'
+  };
+}
 
 class UsersService {
   constructor(app) {
@@ -67,13 +85,35 @@ class UsersService {
     }
   }
 
-  async get(id) {
+  async get(id, params = {}) {
     try {
-      const user = await this.userModel.findById(id);
-      if (!user) {
-        throw new Error('User not found');
+      
+      const wantsResumeUrl =
+        params?.query?.resumeUrl === '1' ||
+        params?.query?.resumeUrl === 'true' ||
+        params?.query?.download === 'resume';
+
+      if (wantsResumeUrl) {
+        
+        const requester = params.user?._id || params.user?.id || params.userId;
+        if (!requester) throw new Error('Authentication required');
+        if (String(requester) !== String(id)) throw new Error('Not authorized');
+
+        const u = await this.userModel.findById(id);
+        if (!u) throw new Error('User not found');
+        const key = u.student?.resume;
+        if (!key) throw new Error('No resume found for this user');
+
+        const { S3StorageUtils } = require('../utils/s3-storage');
+        const url = await S3StorageUtils.generateDownloadUrl(key, 5); // 5 min expiry
+        return { success: true, url };
       }
+
+      
+      const user = await this.userModel.findById(id);
+      if (!user) throw new Error('User not found');
       return user;
+
     } catch (error) {
       logger.error('User get failed', { id, error: error.message });
       throw error;
@@ -624,94 +664,45 @@ class UsersService {
   // Download user resume method
   async downloadResume(params) {
     try {
-      const userId = params.userId;
-      const userRole = params.user?.role;
+      const userId = params.userId || params.user?._id || params.user?.id;
+      if (!userId) throw new Error('Authentication required');
 
-      if (!userId) {
-        throw new Error('Authentication required');
-      }
-
-      // Get user to check if they have a resume
       const user = await this.userModel.findById(userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
+      if (!user) throw new Error('User not found');
 
-      if (!user.student?.resume) {
-        throw new Error('No resume found for this user');
-      }
+      const key = user.student?.resume;
+      if (!key) throw new Error('No resume found for this user');
 
-      // Download file from S3 Storage
-      const { S3StorageUtils } = require('../utils/s3-storage');
-      const result = await S3StorageUtils.downloadFile(user.student.resume);
+      const { fileBuffer, fileName, mimeType } = await fetchFromS3(key);
 
-      logger.info(`Resume downloaded for user: ${userId}`);
-
-      return {
-        success: true,
-        fileBuffer: result.fileBuffer,
-        fileName: result.fileName,
-        mimeType: result.mimeType
-      };
+      return { success: true, fileBuffer, fileName, mimeType };
     } catch (error) {
-      logger.error('Resume download failed', {
-        userId: params.userId,
-        error: error.message
-      });
+      logger.error('Resume download failed', { userId: params.userId, error: error.message });
       throw error;
     }
   }
 
-  // Download specific user's resume method (for companies to download candidate resumes)
+
+  // for companies to download candidate resumes
   async downloadUserResume(params) {
     try {
       const requesterId = params.userId;
       const requesterRole = params.user?.role;
       const targetUserId = params.targetUserId;
+      if (!requesterId) throw new Error('Authentication required');
+      if (!targetUserId) throw new Error('Target user ID required');
+      if (requesterRole !== 'company') throw new Error('Only companies can download candidate resumes');
 
-      if (!requesterId) {
-        throw new Error('Authentication required');
-      }
-
-      if (!targetUserId) {
-        throw new Error('Target user ID required');
-      }
-
-      // Only allow companies to download other users' resumes
-      if (requesterRole !== 'company') {
-        throw new Error('Only companies can download candidate resumes');
-      }
-
-      console.log('🔍 Company downloading resume:', { requesterId, targetUserId, requesterRole });
-
-      // Get target user to check if they have a resume
       const targetUser = await this.userModel.findById(targetUserId);
-      if (!targetUser) {
-        throw new Error('Candidate not found');
-      }
+      if (!targetUser) throw new Error('Candidate not found');
+      if (!targetUser.student?.resume) throw new Error('No resume found for this candidate');
 
-      if (!targetUser.student?.resume) {
-        throw new Error('No resume found for this candidate');
-      }
-
-      // Download file from S3 Storage
-      const { S3StorageUtils } = require('../utils/s3-storage');
-      const result = await S3StorageUtils.downloadFile(targetUser.student.resume);
+      const { fileBuffer, fileName, mimeType } = await fetchFromS3(targetUser.student.resume);
 
       logger.info(`Resume downloaded by company ${requesterId} for candidate: ${targetUserId}`);
-
-      return {
-        success: true,
-        fileBuffer: result.fileBuffer,
-        fileName: result.fileName,
-        mimeType: result.mimeType
-      };
+      return { success: true, fileBuffer, fileName, mimeType };
     } catch (error) {
-      logger.error('User resume download failed', {
-        requesterId: params.userId,
-        targetUserId: params.targetUserId,
-        error: error.message
-      });
+      logger.error('User resume download failed', { requesterId: params.userId, targetUserId: params.targetUserId, error: error.message });
       throw error;
     }
   }
