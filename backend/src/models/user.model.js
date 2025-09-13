@@ -232,8 +232,8 @@ class UserModel {
           salaryRange: {
             min: 0,
             max: 0,
-            currency: 'USD',
-            period: 'hour',
+            currency: 'MYR',
+            period: 'month',
             isNegotiable: true
           },
           skills: [],
@@ -250,10 +250,10 @@ class UserModel {
             hybrid: false,
             onSite: true,
             travelWillingness: 'Local'
-          }
+          },
+          courses: [],
+          assignments: []
         },
-        courses: [],
-        assignments: [],
         applications: [],
         isSetupComplete: false
       };

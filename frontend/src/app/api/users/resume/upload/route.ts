@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import config from '@/config';
-
-const API_BASE_URL = config.api.baseUrl;
+const API_BASE_URL = process.env.BACKEND_URL || 'http://staging.saino365.com:4030';
 
 export async function POST(request: NextRequest) {
   try {

@@ -44,7 +44,7 @@ function InternshipSection() {
     }
   }, [user]);
 
-  // Mock internship data - in real app, this would come from the intern object
+  // Get internship data from user object - matching your exact data structure
   const existingInternshipInfo = user?.internship || {
     profile: {
       profileInformation: {
@@ -60,20 +60,22 @@ function InternshipSection() {
       educationBackground: [],
       certifications: [],
       interests: [],
-      workExperience: []
+      workExperience: [],
+      details: {
+        duration: { startDate: '', endDate: '', isFlexible: true },
+        preferredIndustry: [],
+        preferredLocations: [],
+        salaryRange: { min: 0, max: 0, currency: 'MYR', period: 'month', isNegotiable: true },
+        skills: [],
+        languages: [],
+        availability: { hoursPerWeek: 40, flexibleSchedule: true, availableDays: [] },
+        workPreferences: { remote: false, hybrid: false, onSite: true, travelWillingness: 'Local' },
+        courses: [],
+        assignments: []
+      }
     },
-    details: {
-      duration: { startDate: '', endDate: '', isFlexible: true },
-      preferredIndustry: [],
-      preferredLocations: [],
-      salaryRange: { min: 0, max: 0, currency: 'USD', period: 'hour', isNegotiable: true },
-      skills: [],
-      languages: [],
-      availability: { hoursPerWeek: 40, flexibleSchedule: true, availableDays: [] },
-      workPreferences: { remote: false, hybrid: false, onSite: true, travelWillingness: 'Local' }
-    },
-    courses: [],
-    assignments: []
+    applications: [],
+    isSetupComplete: false
   };
 
   if (!user) {
@@ -213,8 +215,8 @@ function InternshipSection() {
                     <h3 className="font-medium text-gray-900">Course Information</h3>
                   </div>
                   <div className="space-y-2 text-sm text-gray-600">
-                    <div>Courses: {existingInternshipInfo.courses.length} entries</div>
-                    <div>Status: {existingInternshipInfo.courses.length > 0 ? 'Complete' : 'Not set'}</div>
+                    <div>Courses: {existingInternshipInfo.profile.details?.courses?.length || 0} entries</div>
+                    <div>Status: {(existingInternshipInfo.profile.details?.courses?.length || 0) > 0 ? 'Complete' : 'Not set'}</div>
                   </div>
                 </div>
 
@@ -225,8 +227,8 @@ function InternshipSection() {
                     <h3 className="font-medium text-gray-900">Assignment Portfolio</h3>
                   </div>
                   <div className="space-y-2 text-sm text-gray-600">
-                    <div>Assignments: {existingInternshipInfo.assignments.length} entries</div>
-                    <div>Status: {existingInternshipInfo.assignments.length > 0 ? 'Complete' : 'Not set'}</div>
+                    <div>Assignments: {existingInternshipInfo.profile.details?.assignments?.length || 0} entries</div>
+                    <div>Status: {(existingInternshipInfo.profile.details?.assignments?.length || 0) > 0 ? 'Complete' : 'Not set'}</div>
                   </div>
                 </div>
               </div>
