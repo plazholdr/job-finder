@@ -511,27 +511,27 @@ export default function JobsPage() {
           )}
           </div>
         )}
-
-        {/* Application Modal */}
-        {selectedJob && (
-          <EnhancedJobApplicationModal
-            isOpen={showApplicationModal}
-            onClose={() => {
-              setShowApplicationModal(false);
-              setSelectedJob(null);
-            }}
-            job={{
-              id: selectedJob._id || selectedJob.id,
-              title: selectedJob.title,
-              company: {
-                name: selectedJob.companyName || selectedJob.companyInfo?.name || 'Company Name'
-              }
-            }}
-            onSubmit={handleApplicationSubmit}
-          />
-        )}
         </div>
       </div>
+
+      {/* Application Modal */}
+      {selectedJob && (
+        <EnhancedJobApplicationModal
+          isOpen={showApplicationModal}
+          onClose={() => {
+            setShowApplicationModal(false);
+            setSelectedJob(null);
+          }}
+          job={{
+            id: selectedJob._id || selectedJob.id,
+            title: selectedJob.title,
+            company: {
+              name: selectedJob.companyName || selectedJob.companyInfo?.name || 'Company Name'
+            }
+          }}
+          onSubmit={handleApplicationSubmit}
+        />
+      )}
     </AppLayout>
   );
 }
