@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Heart, Search, Building2, MapPin, Globe, Users, Briefcase } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Heart, Search, Building2, MapPin, Globe, Briefcase, SlidersHorizontal } from 'lucide-react';
 import { Company, CompanyFilters, LikedCompany } from '@/types/company-job';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
@@ -30,7 +31,7 @@ function normalizeCompany(c: any) {
     logo: c.logo ?? c.logoUrl ?? c.company?.logo ?? c.profile?.logo ?? c.logo?.url ?? '',
     description: c.description ?? c.about ?? c.company?.description ?? '',
     nature: c.nature ?? c.type ?? c.industry ?? 'Company',
-    address: c.address ?? [c.city, c.state, c.country].filter(Boolean).join(', '),
+    address: c.address ?? c.company?.headquarters ?? c.profile?.location ?? 'Location not specified',
     website: c.website ?? c.site ?? c.links?.website ?? '',
     activeJobsCount: c.activeJobsCount ?? c.jobsCount ?? c.openingsCount,
   };
@@ -43,23 +44,51 @@ export default function CompaniesPage() {
   const [filters, setFilters] = useState<CompanyFilters>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedIndustry, setSelectedIndustry] = useState<string>('all');
+  const [selectedLocation, setSelectedLocation] = useState<string>('all');
+  const [salaryMin, setSalaryMin] = useState<string>('');
+  const [salaryMax, setSalaryMax] = useState<string>('');
+  const [sortBy, setSortBy] = useState<string>('latest');
 
   useEffect(() => {
     fetchCompanies();
     fetchLikedCompanies();
-  }, [filters]);
+  }, [filters, selectedIndustry, selectedLocation, salaryMin, salaryMax, sortBy]);
 
   const fetchCompanies = async () => {
       try {
         setLoading(true);
         const queryParams = new URLSearchParams();
-        if (filters.search) queryParams.append('search', filters.search);
-        if (filters.nature?.length) queryParams.append('nature', filters.nature.join(','));
-        if (filters.location?.length) queryParams.append('location', filters.location.join(','));
+
+        // Search filter
+        if (filters.search || searchTerm) {
+          queryParams.append('search', filters.search || searchTerm);
+        }
+
+        // Industry filter
+        if (selectedIndustry && selectedIndustry !== 'all') {
+          queryParams.append('industry', selectedIndustry);
+        }
+
+        // Location filter
+        if (selectedLocation && selectedLocation !== 'all') {
+          queryParams.append('location', selectedLocation);
+        }
+
+        // Salary range filter
+        if (salaryMin) queryParams.append('salaryMin', salaryMin);
+        if (salaryMax) queryParams.append('salaryMax', salaryMax);
+
+        // Sorting
+        if (sortBy === 'latest') {
+          queryParams.append('$sort', JSON.stringify({ createdAt: -1 }));
+        } else if (sortBy === 'name') {
+          queryParams.append('$sort', JSON.stringify({ 'company.name': 1 }));
+        }
 
         const res = await fetch(`/api/companies?${queryParams.toString()}`);
         const raw = await res.json();
-        // Your API might return an array directly OR { success, data } OR { results: [...] }
         const list = Array.isArray(raw) ? raw : (raw.data ?? raw.results ?? raw.items ?? []);
         const normalized = list.map(normalizeCompany);
 
@@ -77,7 +106,7 @@ export default function CompaniesPage() {
       const res = await fetch('/api/companies/liked');
       const raw = await res.json();
       const list = Array.isArray(raw) ? raw : (raw.data ?? []);
-      const likedIds = new Set(
+      const likedIds = new Set<string>(
         list.map((x: any) => String(x.companyId ?? x.id ?? x._id))
       );
       setLikedCompanies(likedIds);
@@ -151,6 +180,127 @@ export default function CompaniesPage() {
               <Button onClick={handleSearch} size="lg" className="px-8 h-12 rounded-xl">
                 Search
               </Button>
+            </div>
+          </div>
+
+          {/* Advanced Filters */}
+          <div className="max-w-6xl mx-auto mt-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="h-5 w-5 text-gray-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Advanced Filters</h3>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedIndustry('all');
+                    setSelectedLocation('all');
+                    setSalaryMin('');
+                    setSalaryMax('');
+                    setSortBy('latest');
+                    setSearchTerm('');
+                    setFilters({});
+                  }}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  Clear All
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* Industry Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nature of Business
+                  </label>
+                  <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select industry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Industries</SelectItem>
+                      <SelectItem value="Technology">Technology</SelectItem>
+                      <SelectItem value="Finance">Finance</SelectItem>
+                      <SelectItem value="Healthcare">Healthcare</SelectItem>
+                      <SelectItem value="Education">Education</SelectItem>
+                      <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                      <SelectItem value="Retail">Retail</SelectItem>
+                      <SelectItem value="Consulting">Consulting</SelectItem>
+                      <SelectItem value="Media">Media</SelectItem>
+                      <SelectItem value="Non-profit">Non-profit</SelectItem>
+                      <SelectItem value="Government">Government</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Location Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Location
+                  </label>
+                  <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Locations</SelectItem>
+                      <SelectItem value="Kuala Lumpur">Kuala Lumpur</SelectItem>
+                      <SelectItem value="Selangor">Selangor</SelectItem>
+                      <SelectItem value="Penang">Penang</SelectItem>
+                      <SelectItem value="Johor">Johor</SelectItem>
+                      <SelectItem value="Sabah">Sabah</SelectItem>
+                      <SelectItem value="Sarawak">Sarawak</SelectItem>
+                      <SelectItem value="Remote">Remote</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Salary Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Min Salary (RM)
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="e.g. 1000"
+                    value={salaryMin}
+                    onChange={(e) => setSalaryMin(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Salary (RM)
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="e.g. 5000"
+                    value={salaryMax}
+                    onChange={(e) => setSalaryMax(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Sort By */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sort By
+                  </label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="latest">Latest</SelectItem>
+                      <SelectItem value="name">Company Name</SelectItem>
+                      <SelectItem value="jobs">Most Jobs</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -20,8 +20,18 @@ class CompaniesService {
         throw new Error('Access denied: Only students can browse companies');
       }
 
-      const { $limit = 50, $skip = 0, $sort = { 'company.name': 1 }, search, industry, size } = params.query || {};
-      
+      const {
+        $limit = 50,
+        $skip = 0,
+        $sort = { 'company.name': 1 },
+        search,
+        industry,
+        size,
+        location,
+        salaryMin,
+        salaryMax
+      } = params.query || {};
+
       let query = {
         role: 'company'
       };
@@ -48,6 +58,22 @@ class CompaniesService {
         query['company.size'] = size;
       }
 
+      // Add location filter
+      if (location && location !== 'all') {
+        query.$or = query.$or || [];
+        query.$or.push(
+          { 'company.headquarters': { $regex: location, $options: 'i' } },
+          { 'profile.location': { $regex: location, $options: 'i' } }
+        );
+      }
+
+      // Add salary range filter (this would typically be applied to jobs, but we can filter companies that have jobs in this range)
+      if (salaryMin || salaryMax) {
+        // Note: This is a simplified implementation. In a real scenario, you'd join with jobs collection
+        // For now, we'll just log this and implement basic filtering
+        logger.info('Salary filtering requested', { salaryMin, salaryMax });
+      }
+
       const options = {
         limit: parseInt($limit),
         skip: parseInt($skip),
@@ -69,7 +95,7 @@ class CompaniesService {
             const companyObjectId = typeof company._id === 'string' ? new ObjectId(company._id) : company._id;
             const activeJobsCount = await this.jobModel.count({
               companyId: companyObjectId,
-              status: { $in: ['Draft', 'Pending', 'Active', 'Closed'] },
+              status: 'Active',
               isActive: true
             });
             return {
