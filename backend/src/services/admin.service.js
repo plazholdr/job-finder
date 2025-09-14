@@ -235,10 +235,37 @@ class AdminService {
         'company.verificationStatus': statusName,
         'company.verificationStatusCode': statusCode,
         'company.verificationNotes': notes,
-  'company.verifiedAt': statusName === 'verified' ? new Date() : null,
-  'company.verifiedBy': statusName === 'verified' ? adminId : null,
         updatedAt: new Date()
       };
+
+      // Maintain verified markers
+      if (statusName === 'verified') {
+        updateData['company.verifiedAt'] = new Date();
+        updateData['company.verifiedBy'] = adminId;
+      } else {
+        updateData['company.verifiedAt'] = null;
+        updateData['company.verifiedBy'] = null;
+      }
+
+      // Keep legacy approval fields in sync for downstream checks (e.g., essentials gate)
+      if (statusName === 'verified') {
+        updateData['company.approvalStatus'] = 'approved';
+        updateData['company.approvalStatusCode'] = 1;
+        updateData.isActive = true; // allow login after approval
+      } else if (statusName === 'rejected') {
+        updateData['company.approvalStatus'] = 'rejected';
+        updateData['company.approvalStatusCode'] = 2;
+        updateData.isActive = false; // block login
+      } else if (statusName === 'pending') {
+        updateData['company.approvalStatus'] = 'pending';
+        updateData['company.approvalStatusCode'] = 0;
+        // leave isActive unchanged
+      } else if (statusName === 'suspended') {
+        // Keep approval as approved but suspend access
+        updateData['company.approvalStatus'] = 'approved';
+        updateData['company.approvalStatusCode'] = 1;
+        updateData.isActive = false; // block login while suspended
+      }
 
       // Log admin action
       const adminAction = {
@@ -265,7 +292,16 @@ class AdminService {
         notes
       });
 
-      return { success: true, message: 'Company verification updated successfully' };
+      const responseData = {
+        companyId,
+        verificationStatus: statusName,
+        verificationStatusCode: statusCode,
+        approvalStatus: updateData['company.approvalStatus'] ?? null,
+        approvalStatusCode: updateData['company.approvalStatusCode'] ?? null,
+        isActive: typeof updateData.isActive === 'boolean' ? updateData.isActive : undefined
+      };
+
+      return { success: true, message: 'Company verification updated successfully', data: responseData };
     } catch (error) {
       logger.error('Error updating company verification', { error: error.message, companyId, status });
       throw error;

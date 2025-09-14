@@ -32,6 +32,39 @@ class AuthenticationService {
         throw new Error('Invalid email or password');
       }
 
+      // Consistency guard: if company is verified but legacy approval fields not synced, fix them
+      if (user.role === 'company') {
+        const company = user.company || {};
+        const isVerified = (company.verificationStatus === 'verified') || (company.verificationStatusCode === 1);
+        const isSuspended = (company.verificationStatus === 'suspended') || (company.verificationStatusCode === 3);
+        if (isVerified && !isSuspended) {
+          let needsSync = false;
+          const update = { updatedAt: new Date() };
+          if (company.approvalStatusCode !== 1 || company.approvalStatus !== 'approved') {
+            update['company.approvalStatus'] = 'approved';
+            update['company.approvalStatusCode'] = 1;
+            needsSync = true;
+            // update local object too
+            user.company = { ...(user.company || {}), approvalStatus: 'approved', approvalStatusCode: 1 };
+          }
+          if (user.isActive !== true) {
+            update.isActive = true;
+            needsSync = true;
+            user.isActive = true;
+          }
+          if (needsSync) {
+            try {
+              await this.userModel.collection.updateOne(
+                { _id: this.userModel.toObjectId(user._id) },
+                { $set: update }
+              );
+            } catch (e) {
+              // non-fatal; proceed
+            }
+          }
+        }
+      }
+
       // Check if user is active
       if (!user.isActive) {
         throw new Error('Account is deactivated. Please contact support.');

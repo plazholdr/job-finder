@@ -28,7 +28,9 @@ export default function CompanyEssentialsModal({ open, onOpenChange }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const isCompanyApproved = useMemo(() => {
-    return user?.role === 'company' && user?.company?.approvalStatusCode === 1;
+    if (user?.role !== 'company') return false;
+    const c = user.company || {} as any;
+    return c.approvalStatusCode === 1 || c.verificationStatusCode === 1 || c.verificationStatus === 'verified';
   }, [user]);
 
   useEffect(() => {

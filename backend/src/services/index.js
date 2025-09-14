@@ -724,9 +724,12 @@ module.exports = function (app) {
         return res.status(403).json({ error: 'Only company users can submit essentials' });
       }
 
-      // Must be approved by admin
-      const approvalCode = authedUser.company?.approvalStatusCode ?? 0;
-      if (approvalCode !== 1) {
+      // Must be approved by admin (treat verified as approved for compatibility)
+      const companyState = authedUser.company || {};
+      const isApproved = (companyState.approvalStatusCode === 1)
+        || (companyState.verificationStatusCode === 1)
+        || (companyState.verificationStatus === 'verified');
+      if (!isApproved) {
         return res.status(400).json({ error: 'Company account must be approved before submitting essentials' });
       }
 
@@ -802,8 +805,11 @@ module.exports = function (app) {
         return res.status(403).json({ error: 'Only company users can submit essentials' });
       }
 
-      const approvalCode = authedUser.company?.approvalStatusCode ?? 0;
-      if (approvalCode !== 1) {
+      const companyState = authedUser.company || {};
+      const isApproved = (companyState.approvalStatusCode === 1)
+        || (companyState.verificationStatusCode === 1)
+        || (companyState.verificationStatus === 'verified');
+      if (!isApproved) {
         return res.status(400).json({ error: 'Company account must be approved before submitting essentials' });
       }
 
