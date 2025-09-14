@@ -25,7 +25,7 @@ export default function CompanyLoginPage() {
       ...prev,
       [field]: value
     }));
-    
+
     // Clear error when user starts typing
     if (error) {
       setError(null);
@@ -34,7 +34,7 @@ export default function CompanyLoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.email || !formData.password) {
       setError('Please fill in all fields');
       return;
@@ -58,9 +58,9 @@ export default function CompanyLoginPage() {
         // Store authentication token/session
         localStorage.setItem('companyToken', result.token);
         localStorage.setItem('companyUser', JSON.stringify(result.user));
-        
+
         // Redirect to company dashboard
-        router.push('/company/dashboard');
+        router.push('/dashboard');
       } else {
         setError(result.error || 'Login failed. Please try again.');
       }
@@ -84,7 +84,7 @@ export default function CompanyLoginPage() {
               </div>
               <span className="text-xl font-bold text-gray-900">JobFinder</span>
             </Link>
-            
+
             <div className="flex items-center space-x-4">
               <Link href="/company/register">
                 <Button variant="outline">
@@ -254,7 +254,7 @@ export default function CompanyLoginPage() {
                 </h3>
                 <div className="mt-2 text-sm text-blue-700">
                   <p>
-                    Your account security is important to us. We use industry-standard encryption 
+                    Your account security is important to us. We use industry-standard encryption
                     to protect your data and never store your password in plain text.
                   </p>
                 </div>

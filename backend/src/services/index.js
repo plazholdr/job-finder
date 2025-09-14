@@ -1042,6 +1042,46 @@ module.exports = function (app) {
     }
   });
 
+  // Signed image proxy: serve company logos or profile avatars by key or absolute URL
+  app.get('/files/image', async (req, res) => {
+    try {
+      const { key, url, minutes } = req.query || {};
+      const expires = parseInt(minutes || '10', 10);
+
+      let fileKey = key;
+      if (!fileKey && url) {
+        try {
+          const u = new URL(url);
+          fileKey = u.pathname.replace(/^\/+/, '');
+        } catch {
+          fileKey = url;
+        }
+      }
+
+      if (!fileKey || typeof fileKey !== 'string') {
+        return res.status(400).json({ error: 'Missing image key or url' });
+      }
+
+      // Try S3 first; if not configured, fall back to GCS utils
+      try {
+        const { S3StorageUtils } = require('../utils/s3-storage');
+        const signed = await S3StorageUtils.generateDownloadUrl(fileKey, expires);
+        return res.redirect(signed);
+      } catch (_s3err) {
+        try {
+          const StorageUtils = require('../utils/storage');
+          const signed = await StorageUtils.generateSignedUrl(fileKey, expires);
+          return res.redirect(signed);
+        } catch (e) {
+          return res.status(404).json({ error: 'File not found or not accessible' });
+        }
+      }
+    } catch (error) {
+      console.error('Signed image proxy error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Register internships service endpoints
   app.get('/internships', authenticateToken(app), async (req, res) => {
     try {

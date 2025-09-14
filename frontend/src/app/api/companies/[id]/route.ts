@@ -30,10 +30,10 @@ async function makeBackendRequest(endpoint: string, options: RequestInit = {}) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const companyId = params.id;
+    const { id: companyId } = await params;
 
     // Call backend API to get company details
     const company = await makeBackendRequest(`/companies/${companyId}`);

@@ -52,20 +52,34 @@ export async function GET(request: NextRequest) {
     const backendResponse = await makeBackendRequest(`/companies?${queryParams.toString()}`);
 
     // Transform backend data to match frontend expectations
-    const transformedCompanies = (backendResponse.data || []).map((company: any) => ({
-      id: company._id,
-      name: company.company?.name || `${company.firstName} ${company.lastName}`,
-      description: company.company?.description || 'Company description not available',
-      nature: company.company?.industry || 'Technology',
-      logo: company.company?.logo || '/api/placeholder/64/64',
-      email: company.email,
-      address: company.company?.headquarters || 'Address not available',
-      phoneNumber: company.company?.phone || 'Phone not available',
-      website: company.company?.website || '',
-      activeJobsCount: company.activeJobsCount || 0,
-      createdAt: company.createdAt,
-      updatedAt: company.updatedAt
-    }));
+    const transformedCompanies = (backendResponse.data || []).map((company: any) => {
+      // Convert S3 key to image URL if logo exists
+      let logoUrl = '/api/placeholder/64/64';
+      if (company.company?.logo && company.company.logo !== '/api/placeholder/64/64') {
+        // If it's already a full URL, use it as is
+        if (company.company.logo.startsWith('http')) {
+          logoUrl = company.company.logo;
+        } else {
+          // Convert S3 key to image endpoint URL
+          logoUrl = `/api/files/image?key=${encodeURIComponent(company.company.logo)}`;
+        }
+      }
+
+      return {
+        id: company._id,
+        name: company.company?.name || `${company.firstName} ${company.lastName}`,
+        description: company.company?.description || 'Company description not available',
+        nature: company.company?.industry || 'Technology',
+        logo: logoUrl,
+        email: company.email,
+        address: company.company?.headquarters || 'Address not available',
+        phoneNumber: company.company?.phone || 'Phone not available',
+        website: company.company?.website || '',
+        activeJobsCount: company.activeJobsCount || 0,
+        createdAt: company.createdAt,
+        updatedAt: company.updatedAt
+      };
+    });
 
     return NextResponse.json({
       success: true,

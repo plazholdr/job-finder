@@ -82,12 +82,42 @@ export default function LoginPage() {
   };
 
   return (
-    <>
-      <div className="hidden lg:block w-1/2 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-50">
-        <LoginIllustration />
+    <div className="flex min-h-screen">
+      {/* Left Side - Illustration */}
+      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+        <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white h-full">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center"
+          >
+            <div className="mb-8">
+              <div className="h-20 w-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
+                <ArrowRight className="h-10 w-10 text-white" />
+              </div>
+              <h2 className="text-4xl font-bold mb-4">Find Your Dream Career</h2>
+              <p className="text-xl text-blue-100 mb-8 max-w-md">
+                Connect with top employers and discover opportunities that match your skills and aspirations.
+              </p>
+            </div>
+            <div className="flex items-center justify-center space-x-4 text-sm">
+              <div className="flex -space-x-2">
+                <div className="h-8 w-8 bg-white/30 rounded-full border-2 border-white"></div>
+                <div className="h-8 w-8 bg-white/30 rounded-full border-2 border-white"></div>
+                <div className="h-8 w-8 bg-white/30 rounded-full border-2 border-white"></div>
+              </div>
+              <span className="text-blue-100">Join 10,000+ professionals who found their next job with us</span>
+            </div>
+          </motion.div>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-blue-900/50 to-transparent"></div>
       </div>
 
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16">
+      {/* Right Side - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16 bg-white/80 backdrop-blur-sm">
         <motion.div
           className="w-full max-w-md space-y-8"
           initial={{ opacity: 0, y: 20 }}
@@ -96,9 +126,11 @@ export default function LoginPage() {
         >
           <div className="text-center">
             <div className="flex justify-center mb-6">
-
+              <div className="h-12 w-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                <ArrowRight className="h-6 w-6 text-white" />
+              </div>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Welcome back</h1>
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Welcome back</h1>
             <p className="mt-2 text-sm text-gray-600">
               Sign in to your account to continue
             </p>
@@ -212,6 +244,6 @@ export default function LoginPage() {
           </p>
         </motion.div>
       </div>
-    </>
+    </div>
   );
 }

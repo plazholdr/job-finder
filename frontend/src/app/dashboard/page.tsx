@@ -22,19 +22,43 @@ import {
   ArrowRight,
   Bell,
   Target,
-  GraduationCap
+  GraduationCap,
+  Plus,
+  Eye,
+  MoreHorizontal,
+  UserCheck,
+  ArrowUpRight,
+  Edit,
+  Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import InternWorkflowIntegration from '@/components/workflow/InternWorkflowIntegration';
 import ProfileCompletionWizard from '@/components/profile/ProfileCompletionWizard';
 import ProfileCompletionCard from '@/components/profile/ProfileCompletionCard';
 import { useAuth } from '@/contexts/auth-context';
+import dynamic from 'next/dynamic';
+
+const CompanyEssentialsModal = dynamic(() => import('@/components/company/CompanyEssentialsModal'), { ssr: false });
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [showProfileWizard, setShowProfileWizard] = useState(false);
   const [internships, setInternships] = useState<any[]>([]);
   const [loadingInternships, setLoadingInternships] = useState(true);
+
+  // Company dashboard state (when user.role === 'company')
+  const [companyStats, setCompanyStats] = useState<any>({
+    totalJobs: 0,
+    activeJobs: 0,
+    totalApplications: 0,
+    newApplications: 0,
+    interviewsScheduled: 0,
+    hiredCandidates: 0,
+  });
+  const [recentJobs, setRecentJobs] = useState<any[]>([]);
+  const [recentApplications, setRecentApplications] = useState<any[]>([]);
+  const [loadingCompany, setLoadingCompany] = useState(true);
+  const [showEssentials, setShowEssentials] = useState(false);
 
   // Fetch user's internships
   useEffect(() => {
@@ -74,6 +98,62 @@ export default function Dashboard() {
     };
 
     fetchInternships();
+  }, [user]);
+
+  // Company dashboard data
+  useEffect(() => {
+    if (!user || user.role !== 'company') return;
+
+    const fetchCompany = async () => {
+      try {
+        setLoadingCompany(true);
+        const token = localStorage.getItem('authToken');
+        // Show essentials modal if approved/verified but essentials not provided
+        if (user?.company?.approvalStatusCode === 1 && !user?.company?.inputEssentials) {
+          setShowEssentials(true);
+        }
+
+        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+
+        // NOTE: In production, /api/* is proxied by Nginx directly to the backend.
+        // Use backend paths here to avoid hitting non-existent Next API routes.
+        const [statsRes, jobsRes, appsRes] = await Promise.all([
+          fetch('/api/applications/stats/company', { headers }),
+          fetch('/api/jobs?$limit=5', { headers }),
+          fetch('/api/applications?$limit=5', { headers }),
+        ]);
+
+        const statsData = await statsRes.json().catch(() => ({}));
+        // Backend returns plain stats object; accept either {success,data} or plain object
+        if (statsData?.success && statsData.data) {
+          setCompanyStats(statsData.data);
+        } else if (statsData && !statsData.error) {
+          setCompanyStats(statsData);
+        }
+
+        const jobsData = await jobsRes.json().catch(() => ([]));
+        const jobsArr = Array.isArray(jobsData?.data)
+          ? jobsData.data
+          : Array.isArray(jobsData)
+          ? jobsData
+          : [];
+        setRecentJobs(jobsArr);
+
+        const appsData = await appsRes.json().catch(() => ([]));
+        const appsArr = Array.isArray(appsData?.data)
+          ? appsData.data
+          : Array.isArray(appsData)
+          ? appsData
+          : [];
+        setRecentApplications(appsArr);
+      } catch (e) {
+        console.error('Error loading company dashboard:', e);
+      } finally {
+        setLoadingCompany(false);
+      }
+    };
+
+    fetchCompany();
   }, [user]);
 
   // Helper function to format dates safely
@@ -206,6 +286,239 @@ export default function Dashboard() {
       alert('Failed to update profile. Please try again.');
     }
   };
+
+  // Helpers for company statuses
+  const companyStatusColor = (status: string) => {
+    switch (status) {
+      case 'published': return 'bg-green-100 text-green-800';
+      case 'draft': return 'bg-gray-100 text-gray-800';
+      case 'paused': return 'bg-yellow-100 text-yellow-800';
+      case 'closed': return 'bg-red-100 text-red-800';
+      case 'submitted': return 'bg-green-100 text-green-800';
+      case 'reviewing': return 'bg-yellow-100 text-yellow-800';
+      case 'shortlisted': return 'bg-purple-100 text-purple-800';
+      case 'interview_scheduled': return 'bg-indigo-100 text-indigo-800';
+      case 'offer_extended': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const companyStatusText = (status: string) => {
+    switch (status) {
+      case 'submitted': return 'New Application';
+      case 'reviewing': return 'Reviewing';
+      case 'shortlisted': return 'Shortlisted';
+      case 'interview_scheduled': return 'Interview Scheduled';
+      case 'offer_extended': return 'Offer Extended';
+      case 'rejected': return 'Rejected';
+      default: return (status || '').replace('_', ' ');
+    }
+  };
+
+  // If company, render company dashboard within the same layout/template
+  if (user?.role === 'company') {
+    return (
+      <AppLayout>
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+            <p className="text-gray-600">Welcome back! Manage your hiring at a glance</p>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Jobs</p>
+                    <p className="text-3xl font-bold text-gray-900">{companyStats.totalJobs}</p>
+                    <p className="text-sm text-gray-500">{companyStats.activeJobs} active</p>
+                  </div>
+                  <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Briefcase className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Applications</p>
+                    <p className="text-3xl font-bold text-gray-900">{companyStats.totalApplications}</p>
+                    <p className="text-sm text-green-600 flex items-center">
+                      <ArrowUpRight className="h-4 w-4 mr-1" />
+                      {companyStats.newApplications} new
+                    </p>
+                  </div>
+                  <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <FileText className="h-6 w-6 text-green-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Interviews</p>
+                    <p className="text-3xl font-bold text-gray-900">{companyStats.interviewsScheduled}</p>
+                    <p className="text-sm text-gray-500">scheduled</p>
+                  </div>
+                  <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <Calendar className="h-6 w-6 text-purple-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Hired</p>
+                    <p className="text-3xl font-bold text-gray-900">{companyStats.hiredCandidates}</p>
+                    <p className="text-sm text-gray-500">this month</p>
+                  </div>
+                  <div className="h-12 w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <UserCheck className="h-6 w-6 text-yellow-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Recent Job Postings */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Recent Job Postings</CardTitle>
+                <Link href="/company/jobs">
+                  <Button variant="outline" size="sm">View All</Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {recentJobs.length > 0 ? (
+                    recentJobs.map((job: any, idx: number) => (
+                      <div key={job._id || job.id || idx} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">{job.title}</h3>
+                          <p className="text-sm text-gray-600">{job.department} • {job.type}</p>
+                          <div className="flex items-center space-x-4 mt-2">
+                            <span className="text-sm text-gray-500 flex items-center">
+                              <Eye className="h-4 w-4 mr-1" />{job.viewsCount} views
+                            </span>
+                            <span className="text-sm text-gray-500 flex items-center">
+                              <Users className="h-4 w-4 mr-1" />{job.applicationsCount} applications
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={companyStatusColor(job.status)}>{job.status}</Badge>
+                          <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">No job postings yet</p>
+                      <Link href="/company/jobs/create"><Button className="mt-2">Create Your First Job</Button></Link>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Applications */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Recent Applications</CardTitle>
+                <Link href="/company/applications">
+                  <Button variant="outline" size="sm">View All</Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {recentApplications.length > 0 ? (
+                    recentApplications.map((application: any, idx: number) => (
+                      <div key={application.id || idx} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">{application.candidate?.name}</h3>
+                          <p className="text-sm text-gray-600">{application.candidate?.email}</p>
+                          <p className="text-sm text-blue-600 font-medium">{application.jobTitle || 'Unknown Position'}</p>
+                          <p className="text-sm text-gray-500 mt-1">Applied {application.submittedAt ? new Date(application.submittedAt).toLocaleDateString() : ''}</p>
+                        </div>
+                        <Badge className={companyStatusColor(application.status)}>
+                          {companyStatusText(application.status)}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">No applications yet</p>
+                      <p className="text-sm text-gray-500 mt-1">Applications will appear once candidates start applying</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Company Management */}
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" /> Company Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Link href="/company/profile">
+                  <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center hover:bg-blue-50 hover:border-blue-300">
+                    <Edit className="h-6 w-6 mb-2 text-blue-600" />
+                    <span className="text-sm font-medium">Manage Profile</span>
+                    <span className="text-xs text-gray-500">Edit company information</span>
+                  </Button>
+                </Link>
+                <Link href="/company/settings">
+                  <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center hover:bg-green-50 hover:border-green-300">
+                    <Settings className="h-6 w-6 mb-2 text-green-600" />
+                    <span className="text-sm font-medium">Settings</span>
+                    <span className="text-xs text-gray-500">Account & preferences</span>
+                  </Button>
+                </Link>
+                <Link href="/company/verification">
+                  <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center hover:bg-purple-50 hover:border-purple-300">
+                    <UserCheck className="h-6 w-6 mb-2 text-purple-600" />
+                    <span className="text-sm font-medium">Verification</span>
+                    <span className="text-xs text-gray-500">Company verification status</span>
+                  </Button>
+                </Link>
+                <Link href="/companies">
+                  <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center hover:bg-orange-50 hover:border-orange-300">
+                    <Eye className="h-6 w-6 mb-2 text-orange-600" />
+                    <span className="text-sm font-medium">View Public Profile</span>
+                    <span className="text-xs text-gray-500">See how others see you</span>
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Essentials modal */}
+        <CompanyEssentialsModal open={showEssentials} onOpenChange={setShowEssentials} />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
