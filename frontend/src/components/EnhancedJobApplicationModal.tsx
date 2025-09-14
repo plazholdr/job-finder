@@ -105,59 +105,40 @@ export default function EnhancedJobApplicationModal({
 
 
   const downloadResume = async () => {
-    if (!user?._id || !userProfile?.student?.resume) {
+    if (!userProfile?.student?.resume) {
       alert('No resume found');
       return;
     }
 
     try {
       const token = localStorage.getItem('authToken');
-      const resp = await fetch(`/api/users/${user._id}?resumeUrl=1`, {
+      const resp = await fetch('/api/users/resume/download', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!resp.ok) {
-        let msg = `Failed to fetch resume link (HTTP ${resp.status})`;
-        try {
-          const jErr = await resp.json();
-          if (jErr?.error) msg = jErr.error;
-        } catch {}
-        throw new Error(msg);
+        // show server error (e.g., "Authentication required", "No resume found")
+        const j = await resp.json().catch(() => null);
+        throw new Error(j?.error || `Download failed (${resp.status})`);
       }
 
-      const j = await resp.json();
+      // try to use filename from server if present
+      const dispo = resp.headers.get('content-disposition') || '';
+      let filename = 'resume';
+      const m =
+        dispo.match(/filename\*?=(?:UTF-8''|")(.*?)(?:;|$|")/i) ||
+        dispo.match(/filename="?([^"]+)"?/i);
+      if (m) filename = decodeURIComponent(m[1]);
 
-      const url =
-        j?.url ||                 
-        j?.signedUrl ||           
-        j?.downloadUrl ||         
-        j?.data?.url ||           
-        j?.data?.signedUrl ||     
-        j?.data?.downloadUrl ||   
-        (typeof j?.data === 'string' ? j.data : null);
-
-      if (!url) {
-        const bin = await fetch('/api/users/resume/download', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (bin.ok) {
-          const blob = await bin.blob();
-          const bUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = bUrl;
-          a.download = 'resume.pdf';
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(bUrl);
-          return;
-        }
-
-        throw new Error('No signed URL returned');
-      }
-
-      // Open signed S3 URL directly (avoids CORS/blob handling)
-      window.open(url, '_blank', 'noopener');
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Resume download error:', err);
       alert(String((err as Error).message || 'Failed to download resume'));

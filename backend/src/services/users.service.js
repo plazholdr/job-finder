@@ -22,6 +22,19 @@ async function fetchFromS3(key) {
   };
 }
 
+function normalizeKey(key) {
+  if (typeof key === 'string' && /^https?:\/\//i.test(key)) {
+    try {
+      const u = new URL(key);
+      return u.pathname.replace(/^\/+/, '');
+    } catch {
+      return key;
+    }
+  }
+  return key;
+}
+
+
 class UsersService {
   constructor(app) {
     this.app = app;
@@ -87,29 +100,31 @@ class UsersService {
 
   async get(id, params = {}) {
     try {
-      
+      const q = (params && params.query) || {};
+
       const wantsResumeUrl =
-        params?.query?.resumeUrl === '1' ||
-        params?.query?.resumeUrl === 'true' ||
-        params?.query?.download === 'resume';
+        q.resumeUrl === '1' || q.resumeUrl === 'true' || q.resumeUrl === 1 || q.resumeUrl === true ||
+        q.resumeURL === '1' || q.resumeURL === 'true' || q.resumeURL === 1 || q.resumeURL === true ||
+        q.download === 'resume';
 
       if (wantsResumeUrl) {
-        
         const requester = params.user?._id || params.user?.id || params.userId;
         if (!requester) throw new Error('Authentication required');
         if (String(requester) !== String(id)) throw new Error('Not authorized');
 
         const u = await this.userModel.findById(id);
         if (!u) throw new Error('User not found');
-        const key = u.student?.resume;
-        if (!key) throw new Error('No resume found for this user');
 
-        const { S3StorageUtils } = require('../utils/s3-storage');
-        const url = await S3StorageUtils.generateDownloadUrl(key, 5); // 5 min expiry
-        return { success: true, url };
+        const rawKey = u.student?.resume;
+        if (!rawKey) throw new Error('No resume found for this user');
+
+        const key = normalizeKey(rawKey);
+        const url = await S3StorageUtils.generateDownloadUrl(key, 5); // 5 minutes
+
+        // Return both top-level and data.url to be frontend-friendly
+        return { url, data: { url } };
       }
 
-      
       const user = await this.userModel.findById(id);
       if (!user) throw new Error('User not found');
       return user;
@@ -119,6 +134,8 @@ class UsersService {
       throw error;
     }
   }
+
+
 
   async patch(id, data) {
     try {

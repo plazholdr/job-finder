@@ -46,8 +46,7 @@ function InternshipSetup() {
   const isUpdateMode = searchParams.get('update') === 'true';
 
   // Flow state management following the flowchart
-  const [currentStep, setCurrentStep] = useState<'profile' | 'decision' | 'details' | 'courses' | 'assignments' | 'complete'>(stepParam as any);
-  const [useExistingInfo, setUseExistingInfo] = useState<boolean | null>(null);
+  const [currentStep, setCurrentStep] = useState<'profile' | 'details' | 'courses' | 'assignments' | 'complete'>(stepParam as any);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -60,6 +59,7 @@ function InternshipSetup() {
       phone: user?.profile?.phone || '',
       location: user?.profile?.location || '',
       bio: user?.profile?.bio || '',
+      website: user?.profile?.website || '',
       linkedin: user?.profile?.linkedin || '',
       github: user?.profile?.github || ''
     },
@@ -73,23 +73,28 @@ function InternshipSetup() {
     duration: { startDate: '', endDate: '', isFlexible: true },
     preferredIndustry: [],
     preferredLocations: [],
-    salaryRange: { min: 15, max: 25, currency: 'USD', period: 'hour', isNegotiable: true },
+    salaryRange: { min: 0, max: 0, currency: 'MYR', period: 'month', isNegotiable: true },
     skills: [],
-    languages: [{ name: 'English', proficiency: 'Fluent' }],
+    languages: [],
     availability: { hoursPerWeek: 40, flexibleSchedule: true, availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] },
-    workPreferences: { remote: false, hybrid: true, onSite: true, travelWillingness: 'Local' }
+    workPreferences: { remote: false, hybrid: true, onSite: true, travelWillingness: 'Local' },
+    courses: [],
+    assignments: []
   });
 
   const [courses, setCourses] = useState<CourseInformation[]>([]);
   const [assignments, setAssignments] = useState<AssignmentInformation[]>([]);
+  const [selectedResumeFile, setSelectedResumeFile] = useState<File | null>(null);
 
   // Load existing data if in update mode
   useEffect(() => {
     if (isUpdateMode && user?.internship) {
       setProfileData(user.internship.profile || profileData);
-      setInternshipDetails(user.internship.details || internshipDetails);
-      setCourses(user.internship.courses || []);
-      setAssignments(user.internship.assignments || []);
+      // Load from the correct nested path: internship.profile.details
+      const existingDetails = user.internship.profile?.details || internshipDetails;
+      setInternshipDetails(existingDetails);
+      setCourses(existingDetails.courses || []);
+      setAssignments(existingDetails.assignments || []);
     }
   }, [user, isUpdateMode]);
 
@@ -122,15 +127,42 @@ function InternshipSetup() {
         return;
       }
 
-      // Prepare data to save
+      // Prepare data to save - match your exact data structure
       const internshipData = {
-        profile: profileData,
-        details: internshipDetails,
-        courses,
-        assignments
+        profile: {
+          ...profileData,
+          details: {
+            ...internshipDetails,
+            courses,
+            assignments
+          }
+        },
+        applications: user?.internship?.applications || [],
+        isSetupComplete: true
       };
 
       console.log('Saving internship data for user:', user._id);
+      console.log('Data structure:', JSON.stringify(internshipData, null, 2));
+
+      // Upload resume if selected (only on complete setup)
+      if (nextStep === 'complete' && selectedResumeFile) {
+        console.log('Uploading resume file:', selectedResumeFile.name);
+        const formData = new FormData();
+        formData.append('file', selectedResumeFile);
+
+        const resumeResponse = await fetch('/api/users/resume/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          },
+          body: formData,
+        });
+
+        if (!resumeResponse.ok) {
+          throw new Error('Failed to upload resume');
+        }
+        console.log('Resume uploaded successfully');
+      }
 
       await updateUser({
         internship: internshipData
@@ -189,7 +221,7 @@ function InternshipSetup() {
               </h1>
               <p className="text-gray-600">
                 {currentStep === 'profile' && 'Set up your intern profile information'}
-                {currentStep === 'decision' && 'Choose which information to use'}
+
                 {currentStep === 'details' && 'Input internship details (duration, industry, location, salary, skills, languages)'}
                 {currentStep === 'courses' && 'Input course information (multiple)'}
                 {currentStep === 'assignments' && 'Input past/current assignment information (multiple)'}
@@ -253,7 +285,7 @@ function InternshipSetup() {
         )}
 
         {/* Step 1: Profile Information */}
-        {currentStep === 'profile' && !isUpdateMode && (
+        {currentStep === 'profile' && (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Profile Information</h2>
 
@@ -273,203 +305,189 @@ function InternshipSetup() {
               )}
             </div>
 
-            {/* Decision: Use same info? */}
-            <div className="mb-6">
-              <h3 className="font-medium text-gray-900 mb-4">Use same info?</h3>
-              <div className="space-y-3">
-                <label className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="useExistingInfo"
-                    value="yes"
-                    checked={useExistingInfo === true}
-                    onChange={() => setUseExistingInfo(true)}
-                    className="text-blue-600"
-                  />
-                  <div>
-                    <div className="font-medium text-gray-900">Yes, use same info</div>
-                    <div className="text-sm text-gray-500">Continue with the existing intern profile information shown above</div>
-                  </div>
-                </label>
-
-                <label className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="useExistingInfo"
-                    value="no"
-                    checked={useExistingInfo === false}
-                    onChange={() => setUseExistingInfo(false)}
-                    className="text-blue-600"
-                  />
-                  <div>
-                    <div className="font-medium text-gray-900">No, I want to choose which info to use and input new information</div>
-                    <div className="text-sm text-gray-500">Customize your intern profile with new details of your choice</div>
-                  </div>
-                </label>
+            {/* Profile Information Form */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                <input
+                  type="text"
+                  value={profileData.profileInformation?.firstName || ''}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    profileInformation: { ...prev.profileInformation!, firstName: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                <input
+                  type="text"
+                  value={profileData.profileInformation?.lastName || ''}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    profileInformation: { ...prev.profileInformation!, lastName: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <input
+                  type="email"
+                  value={profileData.profileInformation?.email || ''}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                <input
+                  type="tel"
+                  value={profileData.profileInformation?.phone || ''}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    profileInformation: { ...prev.profileInformation!, phone: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <input
+                  type="text"
+                  value={profileData.profileInformation?.location || ''}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    profileInformation: { ...prev.profileInformation!, location: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+                <input
+                  type="url"
+                  value={profileData.profileInformation?.website || ''}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    profileInformation: { ...prev.profileInformation!, website: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">LinkedIn</label>
+                <input
+                  type="url"
+                  value={profileData.profileInformation?.linkedin || ''}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    profileInformation: { ...prev.profileInformation!, linkedin: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">GitHub</label>
+                <input
+                  type="url"
+                  value={profileData.profileInformation?.github || ''}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    profileInformation: { ...prev.profileInformation!, github: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
             </div>
 
-            <div className="flex justify-between">
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+              <textarea
+                value={profileData.profileInformation?.bio || ''}
+                onChange={(e) => setProfileData(prev => ({
+                  ...prev,
+                  profileInformation: { ...prev.profileInformation!, bio: e.target.value }
+                }))}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Tell us about yourself..."
+              />
+            </div>
+
+            {/* Resume Section */}
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Resume</label>
+
+              {/* Current Resume */}
+              {user?.student?.resume && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-green-800">Current Resume</span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/users/resume/download', {
+                            headers: {
+                              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                            },
+                          });
+                          if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'resume.pdf';
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                          }
+                        } catch (error) {
+                          console.error('Download failed:', error);
+                        }
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Download
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Upload New Resume */}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelectedResumeFile(file);
+                    }
+                  }}
+                  className="w-full"
+                />
+                <div className="text-center mt-2">
+                  <p className="text-sm text-gray-600">
+                    {user?.student?.resume ? 'Select new resume (PDF, DOC, DOCX)' : 'Select your resume (PDF, DOC, DOCX)'}
+                  </p>
+                  {selectedResumeFile && (
+                    <p className="text-sm text-green-600 mt-1">
+                      Selected: {selectedResumeFile.name} - Will upload when setup is completed
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between mt-6">
               <Link
                 href="/internship"
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
                 ← Back to Internship Section
               </Link>
-              <button
-                onClick={() => {
-                  if (useExistingInfo === true) {
-                    setCurrentStep('details');
-                  } else if (useExistingInfo === false) {
-                    setCurrentStep('decision');
-                  }
-                }}
-                disabled={useExistingInfo === null}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                Continue
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Decision - Input new profile info */}
-        {currentStep === 'decision' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Choose which intern info to use and input the new info of choice</h2>
-
-            <div className="space-y-6">
-              {/* Profile Information Form */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Intern Profile Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-                    <input
-                      type="text"
-                      value={profileData.profileInformation?.firstName || ''}
-                      onChange={(e) => setProfileData(prev => ({
-                        ...prev,
-                        profileInformation: { ...prev.profileInformation!, firstName: e.target.value }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                    <input
-                      type="text"
-                      value={profileData.profileInformation?.lastName || ''}
-                      onChange={(e) => setProfileData(prev => ({
-                        ...prev,
-                        profileInformation: { ...prev.profileInformation!, lastName: e.target.value }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input
-                      type="email"
-                      value={profileData.profileInformation?.email || ''}
-                      onChange={(e) => setProfileData(prev => ({
-                        ...prev,
-                        profileInformation: { ...prev.profileInformation!, email: e.target.value }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                    <input
-                      type="tel"
-                      value={profileData.profileInformation?.phone || ''}
-                      onChange={(e) => setProfileData(prev => ({
-                        ...prev,
-                        profileInformation: { ...prev.profileInformation!, phone: e.target.value }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="+1 (555) 123-4567"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                    <input
-                      type="text"
-                      value={profileData.profileInformation?.location || ''}
-                      onChange={(e) => setProfileData(prev => ({
-                        ...prev,
-                        profileInformation: { ...prev.profileInformation!, location: e.target.value }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="City, State"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
-                    <textarea
-                      value={profileData.profileInformation?.bio || ''}
-                      onChange={(e) => setProfileData(prev => ({
-                        ...prev,
-                        profileInformation: { ...prev.profileInformation!, bio: e.target.value }
-                      }))}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Tell us about yourself as an intern and your career goals..."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Interests */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Interests</h3>
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    placeholder="Add an interest and press Enter"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                        setProfileData(prev => ({
-                          ...prev,
-                          interests: [...(prev.interests || []), e.currentTarget.value.trim()]
-                        }));
-                        e.currentTarget.value = '';
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {profileData.interests?.map((interest, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                      >
-                        {interest}
-                        <button
-                          onClick={() => setProfileData(prev => ({
-                            ...prev,
-                            interests: prev.interests?.filter((_, i) => i !== index)
-                          }))}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between mt-8">
-              <button
-                onClick={() => setCurrentStep('profile')}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                ← Back
-              </button>
               <button
                 onClick={() => setCurrentStep('details')}
                 className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -481,7 +499,7 @@ function InternshipSetup() {
           </div>
         )}
 
-        {/* Step 3: Internship Details */}
+        {/* Step 2: Internship Details */}
         {currentStep === 'details' && (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Internship Details</h2>
@@ -552,13 +570,13 @@ function InternshipSetup() {
                 </div>
               </div>
 
-              {/* Preferred Location 1 - 3 (city, state) */}
+              {/* Preferred Location 1 - 3 (city, state) - Malaysia locations */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Preferred Location 1 - 3 (city, state)</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Preferred Location 1 - 3 (city, state) - Malaysia</h3>
                 <div className="space-y-2">
                   <input
                     type="text"
-                    placeholder="Add a location and press Enter"
+                    placeholder="Add a Malaysian location (e.g., Kuala Lumpur, Selangor) and press Enter"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                         const location = e.currentTarget.value.trim();
@@ -600,7 +618,7 @@ function InternshipSetup() {
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Preferred salary range (min - max)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Min ($)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Min (MYR)</label>
                     <input
                       type="number"
                       value={internshipDetails.salaryRange?.min || ''}
@@ -609,10 +627,11 @@ function InternshipSetup() {
                         salaryRange: { ...prev.salaryRange!, min: parseInt(e.target.value) || 0 }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Max ($)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Max (MYR)</label>
                     <input
                       type="number"
                       value={internshipDetails.salaryRange?.max || ''}
@@ -621,12 +640,28 @@ function InternshipSetup() {
                         salaryRange: { ...prev.salaryRange!, max: parseInt(e.target.value) || 0 }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="1500"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                    <select
+                      value={internshipDetails.salaryRange?.currency || 'MYR'}
+                      onChange={(e) => setInternshipDetails(prev => ({
+                        ...prev,
+                        salaryRange: { ...prev.salaryRange!, currency: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="MYR">MYR</option>
+                      <option value="USD">USD</option>
+                      <option value="SGD">SGD</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Period</label>
                     <select
-                      value={internshipDetails.salaryRange?.period || 'hour'}
+                      value={internshipDetails.salaryRange?.period || 'month'}
                       onChange={(e) => setInternshipDetails(prev => ({
                         ...prev,
                         salaryRange: { ...prev.salaryRange!, period: e.target.value as any }
@@ -638,6 +673,20 @@ function InternshipSetup() {
                       <option value="month">Per Month</option>
                     </select>
                   </div>
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={internshipDetails.salaryRange?.isNegotiable || false}
+                      onChange={(e) => setInternshipDetails(prev => ({
+                        ...prev,
+                        salaryRange: { ...prev.salaryRange!, isNegotiable: e.target.checked }
+                      }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">Salary is negotiable</span>
+                  </label>
                 </div>
               </div>
 
@@ -687,62 +736,50 @@ function InternshipSetup() {
               {/* Languages */}
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Languages</h3>
-                <div className="space-y-3">
-                  {internshipDetails.languages?.map((language, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                      <input
-                        type="text"
-                        placeholder="Language"
-                        value={language.name}
-                        onChange={(e) => {
-                          const updatedLanguages = [...(internshipDetails.languages || [])];
-                          updatedLanguages[index] = { ...updatedLanguages[index], name: e.target.value };
-                          setInternshipDetails(prev => ({ ...prev, languages: updatedLanguages }));
-                        }}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <select
-                        value={language.proficiency}
-                        onChange={(e) => {
-                          const updatedLanguages = [...(internshipDetails.languages || [])];
-                          updatedLanguages[index] = { ...updatedLanguages[index], proficiency: e.target.value as any };
-                          setInternshipDetails(prev => ({ ...prev, languages: updatedLanguages }));
-                        }}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Add a language and press Enter"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                        const language = e.currentTarget.value.trim();
+                        if (!internshipDetails.languages?.includes(language)) {
+                          setInternshipDetails(prev => ({
+                            ...prev,
+                            languages: [...(prev.languages || []), language]
+                          }));
+                        }
+                        e.currentTarget.value = '';
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {internshipDetails.languages?.map((language, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
                       >
-                        <option value="Basic">Basic</option>
-                        <option value="Conversational">Conversational</option>
-                        <option value="Fluent">Fluent</option>
-                        <option value="Native">Native</option>
-                      </select>
-                      <button
-                        onClick={() => setInternshipDetails(prev => ({
-                          ...prev,
-                          languages: prev.languages?.filter((_, i) => i !== index)
-                        }))}
-                        className="p-2 text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => setInternshipDetails(prev => ({
-                      ...prev,
-                      languages: [...(prev.languages || []), { name: '', proficiency: 'Basic' }]
-                    }))}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Language
-                  </button>
+                        {language}
+                        <button
+                          onClick={() => setInternshipDetails(prev => ({
+                            ...prev,
+                            languages: prev.languages?.filter((_, i) => i !== index)
+                          }))}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="flex justify-between mt-8">
               <button
-                onClick={() => setCurrentStep(useExistingInfo ? 'profile' : 'decision')}
+                onClick={() => setCurrentStep('profile')}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
                 ← Back
@@ -758,7 +795,7 @@ function InternshipSetup() {
           </div>
         )}
 
-        {/* Step 4: Course Information (multiple) */}
+        {/* Step 3: Course Information (multiple) */}
         {currentStep === 'courses' && (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Intern Course Information (multiple)</h2>
@@ -873,7 +910,7 @@ function InternshipSetup() {
           </div>
         )}
 
-        {/* Step 5: Assignment Information (multiple) */}
+        {/* Step 4: Assignment Information (multiple) */}
         {currentStep === 'assignments' && (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Intern Assignment Information (multiple)</h2>

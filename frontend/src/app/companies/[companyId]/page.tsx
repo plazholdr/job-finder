@@ -67,6 +67,135 @@ interface CompanyJob {
   remote: boolean;
 }
 
+const withBase = (p?: string) =>
+  !p ? '' : p.startsWith('http') ? p : p; // tweak if you need to prefix a CDN/base URL
+
+function normalizeJob(j: any) {
+  console.log('🔍 JOB NORMALIZE DEBUG: Job salary object:', j.salary);
+
+  const skills: string[] = Array.isArray(j.skills?.technical)
+    ? j.skills.technical
+    : Array.isArray(j.skills)
+      ? j.skills
+      : typeof j.skills === 'string'
+        ? j.skills.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : [];
+
+  const result = {
+    id: String(j.id ?? j._id),
+    title: j.title ?? j.name ?? '',
+    location: j.location ?? j.city ?? j.address ?? '',
+    type: j.type ?? j.employmentType ?? 'Full-time',
+    salary: {
+      min: Number(j.salary?.minimum ?? j.salary?.min ?? j.minSalary ?? 0),
+      max: Number(j.salary?.maximum ?? j.salary?.max ?? j.maxSalary ?? 0),
+      currency: j.salary?.currency ?? j.currency ?? 'USD',
+      period: j.salary?.type ?? j.salary?.period ?? 'year',
+    },
+    posted: j.posted ?? j.createdAt ?? new Date().toISOString(),
+    description: j.description ?? '',
+    skills,
+    experienceLevel: j.experienceLevel ?? j.level ?? 'Not specified',
+    remote: Boolean(j.remoteWork ?? j.remote ?? j.isRemote),
+  };
+
+  console.log('🔍 JOB NORMALIZE DEBUG: Result salary:', result.salary);
+  return result;
+}
+
+function normalizeCompanyDetails(c: any): CompanyDetails {
+  console.log('🔍 NORMALIZE DEBUG: Input keys:', Object.keys(c));
+  console.log('🔍 NORMALIZE DEBUG: firstName:', c.firstName, 'lastName:', c.lastName);
+  console.log('🔍 NORMALIZE DEBUG: company object:', c.company);
+
+  // Handle the actual API structure - company name from firstName + lastName
+  const companyName = c.firstName && c.lastName
+    ? `${c.firstName} ${c.lastName}`.trim()
+    : c.company?.name || c.name || '';
+
+  const result = {
+    id: String(c.id ?? c._id ?? c.companyId),
+    name: companyName,
+    logo: withBase(c.company?.logo ?? c.logo ?? ''),
+    coverImage: withBase(c.coverImage?.url ?? c.coverImage ?? ''),
+    industry: c.company?.industry ?? c.industry ?? '',
+    size: c.company?.size ?? c.size ?? '',
+    founded: String(c.company?.founded ?? c.founded ?? ''),
+    headquarters: c.company?.headquarters ?? c.headquarters ?? c.profile?.location ?? '',
+    website: c.company?.website ?? c.website ?? c.profile?.website ?? '',
+    email: c.email ?? '',
+    phone: c.phone ?? c.profile?.phone ?? '',
+    description: c.company?.description ?? c.description ?? '',
+    mission: c.mission ?? '',
+    values: c.values ?? [],
+    benefits: c.benefits ?? [],
+    culture: c.culture ?? '',
+    rating: Number(c.rating ?? 0),
+    reviewCount: Number(c.reviewCount ?? 0),
+    stats: {
+      employees: String(c.company?.size ?? c.stats?.employees ?? '—'),
+      locations: Number(c.stats?.locations ?? 1),
+      openPositions: Number(c.activeJobsCount ?? c.stats?.openPositions ?? 0),
+      avgSalary: String(c.stats?.avgSalary ?? ''),
+    },
+    jobs: [],
+  };
+
+  console.log('🔍 NORMALIZE DEBUG: Result name:', result.name);
+  console.log('🔍 NORMALIZE DEBUG: Result industry:', result.industry);
+
+  return result;
+}
+
+
+
+
+async function fetchCompanyJobsRaw(companyId: string) {
+  // Fetch ALL jobs from the existing /api/jobs (as requested), then filter locally
+  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+  console.log('🔍 COMPANY DEBUG: Fetching /api/jobs with token?', Boolean(token));
+  const res = await fetch(`/api/jobs`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  let data: any = null;
+  try { data = await res.json(); } catch (e) { console.log('🔍 COMPANY DEBUG: /api/jobs JSON parse failed:', e); }
+  const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+  console.log('🔍 COMPANY DEBUG: Total jobs from API:', Array.isArray(list) ? list.length : 'not array', { status: res.status });
+
+  const cid = String(companyId);
+  const filtered = list.filter((j: any) => {
+    // company match
+    const companyCandidates = [
+      j.companyId,
+      j.company_id,
+      j.company?.id,
+      j.company?._id,
+      j.company,
+    ].filter(Boolean).map((x: any) => String(x));
+
+    const status = String(j.status ?? j.jobStatus ?? '').toLowerCase();
+    // treat missing status as active; also accept 'published'
+    const isActive = status === '' || status === 'active' || status === 'published';
+
+    return companyCandidates.includes(cid) && isActive;
+  });
+
+  console.log('🔍 COMPANY DEBUG: Filtering jobs for companyId =', cid, ' total:', list.length, ' matched:', filtered.length);
+  if (list.length) {
+    const peek = list.slice(0, 3).map((j: any) => ({
+      id: j.id || j._id,
+      status: j.status || j.jobStatus,
+      companyId: j.companyId || j.company_id || j.company?._id || j.company?.id,
+      hasCompanyObj: Boolean(j.company),
+    }));
+    console.log('🔍 COMPANY DEBUG: Sample of incoming jobs:', peek);
+  }
+
+  return filtered;
+}
+
+
+
 export default function CompanyProfilePage() {
   const params = useParams();
   const router = useRouter();
@@ -76,111 +205,77 @@ export default function CompanyProfilePage() {
 
   const companyId = params.companyId as string;
 
-  useEffect(() => {
-    // Mock company data - replace with actual API call
-    const mockCompany: CompanyDetails = {
-      id: companyId,
-      name: "TechCorp Inc.",
-      logo: "/api/placeholder/120/120",
-      coverImage: "/api/placeholder/800/300",
-      industry: "Technology",
-      size: "100-500 employees",
-      founded: "2015",
-      headquarters: "San Francisco, CA",
-      website: "https://techcorp.com",
-      email: "careers@techcorp.com",
-      phone: "+1 (555) 123-4567",
-      description: "TechCorp is a leading technology company focused on building innovative solutions for the modern world. We specialize in cloud computing, artificial intelligence, and enterprise software solutions that help businesses transform and scale.",
-      mission: "To empower businesses worldwide with cutting-edge technology solutions that drive growth and innovation.",
-      values: [
-        "Innovation First",
-        "Customer Success",
-        "Team Collaboration",
-        "Continuous Learning",
-        "Ethical Leadership"
-      ],
-      benefits: [
-        "Comprehensive health, dental, and vision insurance",
-        "401(k) with company matching up to 6%",
-        "Unlimited PTO policy",
-        "Professional development budget ($2,000/year)",
-        "Flexible work arrangements",
-        "Stock options",
-        "Free meals and snacks",
-        "Gym membership reimbursement",
-        "Mental health support",
-        "Parental leave"
-      ],
-      culture: "At TechCorp, we believe in fostering a culture of innovation, collaboration, and continuous learning. Our diverse team of passionate professionals works together to solve complex challenges and create meaningful impact for our customers.",
-      rating: 4.5,
-      reviewCount: 127,
-      stats: {
-        employees: "350+",
-        locations: 5,
-        openPositions: 12,
-        avgSalary: "$125k"
-      },
-      jobs: [
-        {
-          id: "1",
-          title: "Senior Frontend Developer",
-          location: "San Francisco, CA",
-          type: "Full-time",
-          salary: {
-            min: 120000,
-            max: 180000,
-            currency: "USD",
-            period: "year"
-          },
-          posted: "2024-01-15",
-          description: "We are looking for a talented Senior Frontend Developer to join our growing team...",
-          skills: ["React", "TypeScript", "Redux"],
-          experienceLevel: "Senior Level",
-          remote: true
-        },
-        {
-          id: "2",
-          title: "Product Manager",
-          location: "San Francisco, CA",
-          type: "Full-time",
-          salary: {
-            min: 140000,
-            max: 200000,
-            currency: "USD",
-            period: "year"
-          },
-          posted: "2024-01-12",
-          description: "Join our product team to drive the vision and strategy for our core platform...",
-          skills: ["Product Strategy", "Analytics", "Agile"],
-          experienceLevel: "Mid Level",
-          remote: false
-        },
-        {
-          id: "3",
-          title: "DevOps Engineer",
-          location: "Remote",
-          type: "Full-time",
-          salary: {
-            min: 110000,
-            max: 160000,
-            currency: "USD",
-            period: "year"
-          },
-          posted: "2024-01-10",
-          description: "Help us scale our infrastructure and improve our deployment processes...",
-          skills: ["AWS", "Docker", "Kubernetes"],
-          experienceLevel: "Mid Level",
-          remote: true
-        }
-      ]
-    };
+  const fetchCompany = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log('🔍 COMPANY DEBUG: Starting fetch for companyId:', companyId);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      setCompany(mockCompany);
+      const res = await fetch(`/api/companies/${companyId}`);
+      console.log('🔍 COMPANY DEBUG: API response status:', res.status, res.ok);
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+      console.log('🔍 COMPANY DEBUG: Raw API response:', JSON.stringify(payload, null, 2));
+
+      // Extract the actual company data - same pattern as jobs page
+      const raw = payload?.data ?? payload;
+      console.log('🔍 COMPANY DEBUG: Extracted raw company:', JSON.stringify(raw, null, 2));
+
+      if (!raw || typeof raw !== 'object') throw new Error('Invalid company payload');
+
+      const normalized = normalizeCompanyDetails(raw);
+      console.log('🔍 COMPANY DEBUG: Normalized company:', JSON.stringify(normalized, null, 2));
+
+      // fetch jobs for this company
+      const rawJobs = await fetchCompanyJobsRaw(companyId);
+      console.log('🔍 COMPANY DEBUG: Raw jobs found:', rawJobs.length);
+
+      const normalizedJobs: CompanyJob[] = rawJobs.map(normalizeJob);
+
+      // Calculate stats
+      const avgSalaryDisplay = (() => {
+        const midpoints = normalizedJobs
+          .map((j: CompanyJob) => ((j.salary?.min ?? 0) + (j.salary?.max ?? 0)) / 2)
+          .filter((n: number) => Number.isFinite(n) && n > 0);
+        if (midpoints.length === 0) return '';
+        const avg = midpoints.reduce((a: number, b: number) => a + b, 0) / midpoints.length;
+        const currency = normalizedJobs[0]?.salary?.currency ?? 'USD';
+        try {
+          return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Math.round(avg));
+        } catch {
+          return `$${Math.round(avg).toLocaleString()}`;
+        }
+      })();
+
+      const employeesDisplay = (normalized.stats.employees && String(normalized.stats.employees).trim() !== '')
+        ? String(normalized.stats.employees)
+        : (normalized.size || '—');
+
+      const updatedStats = {
+        ...normalized.stats,
+        openPositions: normalizedJobs.length,
+        avgSalary: avgSalaryDisplay,
+        employees: employeesDisplay,
+      };
+
+      console.log('🔍 COMPANY DEBUG: Final stats:', JSON.stringify(updatedStats, null, 2));
+      const finalCompany = { ...normalized, stats: updatedStats, jobs: normalizedJobs };
+      console.log('🔍 COMPANY DEBUG: Final company to set:', JSON.stringify(finalCompany, null, 2));
+
+      setCompany(finalCompany);
+    } catch (err) {
+      console.error('🔍 COMPANY DEBUG: Error fetching company:', err);
+      setCompany(null);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   }, [companyId]);
+
+  useEffect(() => {
+    fetchCompany();
+  }, [companyId, fetchCompany]);
+
+
 
   if (loading) {
     return (
@@ -224,26 +319,42 @@ export default function CompanyProfilePage() {
       </div>
 
       {/* Cover Image */}
-      {company.coverImage && (
-        <div className="h-64 bg-gradient-to-r from-blue-600 to-purple-600 relative">
-          <img
-            src={company.coverImage}
-            alt={`${company.name} cover`}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-        </div>
-      )}
+      <div className="relative h-56 md:h-64 lg:h-72">
+      {/* gradient base (always visible) */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
+
+      {/* cover image (optional) */}
+      {company.coverImage ? (
+        <img
+          src={company.coverImage}
+          alt={`${company.name} cover`}
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={(e) => {
+            // if the image can’t load, hide it so the gradient shows
+            (e.currentTarget as HTMLImageElement).style.display = 'none';
+          }}
+        />
+      ) : null}
+
+      {/* subtle dark overlay for readability */}
+      <div className="absolute inset-0 bg-black/25" />
+    </div>
 
       {/* Company Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow -mt-16 relative z-10 p-6">
           <div className="flex items-start gap-6">
-            <img
-              src={company.logo}
-              alt={company.name}
-              className="w-24 h-24 rounded-lg object-cover border-4 border-white shadow-lg"
-            />
+            {company.logo ? (
+              <img
+                src={company.logo}
+                alt={company.name}
+                className="w-24 h-24 rounded-lg object-cover border-4 border-white shadow-lg"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-lg border-4 border-white shadow-lg bg-gray-100 flex items-center justify-center">
+                <Building2 className="h-10 w-10 text-blue-600" />
+              </div>
+            )}
             <div className="flex-1">
               <div className="flex items-start justify-between">
                 <div>
@@ -461,16 +572,18 @@ export default function CompanyProfilePage() {
 
                           <p className="mt-3 text-gray-700 line-clamp-2">{job.description}</p>
 
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {job.skills.map((skill, index) => (
-                              <span
-                                key={index}
-                                className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
+                          {Array.isArray(job.skills) && job.skills.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {job.skills.map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          )}
 
                           <div className="mt-4 flex items-center justify-between">
                             <div className="flex items-center gap-4">

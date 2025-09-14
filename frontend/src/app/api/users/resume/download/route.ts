@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3030';
+const API_BASE_URL = process.env.BACKEND_URL || 'http://staging.saino365.com:4030';
 
 export async function GET(request: NextRequest) {
   try {
