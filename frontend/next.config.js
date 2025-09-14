@@ -28,6 +28,11 @@ const nextConfig = {
         destination: '/',
         permanent: true,
       },
+      {
+        source: '/company/login',
+        destination: '/auth/login',
+        permanent: true,
+      },
     ];
   },
 

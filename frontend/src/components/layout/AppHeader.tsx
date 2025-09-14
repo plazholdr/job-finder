@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Menu, X, LogOut, Settings as SettingsIcon, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
 import { useAuth } from '@/contexts/auth-context';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -14,6 +16,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
+// Resolve image src from S3 key or full URL
+const resolveImageSrc = (val?: string | null) => {
+  if (!val) return '' as any;
+  return /^https?:\/\//i.test(val) ? (val as any) : `/api/files/image?key=${encodeURIComponent(val as string)}`;
+};
 
 interface AppHeaderProps {
   showAuthButtons?: boolean;
@@ -28,7 +36,14 @@ export default function AppHeader({
 }: AppHeaderProps) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
+
+
   const { user, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
+  const handleLogout = () => {
+    logout();
+    router.push('/auth/login');
+  };
 
   const baseClasses = "bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 border-b border-blue-500 sticky top-0 z-50 shadow-lg";
   const authClasses = "bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 shadow-lg";
@@ -68,7 +83,7 @@ export default function AppHeader({
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-3 rounded-full px-2 py-1 hover:bg-white/10 text-white">
                       <Avatar className="h-9 w-9 border border-white/30">
-                        <AvatarImage src={user.profile?.avatar || user.company?.logo || ''} alt={user.firstName} />
+                        <AvatarImage src={resolveImageSrc(user.profile?.avatar || user.company?.logo || '')} alt={user.firstName} />
                         <AvatarFallback className="bg-white/20 text-white font-semibold">
                           {(user.firstName?.[0] || '') + (user.lastName?.[0] || '') || 'U'}
                         </AvatarFallback>
@@ -83,7 +98,7 @@ export default function AppHeader({
                     <DropdownMenuLabel>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.profile?.avatar || user.company?.logo || ''} />
+                          <AvatarImage src={resolveImageSrc(user.profile?.avatar || user.company?.logo || '')} />
                           <AvatarFallback>{(user.firstName?.[0] || '') + (user.lastName?.[0] || '') || 'U'}</AvatarFallback>
                         </Avatar>
                         <div>
@@ -104,7 +119,7 @@ export default function AppHeader({
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => logout()} className="text-red-600 focus:text-red-600">
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
                       <LogOut className="h-4 w-4 mr-2" /> Sign out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -152,7 +167,7 @@ export default function AppHeader({
                 <div className="flex flex-col space-y-2 px-4 pt-4 border-t border-white/20">
                   <div className="flex items-center gap-3 px-2 py-1">
                     <Avatar className="h-9 w-9 border border-white/30">
-                      <AvatarImage src={user.profile?.avatar || user.company?.logo || ''} />
+                      <AvatarImage src={resolveImageSrc(user.profile?.avatar || user.company?.logo || '')} />
                       <AvatarFallback className="bg-white/20 text-white font-semibold">
                         {(user.firstName?.[0] || '') + (user.lastName?.[0] || '') || 'U'}
                       </AvatarFallback>
@@ -168,7 +183,7 @@ export default function AppHeader({
                   <Link href={user.role === 'company' ? '/company/settings' : '/settings'}>
                     <Button variant="ghost" className="w-full justify-start text-white hover:bg-white/20">Settings</Button>
                   </Link>
-                  <Button variant="ghost" className="w-full justify-start text-red-100 hover:bg-white/10" onClick={() => logout()}>
+                  <Button variant="ghost" className="w-full justify-start text-red-100 hover:bg-white/10" onClick={handleLogout}>
                     Sign out
                   </Button>
                 </div>

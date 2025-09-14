@@ -58,7 +58,7 @@ export default function CompanyProfilePage() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/company/login');
+      router.push('/auth/login');
       return;
     }
   }, [authLoading, isAuthenticated, router]);
@@ -95,7 +95,7 @@ export default function CompanyProfilePage() {
       const auth = token || lsToken;
       if (!auth) {
         console.warn('No auth token available. Redirecting to login.');
-        router.push('/company/login');
+        router.push('/auth/login');
         return;
       }
 
@@ -219,7 +219,7 @@ export default function CompanyProfilePage() {
       const auth = token || lsToken;
       if (!auth) {
         console.warn('No auth token available. Redirecting to login.');
-        router.push('/company/login');
+        router.push('/auth/login');
         return;
       }
 

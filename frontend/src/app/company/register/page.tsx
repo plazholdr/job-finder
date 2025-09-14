@@ -67,7 +67,7 @@ export default function CompanyRegisterPage() {
                 Your company account has been created successfully. You will be redirected to your dashboard shortly.
               </p>
             </div>
-            
+
             <div className="space-y-4">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
@@ -75,7 +75,7 @@ export default function CompanyRegisterPage() {
                   Please check your email for verification instructions. Your account may require approval before you can post jobs.
                 </AlertDescription>
               </Alert>
-              
+
               <div className="flex space-x-3">
                 <Link href="/company/dashboard" className="flex-1">
                   <Button className="w-full">
@@ -107,9 +107,9 @@ export default function CompanyRegisterPage() {
               </div>
               <span className="text-xl font-bold text-gray-900">JobFinder</span>
             </Link>
-            
+
             <div className="flex items-center space-x-4">
-              <Link href="/company/login">
+              <Link href="/auth/login">
                 <Button variant="outline">
                   Already have an account? Sign In
                 </Button>
@@ -130,7 +130,7 @@ export default function CompanyRegisterPage() {
             <p className="text-xl text-gray-600 mb-8">
               Connect with talented interns and build your future workforce
             </p>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto">
               <div className="text-center">
                 <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
@@ -139,7 +139,7 @@ export default function CompanyRegisterPage() {
                 <h3 className="font-semibold text-gray-900 mb-2">Post Jobs</h3>
                 <p className="text-sm text-gray-600">Create and manage internship opportunities</p>
               </div>
-              
+
               <div className="text-center">
                 <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                   <CheckCircle className="h-6 w-6 text-green-600" />
@@ -147,7 +147,7 @@ export default function CompanyRegisterPage() {
                 <h3 className="font-semibold text-gray-900 mb-2">Review Applications</h3>
                 <p className="text-sm text-gray-600">Efficiently manage and review candidates</p>
               </div>
-              
+
               <div className="text-center">
                 <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                   <AlertCircle className="h-6 w-6 text-purple-600" />

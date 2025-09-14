@@ -11,6 +11,13 @@ import { useRouter } from 'next/navigation';
 import PageLayout from '@/components/layout/PageLayout';
 import AppHeader from '@/components/layout/AppHeader';
 
+
+// Resolve image src from possible S3 key or full URL
+const resolveImageSrc = (val?: string | null) => {
+  if (!val) return '/api/placeholder/64/64' as any;
+  return /^https?:\/\//i.test(val) ? (val as any) : `/api/files/image?key=${encodeURIComponent(val as string)}`;
+};
+
 interface Company {
   id: string;
   name: string;
@@ -468,7 +475,7 @@ function CompanyCard({ company, viewMode, onViewDetails, onLike, onApply }: Comp
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
                 {company.logo && company.logo !== '/api/placeholder/64/64' ? (
                   <img
-                    src={company.logo}
+                    src={resolveImageSrc(company.logo)}
                     alt={company.name}
                     className="w-full h-full rounded-lg object-cover"
                   />
@@ -554,7 +561,7 @@ function CompanyCard({ company, viewMode, onViewDetails, onLike, onApply }: Comp
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               {company.logo && company.logo !== '/api/placeholder/64/64' ? (
                 <img
-                  src={company.logo}
+                  src={resolveImageSrc(company.logo)}
                   alt={company.name}
                   className="w-full h-full rounded-lg object-cover"
                 />
