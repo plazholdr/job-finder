@@ -33,6 +33,7 @@ export interface Company {
   culture?: string;
   rating?: number;
   reviewCount?: number;
+  activeJobsCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }

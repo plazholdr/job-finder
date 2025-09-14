@@ -37,14 +37,22 @@ export async function GET(request: NextRequest) {
 
     // Pass through search parameters
     const search = searchParams.get('search');
-    const industry = searchParams.get('nature'); // Map 'nature' to 'industry'
+    const industry = searchParams.get('industry') || searchParams.get('nature'); // Support both 'industry' and 'nature'
     const size = searchParams.get('size');
+    const location = searchParams.get('location');
+    const salaryMin = searchParams.get('salaryMin');
+    const salaryMax = searchParams.get('salaryMax');
+    const sort = searchParams.get('$sort');
     const limit = searchParams.get('limit') || '50';
     const skip = searchParams.get('skip') || '0';
 
     if (search) queryParams.append('search', search);
     if (industry) queryParams.append('industry', industry);
     if (size) queryParams.append('size', size);
+    if (location) queryParams.append('location', location);
+    if (salaryMin) queryParams.append('salaryMin', salaryMin);
+    if (salaryMax) queryParams.append('salaryMax', salaryMax);
+    if (sort) queryParams.append('$sort', sort);
     queryParams.append('$limit', limit);
     queryParams.append('$skip', skip);
 
