@@ -20,6 +20,17 @@ const nextConfig = {
   // Enable environment-specific configuration files
   // This allows us to use .env.development, .env.staging, etc.
   // Environment variables are enabled by default in Next.js
+
+  async redirects() {
+    return [
+      {
+        source: '/dashboard',
+        destination: '/',
+        permanent: true,
+      },
+    ];
+  },
+
 };
 
 module.exports = nextConfig;

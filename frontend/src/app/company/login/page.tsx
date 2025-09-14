@@ -58,6 +58,11 @@ export default function CompanyLoginPage() {
         // Store authentication token/session
         localStorage.setItem('companyToken', result.token);
         localStorage.setItem('companyUser', JSON.stringify(result.user));
+        // Also set cookies so server routes can read the token on refresh
+        const maxAge = 60 * 60 * 24 * 7; // 7 days
+        document.cookie = `authToken=${result.token}; Path=/; Max-Age=${maxAge}`;
+        document.cookie = `token=${result.token}; Path=/; Max-Age=${maxAge}`;
+        document.cookie = `companyToken=${result.token}; Path=/; Max-Age=${maxAge}`;
 
         // Redirect to company dashboard
         router.push('/dashboard');

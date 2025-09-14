@@ -4,6 +4,8 @@ const EmailService = require('./email.service');
 const { S3StorageUtils, s3, storageConfig } = require('../utils/s3-storage');
 const logger = require('../logger');
 
+const { ObjectId } = require('mongodb');
+
 async function fetchFromS3(key) {
   if (typeof key === 'string' && (key.startsWith('http://') || key.startsWith('https://'))) {
     const idx = key.indexOf('/', key.indexOf('://') + 3);

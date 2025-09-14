@@ -43,7 +43,7 @@ export default function MainNavigation({ user }: MainNavigationProps) {
   const navigationItems = [
     {
       name: 'Dashboard',
-      href: '/dashboard',
+      href: '/',
       icon: Home,
       description: 'Overview and quick actions'
     },

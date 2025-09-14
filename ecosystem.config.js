@@ -32,7 +32,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
-        BACKEND_URL: 'http://localhost:3030',
+        BACKEND_URL: 'http://jobfinder.saino365.com/api',
         NEXT_PUBLIC_API_URL: 'http://jobfinder.saino365.com/api'
       },
       instances: 1,

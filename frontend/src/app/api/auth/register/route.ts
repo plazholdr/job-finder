@@ -24,13 +24,7 @@ export async function POST(request: NextRequest) {
       requireEmailVerification
     } = body;
 
-    if (!email || !password || !firstName || !lastName || !role) {
-      return NextResponse.json(
-        { error: 'Email, password, first name, last name, and role are required' },
-        { status: 400 }
-      );
-    }
-
+    // Validate role
     if (!['student', 'company'].includes(role)) {
       return NextResponse.json(
         { error: 'Role must be either "student" or "company"' },
@@ -38,29 +32,63 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Prefer a server-only BACKEND_URL when available (staging/prod),
-    // otherwise fall back to public config api base URL
-    const backendUrl = process.env.BACKEND_URL || config.api.baseUrl;
+    // Role-specific validation
+    if (role === 'company') {
+      const looksLikeEmail = typeof (username || '') === 'string' && /.+@.+\..+/.test(username);
+      const derivedEmail = email || (looksLikeEmail ? username : '');
+      if (!password || !derivedEmail) {
+        return NextResponse.json(
+          { error: 'For company registration, provide password and either an email or a username that is an email' },
+          { status: 400 }
+        );
+      }
+    } else {
+      if (!email || !password || !firstName || !lastName) {
+        return NextResponse.json(
+          { error: 'Email, password, first name and last name are required' },
+          { status: 400 }
+        );
+      }
+    }
 
-    // Prepare extended user data for backend
-    const userData = {
-      email: email || username, // Use email or username as email
-      password,
-      firstName,
-      lastName,
-      role,
-      username,
-      requireEmailVerification,
-      // Extended profile data
-      icPassport,
-      phone,
-      photo,
-      education,
-      certifications,
-      interests,
-      workExperience,
-      eventExperience
-    };
+    // Build API base to reach the backend reliably in all envs
+    // Prefer going through the external /api reverse-proxy (Nginx) when headers are present
+    const proto = request.headers.get('x-forwarded-proto') || 'http';
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+    const apiViaProxy = host ? `${proto}://${host}/api` : null;
+    const backendUrl = apiViaProxy || process.env.BACKEND_URL || config.api.baseUrl;
+
+    // Prepare user data for backend
+    let userData: any;
+
+    if (role === 'company') {
+      const looksLikeEmail = typeof (username || '') === 'string' && /.+@.+\..+/.test(username);
+      const derivedEmail = email || (looksLikeEmail ? username : '');
+      userData = {
+        email: derivedEmail,
+        password,
+        role,
+        username,
+        requireEmailVerification: typeof requireEmailVerification === 'boolean' ? requireEmailVerification : true,
+      };
+    } else {
+      userData = {
+        email,
+        password,
+        firstName,
+        lastName,
+        role,
+        // Extended profile data
+        icPassport,
+        phone,
+        photo,
+        education,
+        certifications,
+        interests,
+        workExperience,
+        eventExperience
+      };
+    }
 
     // Call backend API to create user
     const response = await fetch(`${backendUrl}/users`, {
@@ -71,16 +99,27 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(userData),
     });
 
-    const data = await response.json();
+    const raw = await response.text();
+    let data: any;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = { error: raw };
+    }
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: data.message || 'Registration failed' },
+        { error: data.error || data.message || 'Registration failed' },
         { status: response.status }
       );
     }
 
-    // Auto-login after successful registration
+    // For company registrations that require email verification, don't auto-login
+    if (role === 'company' && (requireEmailVerification ?? true)) {
+      return NextResponse.json({ success: true, user: data }, { status: 201 });
+    }
+
+    // Auto-login after successful registration (student)
     const loginResponse = await fetch(`${backendUrl}/authentication`, {
       method: 'POST',
       headers: {
@@ -93,14 +132,19 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    const loginData = await loginResponse.json();
+    const loginRaw = await loginResponse.text();
+    let loginData: any;
+    try {
+      loginData = JSON.parse(loginRaw);
+    } catch {
+      loginData = { error: loginRaw };
+    }
 
     if (!loginResponse.ok) {
-      // Registration succeeded but login failed
-      return NextResponse.json({
-        user: data,
-        message: 'Registration successful. Please login manually.',
-      });
+      return NextResponse.json(
+        { error: loginData.error || loginData.message || 'Login failed after registration', user: data },
+        { status: loginResponse.status }
+      );
     }
 
     return NextResponse.json(loginData);

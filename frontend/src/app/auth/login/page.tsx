@@ -14,7 +14,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import SocialLoginButtons from '@/components/auth/social-login-buttons';
-import LoginIllustration from '@/components/auth/login-illustration';
 import { useAuth } from '@/contexts/auth-context';
 
 const loginSchema = z.object({
@@ -61,15 +60,15 @@ export default function LoginPage() {
         if (userStr) {
           const user = JSON.parse(userStr);
 
-          // Redirect to role-based dashboard
+          // Redirect to unified homepage dashboard
           if (user.role === 'student') {
-            router.push('/dashboard');
+            router.push('/');
           } else if (user.role === 'company') {
-            router.push('/company/dashboard');
+            router.push('/');
           } else if (user.role === 'admin') {
             router.push('/pages/admin-dashboard');
           } else {
-            router.push('/dashboard');
+            router.push('/');
           }
         }
       }, 100);
@@ -117,7 +116,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16 bg-white/80 backdrop-blur-sm">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16 bg-white">
         <motion.div
           className="w-full max-w-md space-y-8"
           initial={{ opacity: 0, y: 20 }}

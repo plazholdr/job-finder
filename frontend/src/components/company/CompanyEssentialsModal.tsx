@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -92,54 +92,52 @@ export default function CompanyEssentialsModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Complete your company essentials</DialogTitle>
-          <DialogDescription>
-            Please provide basic company information so candidates can learn about your organisation.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-2xl">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+          <h2 className="text-2xl font-bold">Complete your company essentials</h2>
+          <p className="text-blue-100 mt-1">Provide key company details so candidates can learn about your organisation.</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <Label htmlFor="description">Company Description</Label>
-              <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} required />
+              <Textarea id="description" className="min-h-[120px] border-2 rounded-xl focus-visible:ring-0 focus:border-blue-500" value={description} onChange={(e) => setDescription(e.target.value)} required />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="nature">Nature of Business</Label>
-              <Input id="nature" value={nature} onChange={(e) => setNature(e.target.value)} required />
+              <Input id="nature" className="h-11 border-2 rounded-xl focus-visible:ring-0 focus:border-blue-500" value={nature} onChange={(e) => setNature(e.target.value)} required />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="address">Headquarters / Address</Label>
-              <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} required />
+              <Input id="address" className="h-11 border-2 rounded-xl focus-visible:ring-0 focus:border-blue-500" value={address} onChange={(e) => setAddress(e.target.value)} required />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="picName">PIC Name</Label>
-                <Input id="picName" value={picName} onChange={(e) => setPicName(e.target.value)} required />
+                <Input id="picName" className="h-11 border-2 rounded-xl focus-visible:ring-0 focus:border-blue-500" value={picName} onChange={(e) => setPicName(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="picEmail">PIC Email</Label>
-                <Input type="email" id="picEmail" value={picEmail} onChange={(e) => setPicEmail(e.target.value)} required />
+                <Input type="email" id="picEmail" className="h-11 border-2 rounded-xl focus-visible:ring-0 focus:border-blue-500" value={picEmail} onChange={(e) => setPicEmail(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="picMobile">PIC Mobile</Label>
-                <Input id="picMobile" value={picMobile} onChange={(e) => setPicMobile(e.target.value)} required />
+                <Input id="picMobile" className="h-11 border-2 rounded-xl focus-visible:ring-0 focus:border-blue-500" value={picMobile} onChange={(e) => setPicMobile(e.target.value)} required />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="website">Website (optional)</Label>
-              <Input id="website" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourcompany.com" />
+              <Input id="website" className="h-11 border-2 rounded-xl focus-visible:ring-0 focus:border-blue-500" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourcompany.com" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="logo">Company Logo (optional)</Label>
-              <Input id="logo" type="file" accept="image/*" onChange={(e) => setLogo(e.target.files?.[0] || null)} />
+              <Input id="logo" type="file" className="h-11 border-2 rounded-xl focus-visible:ring-0 focus:border-blue-500" accept="image/*" onChange={(e) => setLogo(e.target.files?.[0] || null)} />
             </div>
           </div>
 
@@ -149,7 +147,9 @@ export default function CompanyEssentialsModal({ open, onOpenChange }: Props) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting}>{submitting ? 'Saving...' : 'Save Essentials'}</Button>
+            <Button type="submit" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white" disabled={submitting}>
+              {submitting ? 'Saving...' : 'Save Essentials'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

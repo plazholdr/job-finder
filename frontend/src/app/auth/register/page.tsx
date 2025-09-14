@@ -212,7 +212,7 @@ export default function RegisterPage() {
 
   // Step 1: Role Selection
   const renderRoleSelection = () => (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen w-full">
       {/* Left Side - Illustration */}
       <div className="hidden lg:block lg:w-1/2 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700"></div>
@@ -246,7 +246,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Right Side - Registration Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+      <div className="w-full lg:w-1/2 flex items-center justify-center min-h-screen bg-white">
         <motion.div
           className="w-full max-w-lg space-y-8"
           initial={{ opacity: 0, y: 20 }}
@@ -347,7 +347,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16 bg-white/80 backdrop-blur-sm">
+      <div className="w-full lg:w-1/2 flex items-center justify-center min-h-screen bg-white">
         <motion.div
           className="w-full max-w-md space-y-8"
           initial={{ opacity: 0, x: 20 }}
@@ -435,12 +435,13 @@ export default function RegisterPage() {
 
   // Step 3: Profile Information
   const renderStep3 = () => (
-    <motion.div
-      className="w-full max-w-md space-y-8"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div className="flex min-h-screen items-center justify-center p-8 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <motion.div
+        className="w-full max-w-md space-y-8"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
       <div className="text-center">
         <button
           onClick={goToPreviousStep}
@@ -562,16 +563,18 @@ export default function RegisterPage() {
         </Button>
       </form>
     </motion.div>
+    </div>
   );
 
   // Step 4: Education Background
   const renderStep4 = () => (
-    <motion.div
-      className="w-full max-w-2xl space-y-8"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div className="flex min-h-screen items-center justify-center p-8 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <motion.div
+        className="w-full max-w-2xl space-y-8"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
       <div className="text-center">
         <button
           onClick={goToPreviousStep}
@@ -730,16 +733,18 @@ export default function RegisterPage() {
         <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
     </motion.div>
+    </div>
   );
 
   // Step 5: Certifications
   const renderStep5 = () => (
-    <motion.div
-      className="w-full max-w-2xl space-y-8"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div className="flex min-h-screen items-center justify-center p-8 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <motion.div
+        className="w-full max-w-2xl space-y-8"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
       <div className="text-center">
         <button
           onClick={goToPreviousStep}
@@ -867,16 +872,18 @@ export default function RegisterPage() {
         </Button>
       </div>
     </motion.div>
+    </div>
   );
 
   // Step 6: Interests
   const renderStep6 = () => (
-    <motion.div
-      className="w-full max-w-2xl space-y-8"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div className="flex min-h-screen items-center justify-center p-8 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <motion.div
+        className="w-full max-w-2xl space-y-8"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
       <div className="text-center">
         <button
           onClick={goToPreviousStep}
@@ -990,16 +997,18 @@ export default function RegisterPage() {
         </Button>
       </div>
     </motion.div>
+    </div>
   );
 
   // Step 7: Work Experience
   const renderStep7 = () => (
-    <motion.div
-      className="w-full max-w-2xl space-y-8"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div className="flex min-h-screen items-center justify-center p-8 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <motion.div
+        className="w-full max-w-2xl space-y-8"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
       <div className="text-center">
         <button
           onClick={goToPreviousStep}
@@ -1202,16 +1211,18 @@ export default function RegisterPage() {
         </Button>
       </div>
     </motion.div>
+    </div>
   );
 
   // Step 8: Event Experience (Final Step)
   const renderStep8 = () => (
-    <motion.div
-      className="w-full max-w-2xl space-y-8"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div className="flex min-h-screen items-center justify-center p-8 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <motion.div
+        className="w-full max-w-2xl space-y-8"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
       <div className="text-center">
         <button
           onClick={goToPreviousStep}
@@ -1430,29 +1441,31 @@ export default function RegisterPage() {
         </Button>
       </div>
     </motion.div>
+    </div>
   );
 
   // Company registration step 2 - Basic credentials
   const renderCompanyStep2 = () => (
-    <motion.div
-      className="w-full max-w-md space-y-8"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <div className="text-center">
-        <button
-          onClick={goToPreviousStep}
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back
-        </button>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Company Admin Setup</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Create your company admin account - Step 1 of 2
-        </p>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <motion.div
+        className="w-full max-w-md space-y-8"
+        initial={{ opacity: 0, x: 0 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="text-center">
+            <button
+              onClick={goToPreviousStep}
+              className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </button>
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Company Admin Setup</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Create your company admin account - Step 1 of 2
+            </p>
+          </div>
 
       {registerError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -1589,6 +1602,8 @@ export default function RegisterPage() {
         </Button>
       </form>
     </motion.div>
+
+    </div>
   );
 
   // Placeholder function (no longer used)
@@ -1669,8 +1684,8 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="w-full flex items-center justify-center p-8 md:p-16 bg-gradient-to-br from-blue-50 via-white to-blue-50">
+    <>
       {renderCurrentStep()}
-    </div>
+    </>
   );
 }
