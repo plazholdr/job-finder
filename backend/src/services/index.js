@@ -3,6 +3,7 @@ const AdminService = require('./admin.service');
 const EmailService = require('./email.service');
 const NotificationService = require('./notification.service');
 const JobsService = require('./jobs.service');
+const LikedJobsService = require('./liked-jobs.service');
 const CompaniesService = require('./companies.service');
 const ApplicationsService = require('./applications.service');
 const InternshipsService = require('./internships.service');
@@ -532,6 +533,79 @@ module.exports = function (app) {
     }
   });
 
+  // Liked Jobs service endpoints - MUST come before /jobs/:id routes
+  app.post('/jobs/like', authenticateToken(app), async (req, res) => {
+    try {
+      const likedJobsService = new LikedJobsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await likedJobsService.create(req.body, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete('/jobs/like', authenticateToken(app), async (req, res) => {
+    try {
+      const { jobId } = req.body || {};
+      const likedJobsService = new LikedJobsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await likedJobsService.remove(jobId, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete('/jobs/like/:jobId', authenticateToken(app), async (req, res) => {
+    try {
+      const likedJobsService = new LikedJobsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await likedJobsService.remove(req.params.jobId, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/jobs/liked', authenticateToken(app), async (req, res) => {
+    try {
+      const likedJobsService = new LikedJobsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        query: req.query
+      };
+      const result = await likedJobsService.find(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/jobs/:id/liked', authenticateToken(app), async (req, res) => {
+    try {
+      const likedJobsService = new LikedJobsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await likedJobsService.get(req.params.id, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get('/jobs/:id', optionalAuth(app), async (req, res) => {
     try {
       const jobsService = new JobsService(app);
@@ -589,6 +663,8 @@ module.exports = function (app) {
       res.status(500).json({ error: error.message });
     }
   });
+
+
 
   // Register companies service endpoints
   app.get('/companies', optionalAuth(app), async (req, res) => {
