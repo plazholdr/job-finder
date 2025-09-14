@@ -32,8 +32,36 @@ export default function UserProfile() {
     router.push('/auth/login');
   };
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const getInitials = (
+    firstName?: string | null,
+    lastName?: string | null,
+    email?: string | null,
+    companyName?: string | null,
+  ) => {
+    const safe = (v?: string | null) => (typeof v === 'string' ? v.trim() : '');
+    const fn = safe(firstName);
+    const ln = safe(lastName);
+    if (fn && ln) return `${fn[0]}${ln[0]}`.toUpperCase();
+    if (fn) return fn.slice(0, 2).toUpperCase();
+    if (ln) return ln.slice(0, 2).toUpperCase();
+
+    const cn = safe(companyName);
+    if (cn) {
+      const parts = cn.split(/\s+/).filter(Boolean);
+      const initials = parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}` : cn.slice(0, 2);
+      return initials.toUpperCase();
+    }
+
+    const em = safe(email);
+    if (em) return em[0].toUpperCase();
+
+    return 'U'; // generic fallback
+  };
+
+  // Resolve image src: if value is a key (not an absolute URL), route through our signed proxy
+  const resolveImageSrc = (val?: string | null) => {
+    if (!val) return '';
+    return /^https?:\/\//i.test(val) ? val : `/api/files/image?key=${encodeURIComponent(val)}`;
   };
 
   const getRoleDisplayName = (role: string) => {
@@ -72,12 +100,12 @@ export default function UserProfile() {
         <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
           {user.profile?.avatar ? (
             <img
-              src={user.profile.avatar}
+              src={resolveImageSrc(user.profile.avatar)}
               alt={`${user.firstName} ${user.lastName}`}
               className="w-full h-full rounded-full object-cover"
             />
           ) : (
-            getInitials(user.firstName, user.lastName)
+            getInitials(user.firstName, user.lastName, user.email, user.company?.name || null)
           )}
         </div>
 
@@ -116,12 +144,12 @@ export default function UserProfile() {
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
                   {user.profile?.avatar ? (
                     <img
-                      src={user.profile.avatar}
+                      src={resolveImageSrc(user.profile.avatar)}
                       alt={`${user.firstName} ${user.lastName}`}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    getInitials(user.firstName, user.lastName)
+                    getInitials(user.firstName, user.lastName, user.email, user.company?.name || null)
                   )}
                 </div>
                 <div>

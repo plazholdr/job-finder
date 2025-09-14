@@ -31,6 +31,12 @@ export default function CompanyProfile({ user, isOwnProfile, currentUser }: Comp
   const company = user.company || {};
   const privacy = user.privacy || {};
 
+  // Resolve image src: if value is a key (not http URL), route through signed proxy
+  const resolveImageSrc = (val?: string | null) => {
+    if (!val) return '';
+    return /^https?:\/\//i.test(val) ? val : `/api/files/image?key=${encodeURIComponent(val)}`;
+  };
+
   // Check if field should be visible based on privacy settings
   const canShowField = (field: string) => {
     if (isOwnProfile) return true;
@@ -59,7 +65,7 @@ export default function CompanyProfile({ user, isOwnProfile, currentUser }: Comp
             <div className="w-24 h-24 bg-blue-100 rounded-lg flex items-center justify-center">
               {company.logo ? (
                 <img 
-                  src={company.logo} 
+                  src={resolveImageSrc(company.logo)} 
                   alt={company.name || `${user.firstName} ${user.lastName}`}
                   className="w-24 h-24 rounded-lg object-cover"
                 />

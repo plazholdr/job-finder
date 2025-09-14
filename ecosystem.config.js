@@ -27,13 +27,13 @@ module.exports = {
     {
       name: 'job-finder-frontend-prod',
       script: 'npm',
-  args: 'run start',
+      args: 'run start',
       cwd: '/home/ubuntu/job-finder-production/frontend',
       env: {
         NODE_ENV: 'production',
-  PORT: 3000,
-  BACKEND_URL: 'http://jobfinder.saino365.com/api',
-  NEXT_PUBLIC_API_URL: 'http://jobfinder.saino365.com/api'
+        PORT: 3000,
+        BACKEND_URL: 'http://localhost:3030',
+        NEXT_PUBLIC_API_URL: 'http://jobfinder.saino365.com/api'
       },
       instances: 1,
       exec_mode: 'fork',

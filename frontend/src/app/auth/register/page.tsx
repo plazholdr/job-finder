@@ -212,18 +212,58 @@ export default function RegisterPage() {
 
   // Step 1: Role Selection
   const renderRoleSelection = () => (
-    <motion.div
-      className="w-full max-w-lg space-y-8"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create your account</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Sign up to start your job search journey
-        </p>
+    <div className="flex min-h-screen">
+      {/* Left Side - Illustration */}
+      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+        <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white h-full">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center"
+          >
+            <div className="mb-8">
+              <div className="h-20 w-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
+                <Plus className="h-10 w-10 text-white" />
+              </div>
+              <h2 className="text-4xl font-bold mb-4">Start Your Journey</h2>
+              <p className="text-xl text-purple-100 mb-8 max-w-md">
+                Join thousands of professionals who have found their dream careers through our platform.
+              </p>
+            </div>
+            <div className="flex items-center justify-center space-x-4 text-sm">
+              <div className="flex -space-x-2">
+                <div className="h-8 w-8 bg-white/30 rounded-full border-2 border-white"></div>
+                <div className="h-8 w-8 bg-white/30 rounded-full border-2 border-white"></div>
+                <div className="h-8 w-8 bg-white/30 rounded-full border-2 border-white"></div>
+              </div>
+              <span className="text-purple-100">Trusted by 10,000+ job seekers</span>
+            </div>
+          </motion.div>
+        </div>
       </div>
+
+      {/* Right Side - Registration Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+        <motion.div
+          className="w-full max-w-lg space-y-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="text-center">
+            <div className="flex justify-center mb-6">
+              <div className="h-12 w-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
+                <Plus className="h-6 w-6 text-white" />
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Create your account</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Sign up to start your job search journey
+            </p>
+          </div>
 
       <div className="space-y-6">
         <div className="text-center">
@@ -266,38 +306,67 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <div className="text-center">
-        <p className="text-sm text-gray-500">
-          Already have an account?{' '}
-          <Link href="/auth/login" className="text-blue-600 hover:text-blue-500 font-medium">
-            Sign in
-          </Link>
-        </p>
+          <div className="text-center">
+            <p className="text-sm text-gray-500">
+              Already have an account?{' '}
+              <Link href="/auth/login" className="text-blue-600 hover:text-blue-500 font-medium">
+                Sign in
+              </Link>
+            </p>
+          </div>
+        </motion.div>
       </div>
-    </motion.div>
+    </div>
   );
 
   // Step 2: Username/Password
   const renderStep2 = () => (
-    <motion.div
-      className="w-full max-w-md space-y-8"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <div className="text-center">
-        <button
-          onClick={goToPreviousStep}
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back
-        </button>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Account Credentials</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Create your login credentials
-        </p>
+    <div className="flex min-h-screen">
+      {/* Left Side - Illustration */}
+      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+        <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white h-full">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center"
+          >
+            <div className="mb-8">
+              <div className="h-20 w-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
+                <Lock className="h-10 w-10 text-white" />
+              </div>
+              <h2 className="text-4xl font-bold mb-4">Secure Your Account</h2>
+              <p className="text-xl text-blue-100 mb-8 max-w-md">
+                Create strong credentials to protect your profile and applications.
+              </p>
+            </div>
+          </motion.div>
+        </div>
       </div>
+
+      {/* Right Side - Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16 bg-white/80 backdrop-blur-sm">
+        <motion.div
+          className="w-full max-w-md space-y-8"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="text-center">
+            <button
+              onClick={goToPreviousStep}
+              className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </button>
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Account Credentials</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Create your login credentials
+            </p>
+          </div>
 
       {registerError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -351,15 +420,17 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        <Button
-          type="submit"
-          className="w-full h-12 bg-blue-600 hover:bg-blue-500"
-        >
-          Continue to Profile Information
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </form>
-    </motion.div>
+          <Button
+            type="submit"
+            className="w-full h-12 bg-blue-600 hover:bg-blue-500"
+          >
+            Continue to Profile Information
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </form>
+        </motion.div>
+      </div>
+    </div>
   );
 
   // Step 3: Profile Information
