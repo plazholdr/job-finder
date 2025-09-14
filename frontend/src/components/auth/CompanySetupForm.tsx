@@ -92,36 +92,44 @@ export default function CompanySetupForm({ token, afterSubmitPath = '/auth/compa
   return (
     <div className="w-full max-w-2xl space-y-8">
       {submitError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-red-700">{submitError}</p>
+        <div className="p-6 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl">
+          <div className="flex items-start gap-4">
+            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-red-900 mb-1">Registration Error</p>
+              <p className="text-sm text-red-700">{submitError}</p>
+            </div>
           </div>
         </div>
       )}
 
       {duplicateCompany && (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-yellow-800">
-              <p className="font-medium">Company Already Registered</p>
-              <p>A company with this registration number already exists in our system.</p>
+        <div className="p-6 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl">
+          <div className="flex items-start gap-4">
+            <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
             </div>
-          </div>
-          <div className="mt-4">
-            <Button onClick={handleLoginRedirect} className="w-full">
-              Proceed to Login
-            </Button>
+            <div className="flex-1">
+              <p className="font-semibold text-yellow-900 mb-1">Company Already Registered</p>
+              <p className="text-sm text-yellow-800 mb-4">A company with this registration number already exists in our system.</p>
+              <Button
+                onClick={handleLoginRedirect}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium"
+              >
+                Proceed to Login
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
       {!duplicateCompany && (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 space-y-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl border border-white/20 shadow-xl space-y-6">
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-800">
                 Company Name *
               </label>
               <div className="relative">
@@ -129,7 +137,7 @@ export default function CompanySetupForm({ token, afterSubmitPath = '/auth/compa
                 <Input
                   type="text"
                   placeholder="Enter your company name"
-                  className={`pl-10 h-12 ${errors.companyName ? 'border-red-300' : ''}`}
+                  className={`pl-10 h-12 border-2 transition-all duration-200 ${errors.companyName ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'} rounded-xl`}
                   {...register('companyName', {
                     required: 'Company name is required',
                     minLength: { value: 2, message: 'Company name must be at least 2 characters' },
@@ -137,12 +145,12 @@ export default function CompanySetupForm({ token, afterSubmitPath = '/auth/compa
                 />
               </div>
               {errors.companyName && (
-                <p className="text-sm text-red-500">{errors.companyName.message}</p>
+                <p className="text-sm text-red-600 font-medium">{errors.companyName.message}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-800">
                 Company Registration Number *
               </label>
               <div className="relative">
@@ -150,7 +158,7 @@ export default function CompanySetupForm({ token, afterSubmitPath = '/auth/compa
                 <Input
                   type="text"
                   placeholder="e.g., 123456-A"
-                  className={`pl-10 h-12 ${errors.companyRegistrationNumber ? 'border-red-300' : ''}`}
+                  className={`pl-10 h-12 border-2 transition-all duration-200 ${errors.companyRegistrationNumber ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'} rounded-xl`}
                   {...register('companyRegistrationNumber', {
                     required: 'Company registration number is required',
                     pattern: {
@@ -161,13 +169,13 @@ export default function CompanySetupForm({ token, afterSubmitPath = '/auth/compa
                 />
               </div>
               {errors.companyRegistrationNumber && (
-                <p className="text-sm text-red-500">{errors.companyRegistrationNumber.message}</p>
+                <p className="text-sm text-red-600 font-medium">{errors.companyRegistrationNumber.message}</p>
               )}
-              <p className="text-xs text-gray-500">Malaysian company registration number format: 123456-A</p>
+              <p className="text-xs text-blue-600 font-medium">Malaysian company registration number format: 123456-A</p>
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-800">
                 Company Contact Number *
               </label>
               <div className="relative">
@@ -175,7 +183,7 @@ export default function CompanySetupForm({ token, afterSubmitPath = '/auth/compa
                 <Input
                   type="tel"
                   placeholder="+60 3-1234 5678"
-                  className={`pl-10 h-12 ${errors.companyContactNumber ? 'border-red-300' : ''}`}
+                  className={`pl-10 h-12 border-2 transition-all duration-200 ${errors.companyContactNumber ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'} rounded-xl`}
                   {...register('companyContactNumber', {
                     required: 'Company contact number is required',
                     pattern: {
@@ -186,12 +194,12 @@ export default function CompanySetupForm({ token, afterSubmitPath = '/auth/compa
                 />
               </div>
               {errors.companyContactNumber && (
-                <p className="text-sm text-red-500">{errors.companyContactNumber.message}</p>
+                <p className="text-sm text-red-600 font-medium">{errors.companyContactNumber.message}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-800">
                 Company Superform *
               </label>
               <div className="relative">
@@ -199,35 +207,50 @@ export default function CompanySetupForm({ token, afterSubmitPath = '/auth/compa
                 <Input
                   type="file"
                   accept=".pdf,.doc,.docx"
-                  className={`pl-10 h-12 ${errors.superform ? 'border-red-300' : ''}`}
+                  className={`pl-10 h-12 border-2 transition-all duration-200 ${errors.superform ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'} rounded-xl`}
                   {...register('superform', { required: 'Company Superform document is required' })}
                 />
               </div>
               {errors.superform && (
-                <p className="text-sm text-red-500">{errors.superform.message}</p>
+                <p className="text-sm text-red-600 font-medium">{errors.superform.message}</p>
               )}
               {watchedFile && watchedFile[0] && (
-                <div className="flex items-center gap-2 text-sm text-green-600">
-                  <CheckCircle className="h-4 w-4" />
-                  <span>File selected: {watchedFile[0].name}</span>
+                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  <span className="text-sm font-medium text-green-800">File selected: {watchedFile[0].name}</span>
                 </div>
               )}
-              <p className="text-xs text-gray-500">Upload your Malaysian Company Superform (PDF, DOC, or DOCX format)</p>
+              <p className="text-xs text-blue-600 font-medium">Upload your Malaysian Company Superform (PDF, DOC, or DOCX format)</p>
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <FileText className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-blue-800">
-                <p className="font-medium">About Company Superform</p>
-                <p>The Superform is Malaysia's single electronic form for company incorporation, replacing multiple manual forms under the Companies Act 1965.</p>
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <FileText className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-blue-900 mb-2">About Company Superform</p>
+                <p className="text-sm text-blue-800">The Superform is Malaysia's single electronic form for company incorporation, replacing multiple manual forms under the Companies Act 1965.</p>
               </div>
             </div>
           </div>
 
-          <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-500" disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting for Approval...' : 'Submit for Admin Approval'}
+          <Button
+            type="submit"
+            className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Submitting for Approval...
+              </div>
+            ) : (
+              '🚀 Submit for Admin Approval'
+            )}
           </Button>
         </form>
       )}

@@ -286,39 +286,280 @@ class EmailService {
 
   getEmailVerificationTemplate(user, verificationUrl) {
     const greeting = (user.role === 'company' || !user.firstName) ? 'Hi,' : `Hi ${user.firstName},`;
+    const isCompany = user.role === 'company';
+
     return `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Verify Your Email</title>
+        <title>Verify Your Email - Job Finder</title>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #2563eb; color: white; padding: 20px; text-align: center; }
-          .content { padding: 30px 20px; background: #f9fafb; }
-          .button { display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-          .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #374151;
+            background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 50%, #f3e8ff 100%);
+            min-height: 100vh;
+            padding: 20px;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+          }
+          .header {
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+          }
+          .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+          }
+          .header-content { position: relative; z-index: 1; }
+          .logo-icon {
+            width: 64px;
+            height: 64px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+          }
+          .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+          }
+          .header p {
+            font-size: 16px;
+            opacity: 0.9;
+            color: #e0e7ff;
+          }
+          .content {
+            padding: 40px 30px;
+            background: rgba(255, 255, 255, 0.8);
+          }
+          .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 20px;
+          }
+          .message {
+            font-size: 16px;
+            color: #4b5563;
+            margin-bottom: 30px;
+            line-height: 1.7;
+          }
+          .button-container {
+            text-align: center;
+            margin: 40px 0;
+          }
+          .button {
+            display: inline-block;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+            transition: all 0.3s ease;
+          }
+          .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px -5px rgba(37, 99, 235, 0.5);
+          }
+          .link-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+          }
+          .link-label {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 8px;
+            font-weight: 500;
+          }
+          .verification-link {
+            word-break: break-all;
+            color: #2563eb;
+            font-size: 14px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #eff6ff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #bfdbfe;
+          }
+          .warning-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+          }
+          .warning-icon {
+            width: 24px;
+            height: 24px;
+            background: #f59e0b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-top: 2px;
+          }
+          .warning-content {
+            color: #92400e;
+          }
+          .warning-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+          }
+          ${isCompany ? `
+          .next-steps {
+            background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+            border: 1px solid #3b82f6;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+          }
+          .steps-icon {
+            width: 24px;
+            height: 24px;
+            background: #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-top: 2px;
+          }
+          .steps-content {
+            color: #1e40af;
+          }
+          .steps-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+          }
+          ` : ''}
+          .footer {
+            padding: 30px;
+            text-align: center;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+          }
+          .footer-text {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 8px;
+          }
+          .team-signature {
+            color: #1f2937;
+            font-weight: 600;
+          }
+          @media (max-width: 600px) {
+            .container { margin: 10px; border-radius: 16px; }
+            .header { padding: 30px 20px; }
+            .content { padding: 30px 20px; }
+            .header h1 { font-size: 28px; }
+            .greeting { font-size: 20px; }
+            .button { padding: 14px 28px; font-size: 15px; }
+          }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1>Welcome to Job Finder!</h1>
+            <div class="header-content">
+              <div class="logo-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+              </div>
+              <h1>Welcome to Job Finder!</h1>
+              <p>${isCompany ? 'Your company registration journey begins here' : 'Your career journey starts here'}</p>
+            </div>
           </div>
+
           <div class="content">
-            <h2>${greeting}</h2>
-            <p>Thank you for registering with Job Finder. To complete your registration and start exploring opportunities, please verify your email address.</p>
-            <p>Click the button below to verify your email:</p>
-            <a href="${verificationUrl}" class="button">Verify Email Address</a>
-            <p>Or copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #2563eb;">${verificationUrl}</p>
-            <p><strong>This link will expire in 24 hours.</strong></p>
-            <p>If you didn't create an account with us, please ignore this email.</p>
+            <div class="greeting">${greeting}</div>
+
+            <div class="message">
+              Thank you for registering with Job Finder. To complete your registration and start ${isCompany ? 'hiring top talent' : 'exploring amazing opportunities'}, please verify your email address.
+            </div>
+
+            <div class="button-container">
+              <a href="${verificationUrl}" class="button">✨ Verify Email Address</a>
+            </div>
+
+            <div class="link-section">
+              <div class="link-label">Or copy and paste this link into your browser:</div>
+              <div class="verification-link">${verificationUrl}</div>
+            </div>
+
+            ${isCompany ? `
+            <div class="next-steps">
+              <div class="steps-icon">→</div>
+              <div class="steps-content">
+                <div class="steps-title">Next Steps for Companies:</div>
+                <div>After verification, you'll complete your company registration with business details and Malaysian Superform for admin approval.</div>
+              </div>
+            </div>
+            ` : ''}
+
+            <div class="warning-box">
+              <div class="warning-icon">!</div>
+              <div class="warning-content">
+                <div class="warning-title">Important:</div>
+                <div>This verification link will expire in 24 hours. If it expires, you'll need to register again.</div>
+              </div>
+            </div>
+
+            <div class="message">
+              If you didn't create an account with us, please ignore this email.
+            </div>
           </div>
+
           <div class="footer">
-            <p>Best regards,<br>The Job Finder Team</p>
+            <div class="footer-text">Best regards,</div>
+            <div class="team-signature">The Job Finder Team</div>
           </div>
         </div>
       </body>

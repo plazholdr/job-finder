@@ -83,7 +83,8 @@ class AuthenticationService {
 
       // Generate JWT token
       const payload = {
-        userId: user._id,
+        // Always store string form to avoid ObjectId serialization issues
+        userId: user._id?.toString(),
         email: user.email,
         role: user.role,
         firstName: user.firstName,
@@ -165,9 +166,9 @@ const authenticateToken = (app) => {
       console.log('Auth result:', authResult);
       console.log('User ID from auth result:', authResult.userId);
 
-      // Add user info to request
+      // Add user info to request. Ensure userId is a string to avoid ObjectId errors downstream
       req.user = authResult.user;
-      req.userId = authResult.userId;
+      req.userId = (authResult.user && authResult.user._id && authResult.user._id.toString) ? authResult.user._id.toString() : (authResult.userId && authResult.userId.toString ? authResult.userId.toString() : authResult.userId);
 
       next();
     } catch (error) {
@@ -185,7 +186,8 @@ const optionalAuth = (app) => {
         const authService = new AuthenticationService(app);
         const authResult = await authService.authenticate(authHeader);
         req.user = authResult.user;
-        req.userId = authResult.userId;
+        // Normalize to string
+        req.userId = (authResult.user && authResult.user._id && authResult.user._id.toString) ? authResult.user._id.toString() : (authResult.userId && authResult.userId.toString ? authResult.userId.toString() : authResult.userId);
       }
       next();
     } catch (error) {

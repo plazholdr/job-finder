@@ -97,12 +97,16 @@ module.exports = function (app) {
     }
   });
 
-  // GET /users/:id - Get specific user
-  app.get('/users/:id', optionalAuth(app), async (req, res) => {
+  // Get user profile endpoint - MUST come before /users/:id
+  app.get('/users/profile', authenticateToken(app), async (req, res) => {
     try {
       const usersService = new UsersService(app);
-      const user = await usersService.get(req.params.id);
-      res.json(user);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await usersService.get(req.userId, serviceParams);
+      res.json(result);
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
@@ -135,16 +139,12 @@ module.exports = function (app) {
     }
   });
 
-  // Get user profile endpoint
-  app.get('/users/profile', authenticateToken(app), async (req, res) => {
+  // GET /users/:id - Get specific user
+  app.get('/users/:id', optionalAuth(app), async (req, res) => {
     try {
       const usersService = new UsersService(app);
-      const serviceParams = {
-        user: req.user,
-        userId: req.userId
-      };
-      const result = await usersService.get(req.userId, serviceParams);
-      res.json(result);
+      const user = await usersService.get(req.params.id);
+      res.json(user);
     } catch (error) {
       res.status(400).json({ error: error.message });
     }

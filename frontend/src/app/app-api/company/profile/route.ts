@@ -3,92 +3,60 @@ import { cookies } from 'next/headers';
 import config from '@/config';
 import { CompanyProfile } from '@/types/company';
 
-// Mock company profile data
-let mockCompanyProfile: CompanyProfile = {
-  id: 'company-1',
-  name: 'TechCorp Solutions',
-  description: 'A leading technology company focused on innovative software solutions and digital transformation. We help businesses leverage cutting-edge technology to achieve their goals.',
-  industry: 'Technology',
-  size: 'medium',
-  founded: 2018,
-  headquarters: 'San Francisco, CA, USA',
-  website: 'https://www.techcorp.com',
-  logo: '/logos/techcorp-logo.png',
-  coverImage: '/images/techcorp-cover.jpg',
+// Helper to get bearer token from header or cookie
+async function getAuthHeader(request: NextRequest) {
+  console.log('=== HEADER DEBUG ===');
+  console.log('All headers:', Object.fromEntries(request.headers.entries()));
 
-  // Contact Information
-  email: 'contact@techcorp.com',
-  phone: '+1 (555) 123-4567',
-  address: {
-    street: '123 Tech Street',
-    city: 'San Francisco',
-    state: 'CA',
-    country: 'USA',
-    zipCode: '94105'
-  },
+  const header = request.headers.get('authorization') || request.headers.get('Authorization');
+  console.log('Authorization header from request:', header);
 
-  // Company Details
-  mission: 'To empower businesses through innovative technology solutions that drive growth and efficiency.',
-  vision: 'To be the leading technology partner for businesses worldwide, creating a more connected and efficient future.',
-  values: [
-    'Innovation',
-    'Integrity',
-    'Collaboration',
-    'Excellence',
-    'Customer Focus'
-  ],
-  culture: 'We foster a collaborative, inclusive environment where creativity thrives and every team member can make a meaningful impact.',
-  benefits: [
-    'Competitive salary and equity',
-    'Comprehensive health insurance',
-    'Flexible work arrangements',
-    'Professional development opportunities',
-    'Unlimited PTO',
-    'Modern office with great amenities',
-    'Team building events and activities'
-  ],
+  if (header) return header;
 
-  // Point of Contact
-  primaryContact: {
-    name: 'John Smith',
-    title: 'HR Manager',
-    email: 'john.smith@techcorp.com',
-    phone: '+1 (555) 123-4568'
-  },
+  const cookieStore = await cookies();
+  const token =
+    cookieStore.get('authToken')?.value ||
+    cookieStore.get('token')?.value ||
+    cookieStore.get('companyToken')?.value; // fallback for company login
+  console.log('Token from cookies:', token ? 'Present' : 'Missing');
 
-  // Social Media
-  socialMedia: {
-    linkedin: 'https://linkedin.com/company/techcorp',
-    twitter: 'https://twitter.com/techcorp',
-    facebook: 'https://facebook.com/techcorp',
-    instagram: 'https://instagram.com/techcorp'
-  },
+  return token ? `Bearer ${token}` : null;
+}
 
-  // Verification and Status
-  isVerified: true,
-  status: 'active',
-  createdAt: new Date('2024-01-01'),
-  updatedAt: new Date('2024-01-22')
-};
+function resolveBackendUrl() {
+  // For production, always use the configured API URL
+  return config.api.baseUrl;
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-    if (!token) {
+    const authHeader = await getAuthHeader(request);
+    console.log('=== DEBUG INFO ===');
+    console.log('Auth header received:', authHeader ? 'Present' : 'Missing');
+    console.log('Auth header value:', authHeader);
+
+    if (!authHeader) {
+      console.log('No auth header found, returning 401');
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const API_BASE_URL = config.api.baseUrl;
-    const resp = await fetch(`${API_BASE_URL}/users/profile`, {
+    const backendUrl = resolveBackendUrl();
+    console.log('Backend URL:', backendUrl);
+    console.log('Making request to:', `${backendUrl}/users/profile`);
+
+    const resp = await fetch(`${backendUrl}/users/profile`, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': authHeader,
       },
       cache: 'no-store',
     });
 
     const user = await resp.json();
+    console.log('Backend response status:', resp.status);
+    console.log('Backend response body:', user);
+    console.log('=== END DEBUG INFO ===');
+
     if (!resp.ok) {
       return NextResponse.json({ success: false, error: user?.message || 'Failed to fetch profile' }, { status: resp.status });
     }
@@ -144,15 +112,13 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-    if (!token) {
+    const authHeader = await getAuthHeader(request);
+    if (!authHeader) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const body: Partial<CompanyProfile> = await request.json();
 
-    // Map CompanyProfile fields to backend user profile update schema
     const updatePayload: any = {
       company: {
         name: body.name,
@@ -173,7 +139,6 @@ export async function PUT(request: NextRequest) {
         socialMedia: body.socialMedia,
         primaryContact: body.primaryContact,
       },
-      // Keep user profile in sync for common fields
       profile: {
         phone: body.phone,
         website: body.website,
@@ -181,12 +146,12 @@ export async function PUT(request: NextRequest) {
       }
     };
 
-    const API_BASE_URL = config.api.baseUrl;
-    const resp = await fetch(`${API_BASE_URL}/users/profile`, {
+    const backendUrl = resolveBackendUrl();
+    const resp = await fetch(`${backendUrl}/users/profile`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': authHeader,
       },
       body: JSON.stringify(updatePayload),
     });
@@ -196,7 +161,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: updatedUser?.message || 'Failed to update profile' }, { status: resp.status });
     }
 
-    // Reuse GET transformation to normalize the response
     const company = updatedUser?.company || {};
     const normalized: CompanyProfile = {
       id: updatedUser?._id || company?.id || 'unknown',
@@ -246,67 +210,3 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// Get company profile by ID (for public viewing)
-export async function POST(request: NextRequest) {
-  try {
-    const { companyId } = await request.json();
-
-    if (!companyId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Company ID is required'
-        },
-        { status: 400 }
-      );
-    }
-
-    // In a real application, you would query the database for the company
-    if (companyId === mockCompanyProfile.id) {
-      // Return public profile data (without sensitive information)
-      const publicProfile = {
-        id: mockCompanyProfile.id,
-        name: mockCompanyProfile.name,
-        description: mockCompanyProfile.description,
-        industry: mockCompanyProfile.industry,
-        size: mockCompanyProfile.size,
-        founded: mockCompanyProfile.founded,
-        headquarters: mockCompanyProfile.headquarters,
-        website: mockCompanyProfile.website,
-        logo: mockCompanyProfile.logo,
-        coverImage: mockCompanyProfile.coverImage,
-        mission: mockCompanyProfile.mission,
-        vision: mockCompanyProfile.vision,
-        values: mockCompanyProfile.values,
-        culture: mockCompanyProfile.culture,
-        benefits: mockCompanyProfile.benefits,
-        socialMedia: mockCompanyProfile.socialMedia,
-        isVerified: mockCompanyProfile.isVerified,
-        status: mockCompanyProfile.status
-      };
-
-      return NextResponse.json({
-        success: true,
-        data: publicProfile
-      });
-    }
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Company not found'
-      },
-      { status: 404 }
-    );
-
-  } catch (error) {
-    console.error('Error fetching public company profile:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Internal server error'
-      },
-      { status: 500 }
-    );
-  }
-}

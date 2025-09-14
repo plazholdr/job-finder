@@ -1,13 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Building2, Users, DollarSign, Calendar, Heart, Eye, Filter, SortAsc, Menu, X, Grid3X3, List } from 'lucide-react';
+import { Search, MapPin, Building2, Users, Heart, Eye, Filter, SortAsc, Grid3X3, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import PageLayout from '@/components/layout/PageLayout';
+import AppHeader from '@/components/layout/AppHeader';
+
+
+// Resolve image src from possible S3 key or full URL
+const resolveImageSrc = (val?: string | null) => {
+  if (!val) return '/api/placeholder/64/64' as any;
+  return /^https?:\/\//i.test(val) ? (val as any) : `/api/files/image?key=${encodeURIComponent(val as string)}`;
+};
 
 interface Company {
   id: string;
@@ -32,6 +41,38 @@ interface CompanyFilters {
   sortBy: 'name' | 'salary' | 'latest';
 }
 
+
+  // Normalize backend/adapter responses into a unified Company shape
+  function normalizeCompany(c: any): Company {
+    const pickName = () => {
+      const candidates: Array<string | undefined> = [
+        typeof c.name === 'string' ? c.name : undefined,
+        typeof c.company?.name === 'string' ? c.company.name : undefined,
+        typeof c.profile?.name === 'string' ? c.profile.name : undefined,
+        [c.firstName, c.lastName].filter(Boolean).join(' ') || undefined,
+      ];
+      for (const v of candidates) {
+        if (v && v.toString().trim().length > 0) return v.toString().trim();
+      }
+      return 'Company';
+    };
+
+    return {
+      id: c.id ?? c._id ?? c.companyId,
+      name: pickName(),
+      logo: c.logo ?? c.logoUrl ?? c.company?.logo ?? c.profile?.logo ?? c.logo?.url ?? '',
+      description: c.description ?? c.about ?? c.company?.description ?? '',
+      nature: c.nature ?? c.type ?? c.industry ?? 'Company',
+      address: c.address ?? [c.city, c.state, c.country].filter(Boolean).join(', '),
+      website: c.website ?? c.site ?? c.links?.website ?? '',
+      email: c.email ?? c.company?.email ?? '',
+      phoneNumber: c.phoneNumber ?? c.phone ?? c.company?.phone ?? '',
+      activeJobsCount: c.activeJobsCount ?? c.jobsCount ?? c.openingsCount ?? 0,
+      createdAt: c.createdAt ?? c.meta?.createdAt ?? new Date().toISOString(),
+      updatedAt: c.updatedAt ?? c.meta?.updatedAt ?? new Date().toISOString(),
+    };
+  }
+
 export default function UnloggedInternDashboard() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +84,6 @@ export default function UnloggedInternDashboard() {
     sortBy: 'name'
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const router = useRouter();
 
@@ -62,30 +102,30 @@ export default function UnloggedInternDashboard() {
       if (filters.size) queryParams.append('size', filters.size);
       if (filters.location) queryParams.append('location', filters.location);
 
-      const response = await fetch(`/api/companies?${queryParams.toString()}`);
-      const data = await response.json();
+      const res = await fetch(`/api/companies?${queryParams.toString()}`);
+      const raw = await res.json();
 
-      if (data.success) {
-        let sortedCompanies = data.data;
+      // Support both direct backend shape and adapter shape
+      const list = Array.isArray(raw) ? raw : (raw.data ?? raw.results ?? raw.items ?? []);
+      let sortedCompanies: Company[] = list.map(normalizeCompany);
 
-        // Apply sorting
-        switch (filters.sortBy) {
-          case 'name':
-            sortedCompanies.sort((a: Company, b: Company) => a.name.localeCompare(b.name));
-            break;
-          case 'latest':
-            sortedCompanies.sort((a: Company, b: Company) =>
-              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-            );
-            break;
-          case 'salary':
-            // For now, sort by active jobs count as proxy for salary range
-            sortedCompanies.sort((a: Company, b: Company) => b.activeJobsCount - a.activeJobsCount);
-            break;
-        }
-
-        setCompanies(sortedCompanies);
+      // Apply sorting
+      switch (filters.sortBy) {
+        case 'name':
+          sortedCompanies.sort((a: Company, b: Company) => a.name.localeCompare(b.name));
+          break;
+        case 'latest':
+          sortedCompanies.sort((a: Company, b: Company) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+          break;
+        case 'salary':
+          // For now, sort by active jobs count as proxy for salary range
+          sortedCompanies.sort((a: Company, b: Company) => b.activeJobsCount - a.activeJobsCount);
+          break;
       }
+
+      setCompanies(sortedCompanies);
     } catch (error) {
       console.error('Error fetching companies:', error);
     } finally {
@@ -112,79 +152,7 @@ export default function UnloggedInternDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 border-b border-blue-500 sticky top-0 z-50 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center">
-                <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2 border border-white/30">
-                  <span className="text-white font-bold text-sm">JF</span>
-                </div>
-                <span className="ml-3 text-xl font-bold text-white">JobFinder</span>
-              </Link>
-            </div>
-
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/jobs" className="text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
-                Jobs
-              </Link>
-              <Link href="/companies" className="text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
-                Companies
-              </Link>
-              <Link href="/about" className="text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
-                About
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <div className="hidden md:flex items-center space-x-4">
-                <Link href="/auth/login">
-                  <Button variant="ghost" className="text-white hover:bg-white/20 border-white/30">Login</Button>
-                </Link>
-                <Link href="/auth/register">
-                  <Button className="bg-white text-blue-600 hover:bg-gray-100 font-semibold">Get Started</Button>
-                </Link>
-              </div>
-
-              {/* Mobile menu button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="md:hidden text-white hover:bg-white/20"
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-              >
-                {showMobileMenu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
-            </div>
-          </div>
-
-          {/* Mobile Menu */}
-          {showMobileMenu && (
-            <div className="md:hidden border-t border-white/20 py-4 bg-white/10 backdrop-blur-sm">
-              <div className="flex flex-col space-y-4">
-                <Link href="/jobs" className="text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
-                  Jobs
-                </Link>
-                <Link href="/companies" className="text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
-                  Companies
-                </Link>
-                <Link href="/about" className="text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
-                  About
-                </Link>
-                <div className="flex flex-col space-y-2 px-4 pt-4 border-t border-white/20">
-                  <Link href="/auth/login">
-                    <Button variant="ghost" className="w-full justify-start text-white hover:bg-white/20">Login</Button>
-                  </Link>
-                  <Link href="/auth/register">
-                    <Button className="w-full bg-white text-blue-600 hover:bg-gray-100">Get Started</Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
+      <AppHeader />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-16">
@@ -507,7 +475,7 @@ function CompanyCard({ company, viewMode, onViewDetails, onLike, onApply }: Comp
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
                 {company.logo && company.logo !== '/api/placeholder/64/64' ? (
                   <img
-                    src={company.logo}
+                    src={resolveImageSrc(company.logo)}
                     alt={company.name}
                     className="w-full h-full rounded-lg object-cover"
                   />
@@ -593,7 +561,7 @@ function CompanyCard({ company, viewMode, onViewDetails, onLike, onApply }: Comp
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               {company.logo && company.logo !== '/api/placeholder/64/64' ? (
                 <img
-                  src={company.logo}
+                  src={resolveImageSrc(company.logo)}
                   alt={company.name}
                   className="w-full h-full rounded-lg object-cover"
                 />

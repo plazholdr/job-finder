@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,11 +23,29 @@ import {
   CheckCircle,
   AlertCircle,
   Camera,
-  Upload
+  Upload,
+  Plus,
+  Home,
+  Briefcase,
+  FileText,
+  Target
 } from 'lucide-react';
+import Link from 'next/link';
+import AppHeader from '@/components/layout/AppHeader';
+
+import { useAuth } from '@/contexts/auth-context';
 import { CompanyProfile } from '@/types/company';
 
+
+// Resolve image src from S3-compatible key
+const resolveImageSrc = (val?: string | null) => {
+  if (!val) return '' as any;
+  return /^https?:\/\//i.test(val) ? (val as any) : `/api/files/image?key=${encodeURIComponent(val as string)}`;
+};
+
 export default function CompanyProfilePage() {
+  const router = useRouter();
+  const { token, isLoading: authLoading, isAuthenticated } = useAuth();
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<CompanyProfile | null>(null);
@@ -36,14 +55,53 @@ export default function CompanyProfilePage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  // Try once on mount using any available token (localStorage/cookies)
   useEffect(() => {
     fetchCompanyProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Also refetch whenever auth context finishes hydrating and we have a token
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      fetchCompanyProfile();
+    }
+  }, [isAuthenticated, token]);
 
   const fetchCompanyProfile = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/company/profile');
+      console.log('=== FRONTEND DEBUG ===');
+      console.log('Token from useAuth:', token);
+      const lsToken = typeof window !== 'undefined' ? (localStorage.getItem('authToken') || localStorage.getItem('companyToken')) : null;
+      console.log('Token from localStorage:', lsToken);
+
+      // Ensure cookies are set so server routes can read token on refresh
+      if (typeof window !== 'undefined' && lsToken) {
+        const maxAge = 60 * 60 * 24 * 7; // 7 days
+        document.cookie = `authToken=${lsToken}; Path=/; Max-Age=${maxAge}`;
+        document.cookie = `token=${lsToken}; Path=/; Max-Age=${maxAge}`;
+      }
+
+
+      const auth = token || lsToken;
+      if (!auth) {
+        console.warn('No auth token available. Redirecting to login.');
+        router.push('/auth/login');
+        return;
+      }
+
+      const response = await fetch('/app-api/company/profile', {
+        headers: { Authorization: `Bearer ${auth}` },
+      });
       const result = await response.json();
 
       if (result.success) {
@@ -157,10 +215,19 @@ export default function CompanyProfilePage() {
       setIsSaving(true);
       setError(null);
 
-      const response = await fetch('/api/company/profile', {
+      const lsToken = typeof window !== 'undefined' ? (localStorage.getItem('authToken') || localStorage.getItem('companyToken')) : null;
+      const auth = token || lsToken;
+      if (!auth) {
+        console.warn('No auth token available. Redirecting to login.');
+        router.push('/auth/login');
+        return;
+      }
+
+      const response = await fetch('/app-api/company/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth}`,
         },
         body: JSON.stringify(editedProfile),
       });
@@ -186,6 +253,29 @@ export default function CompanyProfilePage() {
       setIsSaving(false);
     }
   };
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated (this should not render due to useEffect redirect)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -213,62 +303,16 @@ export default function CompanyProfilePage() {
     );
   }
 
+
+
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Building2 className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Company Profile</h1>
-                <p className="text-sm text-gray-600">Manage your company information</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              {!isEditing ? (
-                <Button onClick={handleEdit}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Update Profile
-                </Button>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  {hasUnsavedChanges && (
-                    <span className="text-sm text-amber-600 flex items-center">
-                      <AlertCircle className="h-4 w-4 mr-1" />
-                      Unsaved changes
-                    </span>
-                  )}
-                  <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSave} disabled={isSaving || !hasUnsavedChanges}>
-                    {isSaving ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Saving...
-                      </div>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Gradient Header like landing */}
+      <AppHeader />
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Status Messages */}
         {error && (
           <Alert variant="destructive" className="mb-6">
@@ -287,11 +331,12 @@ export default function CompanyProfilePage() {
         {/* Profile Header */}
         <Card className="mb-8">
           <CardContent className="p-8">
-            <div className="flex items-start space-x-6">
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex items-start space-x-6">
               <div className="relative">
                 <div className="h-24 w-24 bg-gray-200 rounded-lg flex items-center justify-center">
                   {profile.logo ? (
-                    <img src={profile.logo} alt="Company Logo" className="h-full w-full object-cover rounded-lg" />
+                    <img src={resolveImageSrc(profile.logo)} alt="Company Logo" className="h-full w-full object-cover rounded-lg" />
                   ) : (
                     <Building2 className="h-12 w-12 text-gray-400" />
                   )}
@@ -349,6 +394,41 @@ export default function CompanyProfilePage() {
                   </div>
                 )}
               </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {!isEditing ? (
+                  <Button onClick={handleEdit}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Update Profile
+                  </Button>
+                ) : (
+                  <>
+                    {hasUnsavedChanges && (
+                      <span className="text-sm text-amber-600 flex items-center mr-2">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        Unsaved changes
+                      </span>
+                    )}
+                    <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSave} disabled={isSaving || !hasUnsavedChanges}>
+                      {isSaving ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Saving...
+                        </div>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -383,7 +463,7 @@ export default function CompanyProfilePage() {
                       <option value="medium">51-200 employees</option>
                       <option value="large">201-1000 employees</option>
                       <option value="enterprise">1000+ employees</option>
-                    </select>
+                      </select>
                   </div>
                   <div>
                     <Label htmlFor="founded">Founded Year</Label>

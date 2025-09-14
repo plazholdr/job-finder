@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { InternshipProfile, InternshipDetails, CourseInformation, AssignmentInformation } from '@/types/internship';
 import { api } from '@/lib/api';
-import config from '@/config';
 
 interface User {
   _id: string;
@@ -146,6 +145,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('authToken', accessToken);
         localStorage.setItem('authUser', JSON.stringify(userData));
+        // Also set cookies so server routes can read the token on refresh
+        const maxAge = 60 * 60 * 24 * 7; // 7 days
+        document.cookie = `authToken=${accessToken}; Path=/; Max-Age=${maxAge}`;
+        document.cookie = `token=${accessToken}; Path=/; Max-Age=${maxAge}`;
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -159,8 +162,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
 
-      // Call the backend API directly
-      const response = await fetch(`${config.api.baseUrl}/users`, {
+      // Use Next.js API route to proxy to backend to avoid /api collisions and CORS
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Then auto-login using the same credentials
-      const loginRes = await fetch(`${config.api.baseUrl}/authentication`, {
+      const loginRes = await fetch('/api/authentication', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -200,6 +203,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('authToken', accessToken);
           localStorage.setItem('authUser', JSON.stringify(userDataResp));
+          const maxAge = 60 * 60 * 24 * 7; // 7 days
+          document.cookie = `authToken=${accessToken}; Path=/; Max-Age=${maxAge}`;
+          document.cookie = `token=${accessToken}; Path=/; Max-Age=${maxAge}`;
         }
       }
     } catch (error) {
@@ -218,6 +224,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
+      // Clear auth cookies as well
+      document.cookie = 'authToken=; Path=/; Max-Age=0';
+      document.cookie = 'token=; Path=/; Max-Age=0';
     }
 
     // For now, we'll just do local logout

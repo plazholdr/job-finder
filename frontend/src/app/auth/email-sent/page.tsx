@@ -73,71 +73,104 @@ function EmailSentPageInner() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
       <motion.div
-        className="w-full max-w-md space-y-8"
+        className="w-full max-w-lg space-y-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
+        {/* Header Section */}
         <div className="text-center">
-          <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-            <Mail className="h-8 w-8 text-blue-600" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+          <motion.div
+            className="mx-auto w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+          >
+            <Mail className="h-10 w-10 text-white" />
+          </motion.div>
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
             Check Your Email
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="text-gray-600 mb-2">
             We've sent a verification link to
           </p>
-          <p className="font-medium text-blue-600">{email}</p>
+          <p className="font-semibold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            {email}
+          </p>
         </div>
 
-        <div className="bg-white p-6 rounded-lg border border-gray-200 space-y-4">
-          <div className="flex items-start gap-3">
-            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-gray-700">
-              <p className="font-medium">Email sent successfully!</p>
-              <p>Click the verification link in your email to continue.</p>
+        {/* Main Content Card */}
+        <motion.div
+          className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl border border-white/20 shadow-xl space-y-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          {/* Success Message */}
+          <div className="flex items-start gap-4 p-4 bg-green-50 rounded-xl border border-green-200">
+            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-green-900 mb-1">Email sent successfully!</p>
+              <p className="text-sm text-green-700">Click the verification link in your email to continue.</p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
-            <Clock className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-gray-700">
-              <p className="font-medium">Link expires in:</p>
-              <p className="font-mono text-lg text-orange-600">{formatTime(timeLeft)}</p>
+          {/* Timer */}
+          <div className="flex items-start gap-4 p-4 bg-orange-50 rounded-xl border border-orange-200">
+            <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <Clock className="h-5 w-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-orange-900 mb-1">Link expires in:</p>
+              <p className="font-mono text-xl text-orange-700 font-bold">{formatTime(timeLeft)}</p>
             </div>
           </div>
 
+          {/* Next Steps for Company */}
           {type === 'company' && (
-            <div className="flex items-start gap-3">
-              <ArrowRight className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-gray-700">
-                <p className="font-medium">Next steps:</p>
-                <p>After verification, you'll complete your company registration with business details and Malaysian Superform.</p>
+            <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <ArrowRight className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-blue-900 mb-1">Next steps:</p>
+                <p className="text-sm text-blue-700">After verification, you'll complete your company registration with business details and Malaysian Superform.</p>
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
 
-        <div className="space-y-4">
+        {/* Action Buttons */}
+        <motion.div
+          className="space-y-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+        >
           <div className="text-center">
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-gray-600 mb-4">
               Didn't receive the email? Check your spam folder or
             </p>
             <Button
               onClick={handleResendEmail}
               disabled={isResending}
               variant="outline"
-              className="w-full"
+              className="w-full h-12 text-base font-medium border-2 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
             >
               {isResending ? 'Sending...' : 'Resend Verification Email'}
             </Button>
             {resendMessage && (
-              <p className={`text-sm mt-2 ${resendMessage.includes('success') ? 'text-green-600' : 'text-red-600'}`}>
+              <motion.p
+                className={`text-sm mt-3 font-medium ${resendMessage.includes('success') ? 'text-green-600' : 'text-red-600'}`}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
                 {resendMessage}
-              </p>
+              </motion.p>
             )}
           </div>
 
@@ -145,22 +178,30 @@ function EmailSentPageInner() {
             <Button
               onClick={() => router.push('/auth/login')}
               variant="ghost"
-              className="text-sm"
+              className="text-gray-600 hover:text-gray-800 font-medium"
             >
               Back to Login
             </Button>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-yellow-800">
-              <p className="font-medium">Important:</p>
-              <p>The verification link will expire in 24 hours. If it expires, you'll need to register again.</p>
+        {/* Important Notice */}
+        <motion.div
+          className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-yellow-900 mb-1">Important:</p>
+              <p className="text-sm text-yellow-800">The verification link will expire in 24 hours. If it expires, you'll need to register again.</p>
             </div>
           </div>
-        </div>
+        </motion.div>
       </motion.div>
     </div>
   );
