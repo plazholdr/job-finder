@@ -22,6 +22,8 @@ class ApplicationModel {
       await this.collection.createIndex({ userId: 1, status: 1 });
       await this.collection.createIndex({ companyId: 1, statusCode: 1 });
       await this.collection.createIndex({ userId: 1, statusCode: 1 });
+      await this.collection.createIndex({ withdrawalDate: -1 });
+
     } catch (error) {
       console.warn('Failed to create application indexes:', error.message);
     }
@@ -118,7 +120,10 @@ class ApplicationModel {
 
       // Offer details - always set to null initially for student applications
       offerValidity: null,
-      offerLetterUrl: null
+      offerLetterUrl: null,
+
+      withdrawalDate: null,        
+      withdrawalReason: null 
     };
 
     const result = await this.collection.insertOne(applicationDoc);
@@ -240,6 +245,10 @@ class ApplicationModel {
         setData.offerRejectedAt = new Date();
         if (reason) setData.rejectionReason = reason;
         break;
+      case 'withdrawn':
+        setData.withdrawalDate = new Date();
+        if (reason) setData.withdrawalReason = reason;
+  break;
     }
 
     const updateData = {
