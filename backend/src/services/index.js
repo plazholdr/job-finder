@@ -5,6 +5,7 @@ const NotificationService = require('./notification.service');
 const JobsService = require('./jobs.service');
 const LikedJobsService = require('./liked-jobs.service');
 const CompaniesService = require('./companies.service');
+const LikedCompaniesService = require('./liked-companies.service');
 const ApplicationsService = require('./applications.service');
 const InternshipsService = require('./internships.service');
 const RequestsService = require('./requests.service');
@@ -97,16 +98,12 @@ module.exports = function (app) {
     }
   });
 
-  // Get user profile endpoint - MUST come before /users/:id
-  app.get('/users/profile', authenticateToken(app), async (req, res) => {
+  // GET /users/:id - Get specific user
+  app.get('/users/:id', optionalAuth(app), async (req, res) => {
     try {
       const usersService = new UsersService(app);
-      const serviceParams = {
-        user: req.user,
-        userId: req.userId
-      };
-      const result = await usersService.get(req.userId, serviceParams);
-      res.json(result);
+      const user = await usersService.get(req.params.id);
+      res.json(user);
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
@@ -139,12 +136,16 @@ module.exports = function (app) {
     }
   });
 
-  // GET /users/:id - Get specific user
-  app.get('/users/:id', optionalAuth(app), async (req, res) => {
+  // Get user profile endpoint
+  app.get('/users/profile', authenticateToken(app), async (req, res) => {
     try {
       const usersService = new UsersService(app);
-      const user = await usersService.get(req.params.id);
-      res.json(user);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await usersService.get(req.userId, serviceParams);
+      res.json(result);
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
@@ -666,6 +667,65 @@ module.exports = function (app) {
 
 
 
+  // Liked Companies service endpoints - MUST come before /companies/:id routes
+  app.post('/companies/like', authenticateToken(app), async (req, res) => {
+    try {
+      const likedCompaniesService = new LikedCompaniesService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await likedCompaniesService.create(req.body, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete('/companies/like', authenticateToken(app), async (req, res) => {
+    try {
+      const { companyId } = req.body || {};
+      const likedCompaniesService = new LikedCompaniesService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await likedCompaniesService.remove(companyId, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete('/companies/like/:companyId', authenticateToken(app), async (req, res) => {
+    try {
+      const likedCompaniesService = new LikedCompaniesService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await likedCompaniesService.remove(req.params.companyId, serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/companies/liked', authenticateToken(app), async (req, res) => {
+    try {
+      const likedCompaniesService = new LikedCompaniesService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        query: req.query
+      };
+      const result = await likedCompaniesService.find(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Register companies service endpoints
   app.get('/companies', optionalAuth(app), async (req, res) => {
     try {
@@ -676,6 +736,20 @@ module.exports = function (app) {
         query: req.query
       };
       const result = await companiesService.find(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/companies/:id/liked', authenticateToken(app), async (req, res) => {
+    try {
+      const likedCompaniesService = new LikedCompaniesService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId
+      };
+      const result = await likedCompaniesService.get(req.params.id, serviceParams);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: error.message });

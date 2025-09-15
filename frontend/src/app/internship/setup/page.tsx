@@ -204,24 +204,23 @@ function InternshipSetup() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 shadow-lg">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-4">
             <Link
               href="/internship"
-              className="text-gray-600 hover:text-gray-900"
+              className="text-white/80 hover:text-white transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md"
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">
                 {isUpdateMode ? 'Update Internship Information' : 'Internship Setup'}
               </h1>
-              <p className="text-gray-600">
+              <p className="text-lg text-blue-100">
                 {currentStep === 'profile' && 'Set up your intern profile information'}
-
                 {currentStep === 'details' && 'Input internship details (duration, industry, location, salary, skills, languages)'}
                 {currentStep === 'courses' && 'Input course information (multiple)'}
                 {currentStep === 'assignments' && 'Input past/current assignment information (multiple)'}
@@ -232,14 +231,14 @@ function InternshipSetup() {
       </div>
 
       {/* Progress Indicator */}
-      <div className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="bg-white/80 backdrop-blur-sm border-b border-white/20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             {[
-              { key: 'profile', label: 'Profile', icon: User },
-              { key: 'details', label: 'Details', icon: Briefcase },
-              { key: 'courses', label: 'Courses', icon: BookOpen },
-              { key: 'assignments', label: 'Assignments', icon: FileText }
+              { key: 'profile', label: 'Profile', icon: User, color: 'from-blue-500 to-cyan-500' },
+              { key: 'details', label: 'Details', icon: Briefcase, color: 'from-green-500 to-emerald-500' },
+              { key: 'courses', label: 'Courses', icon: BookOpen, color: 'from-purple-500 to-violet-500' },
+              { key: 'assignments', label: 'Assignments', icon: FileText, color: 'from-orange-500 to-red-500' }
             ].map((step, index) => {
               const Icon = step.icon;
               const isActive = currentStep === step.key;
@@ -247,16 +246,16 @@ function InternshipSetup() {
 
               return (
                 <div key={step.key} className="flex items-center">
-                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                    isActive ? 'bg-blue-100 text-blue-700' :
-                    isCompleted ? 'bg-green-100 text-green-700' :
-                    'text-gray-500'
+                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                    isActive ? `bg-gradient-to-r ${step.color} text-white shadow-lg` :
+                    isCompleted ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md' :
+                    'bg-gray-100 text-gray-500 hover:bg-gray-200'
                   }`}>
-                    <Icon className="h-4 w-4" />
-                    <span className="text-sm font-medium">{step.label}</span>
+                    <Icon className="h-5 w-5" />
+                    <span className="font-semibold">{step.label}</span>
                   </div>
                   {index < 3 && (
-                    <ArrowRight className="h-4 w-4 text-gray-400 mx-2" />
+                    <ArrowRight className="h-5 w-5 text-gray-400 mx-3" />
                   )}
                 </div>
               );
@@ -286,12 +285,12 @@ function InternshipSetup() {
 
         {/* Step 1: Profile Information */}
         {currentStep === 'profile' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Profile Information</h2>
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-8">
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-8">Profile Information</h2>
 
             {/* Show existing profile information */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium text-gray-900 mb-3">Your Current Intern Profile Information:</h3>
+            <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+              <h3 className="font-bold text-gray-900 mb-4 text-lg">Your Current Intern Profile Information:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div><strong>Name:</strong> {user.firstName} {user.lastName}</div>
                 <div><strong>Email:</strong> {user.email}</div>

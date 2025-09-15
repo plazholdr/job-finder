@@ -21,7 +21,10 @@ import {
   Edit,
   Eye,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Calendar,
+  MapPin,
+  DollarSign
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -81,17 +84,21 @@ function InternshipSection() {
       interests: [],
       workExperience: [],
       details: {
-        duration: { startDate: '', endDate: '', isFlexible: true },
-        preferredIndustry: [],
-        preferredLocations: [],
-        salaryRange: { min: 0, max: 0, currency: 'MYR', period: 'month', isNegotiable: true },
-        skills: [],
-        languages: [],
-        availability: { hoursPerWeek: 40, flexibleSchedule: true, availableDays: [] },
-        workPreferences: { remote: false, hybrid: false, onSite: true, travelWillingness: 'Local' },
         courses: [],
         assignments: []
       }
+    },
+    details: {
+      duration: { startDate: '', endDate: '', isFlexible: true },
+      preferredIndustry: [],
+      preferredLocations: [],
+      salaryRange: { min: 0, max: 0, currency: 'MYR', period: 'month', isNegotiable: true },
+      skills: [],
+      languages: [],
+      availability: { hoursPerWeek: 40, flexibleSchedule: true, availableDays: [] },
+      workPreferences: { remote: false, hybrid: false, onSite: true, travelWillingness: 'Local' },
+      courses: [],
+      assignments: []
     },
     applications: [],
     isSetupComplete: false
@@ -133,14 +140,14 @@ function InternshipSection() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
-          <div className="bg-gray-50 p-6 mb-6">
+          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 rounded-xl p-8 mb-8 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Internship Section</h1>
-                <p className="mt-2 text-gray-600">
+                <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">Internship Section</h1>
+                <p className="text-xl text-blue-100">
                   {isFirstTimeSetup
                     ? 'Set up your intern profile to get started'
                     : 'Manage your intern information and applications'
@@ -148,16 +155,16 @@ function InternshipSection() {
                 </p>
               </div>
               {!isFirstTimeSetup && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <Link
-                    href="/internship/opportunities"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    href="/jobs"
+                    className="px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-all duration-200 font-semibold shadow-md"
                   >
                     Browse Opportunities
                   </Link>
                   <Link
                     href="/internship/applications"
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-6 py-3 border border-white/30 text-white rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold backdrop-blur-sm"
                   >
                     My Applications
                   </Link>
@@ -169,29 +176,29 @@ function InternshipSection() {
         {/* First Time Check Prompt */}
         {currentStep === 'first-time-check' && (
           <div className="max-w-2xl mx-auto">
-            <Card className="border-0 shadow-xl">
-              <CardContent className="p-8 text-center">
-                <div className="mb-6">
-                  <div className="h-16 w-16 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <User className="h-8 w-8 text-blue-600" />
+            <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+              <CardContent className="p-10 text-center">
+                <div className="mb-8">
+                  <div className="h-20 w-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <User className="h-10 w-10 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Internship Section</h2>
-                  <p className="text-gray-600">Let's get you set up with your internship profile</p>
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">Welcome to Internship Section</h2>
+                  <p className="text-xl text-gray-600">Let's get you set up with your internship profile</p>
                 </div>
 
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Is this your first time setting up?</h3>
+                <div className="space-y-6">
+                  <h3 className="text-xl font-bold text-gray-900">Is this your first time setting up?</h3>
                   <div className="flex gap-4 justify-center">
                     <Button
                       onClick={() => handleFirstTimeDecision(true)}
-                      className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl"
+                      className="px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105"
                     >
                       Yes, First Time
                     </Button>
                     <Button
                       onClick={() => handleFirstTimeDecision(false)}
                       variant="outline"
-                      className="px-8 py-3 border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-xl"
+                      className="px-10 py-4 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-bold rounded-xl transition-all duration-300 transform hover:scale-105"
                     >
                       No, I have existing info
                     </Button>
@@ -254,19 +261,19 @@ function InternshipSection() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {[
-                { icon: User, title: 'Profile Information', desc: 'Basic details and contact info' },
-                { icon: GraduationCap, title: 'Education & Experience', desc: 'Academic background and work history' },
-                { icon: BookOpen, title: 'Course Information', desc: 'Relevant coursework and projects' },
-                { icon: FileText, title: 'Assignment Portfolio', desc: 'Past assignments and achievements' }
+                { icon: User, title: 'Profile Information', desc: 'Basic details and contact info', color: 'from-blue-500 to-cyan-500' },
+                { icon: Briefcase, title: 'Internship Details', desc: 'Duration, industry, location, salary, skills', color: 'from-green-500 to-emerald-500' },
+                { icon: BookOpen, title: 'Course Information', desc: 'Relevant coursework and projects', color: 'from-purple-500 to-violet-500' },
+                { icon: FileText, title: 'Assignment Portfolio', desc: 'Past assignments and achievements', color: 'from-orange-500 to-red-500' }
               ].map((step, index) => {
                 const Icon = step.icon;
                 return (
-                  <div key={index} className="text-center p-4 border rounded-lg">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Icon className="h-6 w-6 text-blue-600" />
+                  <div key={index} className="text-center p-6 bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 group">
+                    <div className={`w-16 h-16 bg-gradient-to-r ${step.color} rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                      <Icon className="h-8 w-8 text-white" />
                     </div>
-                    <h3 className="font-medium text-gray-900 mb-1">{step.title}</h3>
-                    <p className="text-sm text-gray-600">{step.desc}</p>
+                    <h3 className="font-bold text-gray-900 mb-2 text-lg">{step.title}</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">{step.desc}</p>
                   </div>
                 );
               })}
@@ -275,10 +282,10 @@ function InternshipSection() {
             <div className="text-center">
               <Link
                 href="/internship/setup"
-                className="inline-flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                className="inline-flex items-center gap-3 px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
                 Get Started
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
           </div>
@@ -288,12 +295,12 @@ function InternshipSection() {
         {!isFirstTimeSetup && currentStep === 'view' && (
           <div className="space-y-6">
             {/* Profile Overview */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Intern Profile Overview</h2>
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-8">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Intern Profile Overview</h2>
                 <button
                   onClick={() => setCurrentStep('update-check')}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-semibold shadow-md transition-all duration-200"
                 >
                   <Edit className="h-4 w-4" />
                   Update Information
@@ -332,29 +339,30 @@ function InternshipSection() {
                   </CardContent>
                 </Card>
 
-                {/* Education & Experience Card */}
+                {/* Internship Details Card */}
                 <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer border-0 shadow-lg bg-white"
                       onClick={() => setExpandedSections(prev => ({ ...prev, education: !prev.education }))}>
                   <CardContent className="p-6 text-center">
                     <div className="relative mb-4">
                       <div className="h-16 w-16 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
-                        <GraduationCap className="h-8 w-8 text-green-600" />
+                        <Briefcase className="h-8 w-8 text-green-600" />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <h3 className="font-bold text-lg text-gray-900 group-hover:text-green-600 transition-colors">
-                        Education & Experience
+                        Internship Details
                       </h3>
                       <Badge variant="secondary" className="text-xs px-3 py-1 bg-green-50 text-green-700 border-green-200">
-                        {((existingInternshipInfo.profile?.educationBackground?.length || 0) +
-                          (existingInternshipInfo.profile?.workExperience?.length || 0) +
-                          (existingInternshipInfo.profile?.certifications?.length || 0)) > 0 ? 'Complete' : 'Not set'}
+                        {(((existingInternshipInfo as any).details?.duration?.startDate || (existingInternshipInfo as any).profile?.details?.duration?.startDate) &&
+                          (((existingInternshipInfo as any).details?.preferredIndustry?.length || (existingInternshipInfo as any).profile?.details?.preferredIndustry?.length || 0) > 0) &&
+                          (((existingInternshipInfo as any).details?.preferredLocations?.length || (existingInternshipInfo as any).profile?.details?.preferredLocations?.length || 0) > 0)) ? 'Complete' : 'Not set'}
                       </Badge>
                     </div>
                     <div className="text-gray-600 text-sm mt-3 space-y-1">
-                      <div>Education: {existingInternshipInfo.profile?.educationBackground?.length || 0}</div>
-                      <div>Experience: {existingInternshipInfo.profile?.workExperience?.length || 0}</div>
-                      <div>Certifications: {existingInternshipInfo.profile?.certifications?.length || 0}</div>
+                      <div>Duration: {((existingInternshipInfo as any).details?.duration?.startDate || (existingInternshipInfo as any).profile?.details?.duration?.startDate) ? 'Set' : 'Not set'}</div>
+                      <div>Industries: {(existingInternshipInfo as any).details?.preferredIndustry?.length || (existingInternshipInfo as any).profile?.details?.preferredIndustry?.length || 0}</div>
+                      <div>Locations: {(existingInternshipInfo as any).details?.preferredLocations?.length || (existingInternshipInfo as any).profile?.details?.preferredLocations?.length || 0}</div>
+                      <div>Skills: {(existingInternshipInfo as any).details?.skills?.length || (existingInternshipInfo as any).profile?.details?.skills?.length || 0}</div>
                     </div>
                     <div className="mt-4">
                       <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700">
@@ -485,16 +493,16 @@ function InternshipSection() {
               </Card>
             )}
 
-            {/* Education & Experience Expanded */}
+            {/* Internship Details Expanded */}
             {expandedSections.education && (
               <Card className="border-0 shadow-lg">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
                       <div className="h-8 w-8 bg-gradient-to-br from-green-50 to-green-100 rounded-lg flex items-center justify-center">
-                        <GraduationCap className="h-5 w-5 text-green-600" />
+                        <Briefcase className="h-5 w-5 text-green-600" />
                       </div>
-                      Education & Experience
+                      Internship Details
                     </CardTitle>
                     <Button
                       variant="ghost"
@@ -509,89 +517,135 @@ function InternshipSection() {
                 <CardContent>
 
                 <div className="space-y-6">
-                  {/* Education Background */}
+                  {/* Internship Duration */}
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-3">Education Background</h4>
-                    {existingInternshipInfo.profile?.educationBackground && existingInternshipInfo.profile.educationBackground.length > 0 ? (
-                      <div className="space-y-3">
-                        {existingInternshipInfo.profile.educationBackground.map((edu, index) => (
-                          <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <h5 className="font-medium text-gray-900">{edu.institution}</h5>
-                                <p className="text-sm text-gray-600">{edu.degree} in {edu.fieldOfStudy}</p>
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {edu.startDate} - {edu.endDate}
-                              </div>
-                            </div>
-                            {edu.description && (
-                              <p className="text-sm text-gray-600 mt-2">{edu.description}</p>
+                    <h4 className="font-medium text-gray-900 mb-3">Internship Duration</h4>
+                    {((existingInternshipInfo as any).details?.duration?.startDate || (existingInternshipInfo as any).profile?.details?.duration?.startDate) ? (
+                      <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {new Date(((existingInternshipInfo as any).details?.duration?.startDate || (existingInternshipInfo as any).profile?.details?.duration?.startDate)).toLocaleDateString()} - {' '}
+                              {((existingInternshipInfo as any).details?.duration?.endDate || (existingInternshipInfo as any).profile?.details?.duration?.endDate) ?
+                                new Date(((existingInternshipInfo as any).details?.duration?.endDate || (existingInternshipInfo as any).profile?.details?.duration?.endDate)).toLocaleDateString() :
+                                'Open-ended'
+                              }
+                            </p>
+                            {((existingInternshipInfo as any).details?.duration?.isFlexible || (existingInternshipInfo as any).profile?.details?.duration?.isFlexible) && (
+                              <p className="text-sm text-blue-600">Flexible dates</p>
                             )}
                           </div>
-                        ))}
+                        </div>
                       </div>
                     ) : (
                       <div className="text-center py-6">
-                        <GraduationCap className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500 text-sm">No education background added yet</p>
+                        <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm">No duration set yet</p>
                       </div>
                     )}
                   </div>
 
-                  {/* Certifications */}
+                  {/* Preferred Industry */}
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-3">Certifications</h4>
-                    {existingInternshipInfo.profile?.certifications && existingInternshipInfo.profile.certifications.length > 0 ? (
-                      <div className="space-y-3">
-                        {existingInternshipInfo.profile.certifications.map((cert, index) => (
-                          <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h5 className="font-medium text-gray-900">{cert.name}</h5>
-                                <p className="text-sm text-gray-600">{cert.issuingOrganization}</p>
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {cert.issueDate}
-                              </div>
-                            </div>
-                          </div>
+                    <h4 className="font-medium text-gray-900 mb-3">Preferred Industry</h4>
+                    {(((existingInternshipInfo as any).details?.preferredIndustry && (existingInternshipInfo as any).details.preferredIndustry.length > 0) ||
+                      ((existingInternshipInfo as any).profile?.details?.preferredIndustry && (existingInternshipInfo as any).profile.details.preferredIndustry.length > 0)) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {((existingInternshipInfo as any).details?.preferredIndustry || (existingInternshipInfo as any).profile?.details?.preferredIndustry || []).map((industry: string, index: number) => (
+                          <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            {industry}
+                          </span>
                         ))}
                       </div>
                     ) : (
                       <div className="text-center py-6">
-                        <FileText className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500 text-sm">No certifications added yet</p>
+                        <Briefcase className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm">No preferred industry set yet</p>
                       </div>
                     )}
                   </div>
 
-                  {/* Work Experience */}
+                  {/* Preferred Locations */}
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-3">Work Experience</h4>
-                    {existingInternshipInfo.profile?.workExperience && existingInternshipInfo.profile.workExperience.length > 0 ? (
-                      <div className="space-y-3">
-                        {existingInternshipInfo.profile.workExperience.map((work, index) => (
-                          <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <h5 className="font-medium text-gray-900">{work.jobTitle}</h5>
-                                <p className="text-sm text-gray-600">{work.company} • {work.location}</p>
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {work.startDate} - {work.endDate || 'Present'}
-                              </div>
-                            </div>
-                            {work.description && (
-                              <p className="text-sm text-gray-600 mt-2">{work.description}</p>
-                            )}
-                          </div>
+                    <h4 className="font-medium text-gray-900 mb-3">Preferred Locations</h4>
+                    {(((existingInternshipInfo as any).details?.preferredLocations && (existingInternshipInfo as any).details.preferredLocations.length > 0) ||
+                      ((existingInternshipInfo as any).profile?.details?.preferredLocations && (existingInternshipInfo as any).profile.details.preferredLocations.length > 0)) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {((existingInternshipInfo as any).details?.preferredLocations || (existingInternshipInfo as any).profile?.details?.preferredLocations || []).map((location: string, index: number) => (
+                          <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {location}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6">
+                        <MapPin className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm">No preferred locations set yet</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Salary Range */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-3">Preferred Salary Range</h4>
+                    {((existingInternshipInfo as any).details?.salaryRange || (existingInternshipInfo as any).profile?.details?.salaryRange) ? (
+                      <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-5 w-5 text-green-600" />
+                          <span className="font-medium text-gray-900">
+                            {((existingInternshipInfo as any).details?.salaryRange || (existingInternshipInfo as any).profile?.details?.salaryRange).currency} {((existingInternshipInfo as any).details?.salaryRange || (existingInternshipInfo as any).profile?.details?.salaryRange).min} - {((existingInternshipInfo as any).details?.salaryRange || (existingInternshipInfo as any).profile?.details?.salaryRange).max}
+                          </span>
+                          <span className="text-sm text-gray-600">per {((existingInternshipInfo as any).details?.salaryRange || (existingInternshipInfo as any).profile?.details?.salaryRange).period}</span>
+                          {((existingInternshipInfo as any).details?.salaryRange || (existingInternshipInfo as any).profile?.details?.salaryRange).isNegotiable && (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Negotiable</span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6">
+                        <DollarSign className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm">No salary range set yet</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Skills */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-3">Skills</h4>
+                    {(((existingInternshipInfo as any).details?.skills && (existingInternshipInfo as any).details.skills.length > 0) ||
+                      ((existingInternshipInfo as any).profile?.details?.skills && (existingInternshipInfo as any).profile.details.skills.length > 0)) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {((existingInternshipInfo as any).details?.skills || (existingInternshipInfo as any).profile?.details?.skills || []).map((skill: string, index: number) => (
+                          <span key={index} className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6">
+                        <Award className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm">No skills added yet</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Languages */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-3">Languages</h4>
+                    {(((existingInternshipInfo as any).details?.languages && (existingInternshipInfo as any).details.languages.length > 0) ||
+                      ((existingInternshipInfo as any).profile?.details?.languages && (existingInternshipInfo as any).profile.details.languages.length > 0)) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {((existingInternshipInfo as any).details?.languages || (existingInternshipInfo as any).profile?.details?.languages || []).map((language: string, index: number) => (
+                          <span key={index} className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
+                            {String(language)}
+                          </span>
                         ))}
                       </div>
                     ) : (
                       <div className="text-center py-6">
                         <User className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500 text-sm">No work experience added yet</p>
+                        <p className="text-gray-500 text-sm">No languages added yet</p>
                       </div>
                     )}
                   </div>
