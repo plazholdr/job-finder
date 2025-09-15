@@ -13,12 +13,15 @@ class ApplicationModel {
       await this.collection.createIndex({ jobId: 1 });
       await this.collection.createIndex({ companyId: 1 });
       await this.collection.createIndex({ status: 1 });
+      await this.collection.createIndex({ statusCode: 1 });
       await this.collection.createIndex({ createdAt: -1 });
-      
+
       // Compound indexes for common queries
       await this.collection.createIndex({ jobId: 1, userId: 1 }, { unique: true }); // Prevent duplicate applications
       await this.collection.createIndex({ companyId: 1, status: 1 });
       await this.collection.createIndex({ userId: 1, status: 1 });
+      await this.collection.createIndex({ companyId: 1, statusCode: 1 });
+      await this.collection.createIndex({ userId: 1, statusCode: 1 });
     } catch (error) {
       console.warn('Failed to create application indexes:', error.message);
     }
@@ -70,8 +73,8 @@ class ApplicationModel {
       // Application content
       personalInformation: personalInformation || '',
       internshipDetails: internshipDetails || '',
-      courseInformation: courseInformation || '',
-      assignmentInformation: assignmentInformation || '',
+      courseInformation: Array.isArray(courseInformation) ? courseInformation : [],
+      assignmentInformation: Array.isArray(assignmentInformation) ? assignmentInformation : [],
       coverLetter: coverLetter || '',
       
       // File attachments
@@ -80,11 +83,13 @@ class ApplicationModel {
       additionalDocuments: additionalDocuments,
       
       // Application status workflow
-      status: 'submitted', // submitted, under_review, interview_scheduled, interview_completed, offered, pending_acceptance, accepted, rejected, withdrawn
-      
+      status: 'pending', // using string for compatibility, see statusCode
+      statusCode: 0, // APPLICATION_STATUS.PENDING
+
       // Status history for tracking
       statusHistory: [{
-        status: 'submitted',
+        status: 'pending',
+        statusCode: 0,
         changedAt: new Date(),
         changedBy: userObjectId,
         reason: 'Application submitted'

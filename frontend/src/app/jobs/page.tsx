@@ -243,43 +243,48 @@ export default function JobsPage() {
   };
 
   const handleApplicationSubmit = async (applicationData: any) => {
-    try {
-      console.log('Submitting application:', applicationData);
+    console.log('Submitting application:', applicationData);
 
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/applications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          jobId: selectedJob._id || selectedJob.id,
-          personalInformation: `${user?.firstName} ${user?.lastName}, ${user?.email}, ${user?.profile?.phone || 'N/A'}, ${user?.profile?.location || 'N/A'}`,
-          internshipDetails: applicationData.applicationValidity,
-          courseInformation: user?.student?.education ? JSON.stringify(user.student.education) : 'No education info provided',
-          assignmentInformation: user?.student?.experience ? JSON.stringify(user.student.experience) : 'No experience info provided',
-          coverLetter: applicationData.candidateStatement,
-          resumeUrl: applicationData.resumeUrl || user?.student?.resume,
-          portfolioUrl: user?.student?.portfolio || null,
-          additionalDocuments: []
-        }),
-      });
+    const token = localStorage.getItem('authToken');
+    const response = await fetch('/api/applications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        jobId: selectedJob._id || selectedJob.id,
+        personalInformation: `${user?.firstName} ${user?.lastName}, ${user?.email}, ${user?.profile?.phone || 'N/A'}, ${user?.profile?.location || 'N/A'}`,
+        internshipDetails: applicationData.applicationValidity,
+        courseInformation: Array.isArray(applicationData.courseInformation) ? applicationData.courseInformation : [],
+        assignmentInformation: Array.isArray(applicationData.assignmentInformation) ? applicationData.assignmentInformation : [],
+        coverLetter: applicationData.candidateStatement,
+        resumeUrl: applicationData.resumeUrl || user?.student?.resume,
+        portfolioUrl: user?.student?.portfolio || null,
+        additionalDocuments: []
+      }),
+    });
 
-      const result = await response.json();
+    let payload: any = null;
+    const raw = await response.text();
+    try { payload = raw ? JSON.parse(raw) : null; } catch {}
 
-      if (result.success) {
-        setShowApplicationModal(false);
-        setSelectedJob(null);
-        // Refresh jobs to update application count
-        fetchJobs();
-      } else {
-        throw new Error(result.error || 'Failed to submit application');
-      }
-    } catch (error) {
-      console.error('Error submitting application:', error);
-      throw error; // Re-throw to let the modal handle the error
+    const msg = String(payload?.error || payload?.message || raw || '');
+    if (response.status === 409 || /already applied|duplicate/i.test(msg)) {
+      const err: any = new Error(msg || 'Already applied');
+      err.code = 'DUPLICATE';
+      throw err; // modal  showduplicate UI
     }
+
+    if (response.ok || payload?.success === true) {
+      // close modal + refresh
+      setShowApplicationModal(false);
+      setSelectedJob(null);
+      fetchJobs();
+      return; 
+    }
+
+    throw new Error(payload?.error || `Failed to submit application (${response.status})`);
   };
 
   return (

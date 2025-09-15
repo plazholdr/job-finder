@@ -38,6 +38,8 @@ interface ApplicationData {
   candidateStatement: string;
   applicationValidity: string;
   profileConfirmed: boolean;
+  courseInformation?: any[];
+  assignmentInformation?: any[];
 }
 
 export default function EnhancedJobApplicationModal({
@@ -91,7 +93,15 @@ export default function EnhancedJobApplicationModal({
         }
 
         const payload = await res.json();
-        const profile = payload?.data ?? payload;
+        const profile =
+          payload?.data?.user ??
+          payload?.user ??
+          payload?.data ??
+          payload;
+
+        console.log('Raw Profile Response:', profile);
+        console.log('Courses:', profile?.student?.courses);
+        console.log('Assignments:', profile?.student?.assignments);
 
         setUserProfile(profile);
         setResumeUrl(profile?.student?.resume || null);
@@ -188,15 +198,21 @@ export default function EnhancedJobApplicationModal({
 
 
   const validateStep = (step: number) => {
-    switch (step) {
-      case 1:
-        return applicationData.candidateStatement.trim().length > 0 && applicationData.applicationValidity.trim().length > 0;
-      case 2:
-        return applicationData.profileConfirmed;
-      default:
-        return false;
-    }
-  };
+      switch (step) {
+        case 1:
+          return (
+            applicationData.candidateStatement.trim().length > 0 &&
+            applicationData.applicationValidity.trim().length > 0
+          );
+        case 2:
+          return applicationData.profileConfirmed;
+        case 3:
+          return true; 
+        default:
+          return false;
+      }
+    };
+
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
@@ -208,18 +224,33 @@ export default function EnhancedJobApplicationModal({
     setCurrentStep(prev => prev - 1);
   };
 
-  
+
   const handleSubmit = async () => {
-    if (!validateStep(2)) return;
+    if (!validateStep(3)) return;
 
     setIsSubmitting(true);
     setSubmitStatus('idle');
 
     try {
+
+      const coursesToSend =
+      userProfile?.student?.courses ??
+      userProfile?.internship?.profile?.details?.courses ??
+      userProfile?.internship?.details?.courses ??
+      [];
+
+      const assignmentsToSend =
+      userProfile?.student?.assignments ??
+      userProfile?.internship?.profile?.details?.assignments ??
+      userProfile?.internship?.details?.assignments ??
+      [];
+
       await onSubmit({
         candidateStatement: applicationData.candidateStatement,
         applicationValidity: applicationData.applicationValidity,
-        profileConfirmed: applicationData.profileConfirmed, 
+        profileConfirmed: applicationData.profileConfirmed,
+        courseInformation: coursesToSend,
+        assignmentInformation: assignmentsToSend,
       });
       setSubmitStatus('success');
     } catch (err: any) {
@@ -231,7 +262,7 @@ export default function EnhancedJobApplicationModal({
       }
     } finally {
       setIsSubmitting(false);
-      setCurrentStep(3); 
+      setCurrentStep(3);
     }
   };
 
@@ -251,12 +282,26 @@ export default function EnhancedJobApplicationModal({
     onClose();
   };
 
+  // Prefer student.* if present; otherwise fall back to internship.profile.details.*
+  const courses =
+    userProfile?.student?.courses ??
+    userProfile?.internship?.profile?.details?.courses ??
+    userProfile?.internship?.details?.courses ?? // just in case some envs use this
+    [];
+
+  const assignments =
+    userProfile?.student?.assignments ??
+    userProfile?.internship?.profile?.details?.assignments ??
+    userProfile?.internship?.details?.assignments ??
+    [];
+
+
   if (!isOpen) return null;
 
   const steps = [
     'Application Details',
-    'Profile Confirmation',
-    'Submit Application'
+    'Confirm & Submit',
+    'Done'
   ];
 
   return (
@@ -354,135 +399,157 @@ export default function EnhancedJobApplicationModal({
             </div>
           )}
 
+
+
           {currentStep === 2 && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Profile Confirmation</h3>
+              <h3 className="text-lg font-medium text-gray-900">Confirm Your Application</h3>
 
-              {isLoadingProfile ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                  <span className="ml-2 text-gray-600">Loading your profile...</span>
+              {/* Personal Information */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <User className="h-5 w-5 text-blue-600" />
+                  <h4 className="font-medium text-gray-900">Personal Information</h4>
                 </div>
-              ) : userProfile ? (
-                <div className="space-y-6">
-                  {/* Personal Information */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="h-5 w-5 text-blue-600" />
-                      <h4 className="font-medium text-gray-900">Personal Information</h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">Name:</span>
-                        <p className="font-medium">{userProfile.firstName} {userProfile.lastName}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Email:</span>
-                        <p className="font-medium">{userProfile.email}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Phone:</span>
-                        <p className="font-medium">{userProfile.profile?.phone || 'Not provided'}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Location:</span>
-                        <p className="font-medium">{userProfile.profile?.location || 'Not provided'}</p>
-                      </div>
-                    </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Name:</span>
+                    <p className="font-medium">{userProfile?.firstName} {userProfile?.lastName}</p>
                   </div>
-
-                  {/* Education Background */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex items-center gap-2 mb-3">
-                      <GraduationCap className="h-5 w-5 text-blue-600" />
-                      <h4 className="font-medium text-gray-900">Education Background</h4>
-                    </div>
-                    {userProfile.student?.education?.length > 0 ? (
-                      <div className="space-y-2">
-                        {userProfile.student.education.map((edu: any, index: number) => (
-                          <div key={index} className="text-sm">
-                            <p className="font-medium">{edu.degree} in {edu.field}</p>
-                            <p className="text-gray-600">{edu.institution}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-600">No education information provided</p>
-                    )}
+                  <div>
+                    <span className="text-gray-600">Email:</span>
+                    <p className="font-medium">{userProfile?.email}</p>
                   </div>
-
-                  {/* Skills */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Award className="h-5 w-5 text-blue-600" />
-                      <h4 className="font-medium text-gray-900">Skills</h4>
-                    </div>
-                    {userProfile.student?.skills?.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {userProfile.student.skills.map((skill: string, index: number) => (
-                          <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-600">No skills listed</p>
-                    )}
+                  <div>
+                    <span className="text-gray-600">Phone:</span>
+                    <p className="font-medium">{userProfile?.profile?.phone || 'Not provided'}</p>
                   </div>
-
-                  {/* Resume */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex items-center gap-2 mb-3">
-                      <FileText className="h-5 w-5 text-blue-600" />
-                      <h4 className="font-medium text-gray-900">Resume</h4>
-                    </div>
-                    {userProfile.student?.resume ? (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-8 w-8 text-blue-600" />
-                          <div>
-                            <p className="font-medium text-gray-900">Resume.pdf</p>
-                            <p className="text-sm text-gray-600">Click to download and review</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={downloadResume}
-                          className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                          <Download className="h-4 w-4" />
-                          Download
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-600">No resume uploaded</p>
-                    )}
+                  <div>
+                    <span className="text-gray-600">Location:</span>
+                    <p className="font-medium">{userProfile?.profile?.location || 'Not provided'}</p>
                   </div>
+                </div>
+              </div>
 
-                  {/* Confirmation Checkbox */}
-                  <div className="border-t pt-4">
-                    <label className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={applicationData.profileConfirmed}
-                        onChange={(e) => handleInputChange('profileConfirmed', e.target.checked)}
-                        className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <div className="text-sm">
-                        <p className="font-medium text-gray-900">I confirm that the information above is accurate</p>
+              {/* Internship Details */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <Briefcase className="h-5 w-5 text-blue-600" />
+                  <h4 className="font-medium text-gray-900">Internship Details</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Applying for:</span>
+                    <p className="font-medium">{job.title} at {job.company.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Application valid until:</span>
+                    <p className="font-medium">{applicationData.applicationValidity || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Course Information */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <GraduationCap className="h-5 w-5 text-blue-600" />
+                  <h4 className="font-medium text-gray-900">Course Information</h4>
+                </div>
+
+                {isLoadingProfile ? (
+                  <p className="text-sm text-gray-600">Loading…</p>
+                ) : courses.length > 0 ? (
+                  <div className="space-y-2">
+                    {courses.map((course: any, idx: number) => (
+                      <div key={course.id ?? idx} className="text-sm">
+                        <p className="font-medium">{course.courseName}</p>
                         <p className="text-gray-600">
-                          By checking this box, I confirm that all the personal information, education background,
-                          skills, and resume shown above are accurate and up-to-date for this job application.
+                          {course.courseId} - {course.status}
                         </p>
+                        {course.courseDescription && (
+                          <p className="text-gray-500 text-sm">{course.courseDescription}</p>
+                        )}
                       </div>
-                    </label>
+                    ))}
                   </div>
+                ) : (
+                  <p className="text-sm text-gray-600">No course information provided</p>
+                )}
+              </div>
+
+
+              {/* Assignment Information */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <Award className="h-5 w-5 text-blue-600" />
+                  <h4 className="font-medium text-gray-900">Assignment Information</h4>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                  <p className="text-gray-600">Failed to load profile information. Please try again.</p>
+
+                {isLoadingProfile ? (
+                  <p className="text-sm text-gray-600">Loading…</p>
+                ) : assignments.length > 0 ? (
+                  <div className="space-y-2">
+                    {assignments.map((a: any, idx: number) => (
+                      <div key={a.id ?? idx} className="text-sm">
+                        <p className="font-medium">{a.assignmentTitle}</p>
+                        <p className="text-gray-600">{a.natureOfAssignment}</p>
+                        {a.assignmentDescription && (
+                          <p className="text-gray-500 text-sm">{a.assignmentDescription}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600">No assignment information provided</p>
+                )}
+              </div>
+
+              {/* Resume */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  <h4 className="font-medium text-gray-900">Resume</h4>
                 </div>
-              )}
+                {userProfile?.student?.resume ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-8 w-8 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-gray-900">Resume.pdf</p>
+                        <p className="text-sm text-gray-600">Click to download and review</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={downloadResume}
+                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600">No resume uploaded</p>
+                )}
+              </div>
+
+              {/* Confirmation Checkbox */}
+              <div className="border-t pt-4">
+                <label className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={applicationData.profileConfirmed}
+                    onChange={(e) => handleInputChange('profileConfirmed', e.target.checked)}
+                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="text-sm">
+                    <p className="font-medium text-gray-900">I confirm that the above information is accurate</p>
+                    <p className="text-gray-600">
+                      I have reviewed my personal information, internship details, course information,
+                      assignment information, and resume.
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
           )}
 
@@ -557,7 +624,7 @@ export default function EnhancedJobApplicationModal({
         </div>
 
         {/* Footer */}
-        {currentStep < 3 && (
+        {(currentStep < 3 || (currentStep === 3 && submitStatus === 'idle')) && (
           <div className="flex items-center justify-between h-6 p-6 border-t bg-gray-50">
             <div>
               {currentStep > 1 && (
@@ -571,7 +638,7 @@ export default function EnhancedJobApplicationModal({
             </div>
 
             <div>
-              {currentStep < 2 ? (
+              {currentStep < 3 ? (
                 <button
                   onClick={handleNext}
                   disabled={!validateStep(currentStep)}
@@ -586,9 +653,9 @@ export default function EnhancedJobApplicationModal({
               ) : (
                 <button
                   onClick={handleSubmit}
-                  disabled={!validateStep(currentStep) || isSubmitting}
+                  disabled={currentStep !== 3 || isSubmitting}
                   className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                    validateStep(currentStep) && !isSubmitting
+                    currentStep === 3 && !isSubmitting
                       ? 'bg-green-600 text-white hover:bg-green-700'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
