@@ -158,6 +158,7 @@ export interface Application {
   courseInformation: string;
   assignmentInformation: string;
   status: 'pending' | 'applied' | 'reviewed' | 'interview_scheduled' | 'interview_completed' | 'accepted' | 'rejected' | 'withdrawn';
+  statusCode: number;
   submittedAt: Date;
   createdAt: Date;
   updatedAt: Date;

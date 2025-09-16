@@ -1,4 +1,29 @@
 const { ObjectId } = require('mongodb');
+const { APPLICATION_STATUS } = require('../constants/constants'); 
+
+const STATUS_ALIASES = {
+  pending: 'PENDING',
+  submitted: 'PENDING',
+  shortlisted: 'SHORTLISTED',
+  under_review: 'SHORTLISTED',
+  pending_acceptance: 'PENDING_ACCEPTANCE',
+  accepted: 'ACCEPTED',
+  hired: 'HIRED',
+  rejected: 'REJECTED',
+  declined: 'DECLINED',
+  withdrawn: 'WITHDRAWN',
+};
+
+function toConstKey(s) {
+  const k = String(s || '').trim().toLowerCase();
+  return STATUS_ALIASES[k] || k.toUpperCase(); // fallback if you ever pass an UPPER key directly
+}
+
+function toCode(s) {
+  const key = toConstKey(s);
+  return APPLICATION_STATUS[key]; // may be undefined if truly unknown
+}
+
 
 class ApplicationModel {
   constructor(db) {
@@ -86,12 +111,12 @@ class ApplicationModel {
       
       // Application status workflow
       status: 'pending', // using string for compatibility, see statusCode
-      statusCode: 0, // APPLICATION_STATUS.PENDING
+      statusCode: toCode('pending') ?? 0,
 
       // Status history for tracking
       statusHistory: [{
         status: 'pending',
-        statusCode: 0,
+        statusCode: toCode('pending') ?? 0,
         changedAt: new Date(),
         changedBy: userObjectId,
         reason: 'Application submitted'
@@ -215,13 +240,17 @@ class ApplicationModel {
     const applicationObjectId = typeof applicationId === 'string' ? new ObjectId(applicationId) : applicationId;
     const changedByObjectId = typeof changedBy === 'string' ? new ObjectId(changedBy) : changedBy;
 
+    const keyStr = String(newStatus || '').trim().toLowerCase();
+    const code = toCode(newStatus) ?? 0
+
     const setData = {
-      status: newStatus,
+      status: keyStr,
+      statusCode: code,
       updatedAt: new Date()
     };
 
     // Add specific timestamp fields based on status
-    switch (newStatus) {
+    switch (keyStr) {
       case 'under_review':
         setData.reviewedAt = new Date();
         setData.reviewedBy = changedByObjectId;
@@ -249,16 +278,19 @@ class ApplicationModel {
         setData.withdrawalDate = new Date();
         if (reason) setData.withdrawalReason = reason;
   break;
-    }
+  }
+
+  
 
     const updateData = {
       $set: setData,
       $push: {
         statusHistory: {
-          status: newStatus,
+          status: keyStr,
+          statusCode: code,
           changedAt: new Date(),
           changedBy: changedByObjectId,
-          reason: reason || `Status changed to ${newStatus}`
+          reason: reason || `Status changed to ${keyStr}`
         }
       }
     };

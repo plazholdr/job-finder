@@ -1,11 +1,11 @@
 'use client';
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { APPLICATION_STATUS } from '@/constants/constants';
 import {
   ArrowLeft,
   Calendar,
@@ -27,6 +27,7 @@ import {
 import { Application, ApplicationTimelineEvent } from '@/types/company-job';
 import AppLayout from '@/components/layout/AppLayout';
 import Link from 'next/link';
+import WithdrawalReasonModal from "@/components/WithdrawalReasonModal";
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -34,6 +35,8 @@ export default function ApplicationDetailPage() {
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+
 
   const fetchApplicationDetails = useCallback(async () => {
   try {
@@ -72,6 +75,7 @@ export default function ApplicationDetailPage() {
       _id: idStr,       
       jobId: jobIdStr,
       status,
+      statusCode: raw.statusCode ?? 0,
       createdAt,
       updatedAt,
       jobInfo: raw.jobInfo ?? raw.job ?? raw.job_data ?? undefined,
@@ -188,7 +192,7 @@ export default function ApplicationDetailPage() {
     }
   }, [application?._id]); // Only depend on application ID to avoid repeated calls
 
-  const handleAction = async (action: string) => {
+  const handleAction = async (action: string, suppliedReason?: string) => {
     if (!application) return;
 
     // Show confirmation for decline action
@@ -207,16 +211,36 @@ export default function ApplicationDetailPage() {
       }
 
       // Map actions to status updates
-      let status;
+      let status: string | undefined;
+      let reason: string | undefined;
+      let extra: Record<string, unknown> = {};
+
       if (action === 'accept_offer') {
         status = 'accepted';
       } else if (action === 'decline_offer') {
         status = 'rejected';
-      } else {
+        reason = 'Offer declined by candidate';
+        extra.statusCode = APPLICATION_STATUS.DECLINED;
+
+      } else if (action === 'withdraw') {
+        status = 'withdrawn';
+
+      
+        const withdrawalReason = (suppliedReason ?? '').trim();
+
+      // Send these to the API
+      extra.statusCode = APPLICATION_STATUS.WITHDRAWN; // 7
+      extra.withdrawalReason = withdrawalReason || undefined; // only send if non-empty
+      extra.withdrawalDate = new Date().toISOString();
+
+      // Also set generic `reason` if your service logs it too
+      reason = withdrawalReason || 'Application withdrawn by student';
+    } else {
         status = action; // For other actions, use as-is
       }
 
       console.log('Performing action:', action, 'updating status to:', status, 'on application:', application._id || application.id);
+
       const response = await fetch(`/api/applications/${application._id || application.id}`, {
         method: 'PATCH',
         headers: {
@@ -225,7 +249,8 @@ export default function ApplicationDetailPage() {
         },
         body: JSON.stringify({
           status,
-          reason: action === 'decline_offer' ? 'Offer declined by candidate' : undefined
+          reason,
+          ...extra,
         }),
       });
 
@@ -239,19 +264,19 @@ export default function ApplicationDetailPage() {
 
         // Show specific success messages
         if (action === 'accept_offer') {
-          alert('Offer accepted successfully! You will receive a confirmation email shortly.');
+        alert('Offer accepted successfully! You will receive a confirmation email shortly.');
         } else if (action === 'decline_offer') {
           alert('Offer declined. Thank you for your consideration.');
+        } else if (action === 'withdraw') {
+          alert('Application withdrawn.');
         } else {
           alert(`Successfully ${action.replace('_', ' ')}!`);
         }
       } else {
-        console.error('Failed to update application:', data.error);
-        alert(`Failed to ${action.replace('_', ' ')}: ${data.error}`);
+        
       }
     } catch (error) {
-      console.error('Error updating application:', error);
-      alert(`Error: ${error}`);
+      
     } finally {
       setActionLoading(false);
     }
@@ -805,7 +830,7 @@ export default function ApplicationDetailPage() {
                         className="bg-green-600 text-white cursor-not-allowed opacity-75"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
-                        Offer Accepted ✓
+                        Offer Accepted 
                       </Button>
                       <Button
                         variant="outline"
@@ -941,18 +966,19 @@ export default function ApplicationDetailPage() {
                     </p>
                   )}
 
-                  {application.status === 'applied' || application.status === 'reviewed' ? (
+                  {application.statusCode === 0 || application.statusCode === 1 || application.statusCode === 2 || application.statusCode === 3 ? (
                     <Button
                       variant="destructive"
                       size="sm"
                       className="w-full"
-                      onClick={() => handleAction('withdraw')}
+                      onClick={() => setShowWithdrawModal(true)}
                       disabled={actionLoading}
                     >
                       <XCircle className="h-4 w-4 mr-2" />
                       Withdraw Application
                     </Button>
                   ) : null}
+
 
                   <Link href="/applications">
                     <Button variant="outline" size="sm" className="w-full mt-4">
@@ -985,6 +1011,20 @@ export default function ApplicationDetailPage() {
           </div>
         </div>
       </div>
+
+      <WithdrawalReasonModal
+        isOpen={showWithdrawModal}
+        onClose={() => setShowWithdrawModal(false)}
+        onConfirm={async (reason) => {
+          // call your action with the reason captured in the modal
+          await handleAction('withdraw', reason);
+          setShowWithdrawModal(false);
+        }}
+        title="Withdraw Application"
+        subtitle="This action can’t be undone. You can optionally share a brief reason with the company."
+        confirmLabel="Withdraw Application"
+        />
+
     </AppLayout>
   );
 }

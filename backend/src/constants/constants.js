@@ -4,7 +4,7 @@ const STATUS = {
   REJECTED: 2,
 };
 
-export const APPLICATION_STATUS = {
+const APPLICATION_STATUS = {
   PENDING: 0,
   SHORTLISTED: 1,
   PENDING_ACCEPTANCE: 2,
@@ -58,4 +58,5 @@ module.exports = {
   STATUS,
   LABELS,
   ENTITY,
+  APPLICATION_STATUS,
 };
