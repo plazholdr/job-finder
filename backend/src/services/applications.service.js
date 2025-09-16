@@ -371,19 +371,23 @@ class ApplicationsService {
           updateData.offerValidity = new Date(data.offerValidity);
         }
 
+        // Determine if company withdrawal intent while offer is pending
+        const isCompanyWithdrawal = (
+          userRole === 'company' &&
+          application.status === APPLICATION_STATUS.PENDING_ACCEPTANCE &&
+          (nextStatusCode === APPLICATION_STATUS.REJECTED || data?.withdraw === true || data?.action === 'withdraw')
+        );
+        const effectiveStatusCode = isCompanyWithdrawal
+          ? APPLICATION_STATUS.WITHDRAWN
+          : nextStatusCode;
+
         await this.applicationModel.updateStatus(
           id,
-          nextStatusCode,
+          effectiveStatusCode,
           userId,
           data.reason || ''
         );
 
-        // If company withdraws an offer (Pending -> Rejected), capture withdrawal metadata
-        const isCompanyWithdrawal = (
-          nextStatusCode === APPLICATION_STATUS.REJECTED &&
-          userRole === 'company' &&
-          application.status === APPLICATION_STATUS.PENDING_ACCEPTANCE
-        ) || data?.withdraw === true || data?.action === 'withdraw';
         if (isCompanyWithdrawal) {
           await this.applicationModel.updateById(id, {
             withdrawalDate: new Date(),
@@ -469,7 +473,7 @@ class ApplicationsService {
       if (userRole === 'student') {
         const withdrawnApplication = await this.applicationModel.updateStatus(
           id,
-          APPLICATION_STATUS.REJECTED,
+          APPLICATION_STATUS.WITHDRAWN,
           userId,
           'Application withdrawn by student'
         );
@@ -593,7 +597,7 @@ class ApplicationsService {
       ];
       const result = await this.applicationModel.collection.aggregate(pipeline).toArray();
 
-      const byCode = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
+      const byCode = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
       let total = 0;
       for (const r of result) {
         const code = typeof r._id === 'number' ? r._id : normalizeApplicationStatus(r._id).code;

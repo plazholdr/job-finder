@@ -13,7 +13,7 @@ class ApplicationModel {
       await this.collection.createIndex({ userId: 1 });
       await this.collection.createIndex({ jobId: 1 });
       await this.collection.createIndex({ companyId: 1 });
-      await this.collection.createIndex({ status: 1 }); // numeric status 0..4
+      await this.collection.createIndex({ status: 1 }); // numeric status 0..7
       await this.collection.createIndex({ createdAt: -1 });
 
       // Compound indexes for common queries
@@ -84,11 +84,11 @@ class ApplicationModel {
       additionalDocuments: additionalDocuments,
 
       // Application status workflow (numeric only)
-      status: APPLICATION_STATUS.NEW,
+      status: APPLICATION_STATUS.PENDING,
 
       // Status history for tracking (store numeric code)
       statusHistory: [{
-        status: APPLICATION_STATUS.NEW,
+        status: APPLICATION_STATUS.PENDING,
         changedAt: new Date(),
         changedBy: userObjectId,
         reason: 'Application submitted'
@@ -357,7 +357,7 @@ class ApplicationModel {
 
     const stats = await this.collection.aggregate(pipeline).toArray();
 
-    const byCode = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
+    const byCode = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
     let total = 0;
     stats.forEach(stat => {
       const key = typeof stat._id === 'number' ? stat._id : normalizeApplicationStatus(stat._id).code;
@@ -380,7 +380,13 @@ class ApplicationModel {
   async findStuckApplications(thresholdDate) {
     const query = {
       updatedAt: { $lt: thresholdDate },
-      status: { $nin: [APPLICATION_STATUS.ACCEPTED, APPLICATION_STATUS.REJECTED] }
+      status: { $nin: [
+        APPLICATION_STATUS.ACCEPTED,
+        APPLICATION_STATUS.HIRED,
+        APPLICATION_STATUS.REJECTED,
+        APPLICATION_STATUS.DECLINED,
+        APPLICATION_STATUS.WITHDRAWN
+      ] }
     };
     return await this.collection.find(query).toArray();
   }
@@ -388,7 +394,13 @@ class ApplicationModel {
   // Find active applications (not in final states)
   async findActiveApplications() {
     const query = {
-      status: { $nin: [APPLICATION_STATUS.ACCEPTED, APPLICATION_STATUS.REJECTED] }
+      status: { $nin: [
+        APPLICATION_STATUS.ACCEPTED,
+        APPLICATION_STATUS.HIRED,
+        APPLICATION_STATUS.REJECTED,
+        APPLICATION_STATUS.DECLINED,
+        APPLICATION_STATUS.WITHDRAWN
+      ] }
     };
     return await this.collection.find(query).toArray();
   }
