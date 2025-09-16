@@ -12,6 +12,7 @@ import Link from 'next/link';
 
 // Import step components
 import BasicInfoStep from './steps/BasicInfoStep';
+import ProjectDetailsStep from './steps/ProjectDetailsStep';
 import DetailsStep from './steps/DetailsStep';
 import SalaryDatesStep from './steps/SalaryDatesStep';
 import UploadStep from './steps/UploadStep';
@@ -22,6 +23,15 @@ interface JobData {
   requirements: string;
   location: string;
   remoteWork: boolean;
+  project?: {
+    title?: string;
+    description?: string;
+    startMonth?: string | null; // YYYY-MM
+    endMonth?: string | null;   // YYYY-MM
+    locations?: string[];
+    roleDescription?: string;
+    areasOfInterest?: string[];
+  };
   skills: {
     technical: string[];
     soft: string[];
@@ -60,18 +70,24 @@ const STEPS = [
   },
   {
     id: 2,
+    title: 'Project Details',
+    description: 'Project scope, dates, locations, interests',
+    component: ProjectDetailsStep
+  },
+  {
+    id: 3,
     title: 'Requirements & Skills',
     description: 'Qualifications and required skills',
     component: DetailsStep
   },
   {
-    id: 3,
+    id: 4,
     title: 'Salary & Timeline',
     description: 'Compensation and duration details',
     component: SalaryDatesStep
   },
   {
-    id: 4,
+    id: 5,
     title: 'Upload Documents',
     description: 'Supporting files and attachments',
     component: UploadStep
@@ -84,6 +100,7 @@ interface JobCreationWizardProps {
   initialData?: Partial<JobData>;
   isEditing?: boolean;
   jobId?: string;
+  showHeader?: boolean;
 }
 
 export default function JobCreationWizard({
@@ -91,20 +108,30 @@ export default function JobCreationWizard({
   onCancel,
   initialData,
   isEditing = false,
-  jobId
+  jobId,
+  showHeader = true
 }: JobCreationWizardProps) {
   const { user, token } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  
+
   const [jobData, setJobData] = useState<JobData>({
     title: '',
     description: '',
     requirements: '',
     location: '',
     remoteWork: false,
+    project: {
+      title: '',
+      description: '',
+      startMonth: null,
+      endMonth: null,
+      locations: [],
+      roleDescription: '',
+      areasOfInterest: ['', '', '']
+    },
     skills: {
       technical: [],
       soft: [],
@@ -142,13 +169,19 @@ export default function JobCreationWizard({
       ...prev,
       ...newData
     }));
-    
-    // Clear validation errors for updated fields
+
+    // Clear validation errors for updated fields (including nested like project.*)
     const updatedFields = Object.keys(newData);
     setValidationErrors(prev => {
-      const newErrors = { ...prev };
+      const newErrors: Record<string, string> = { ...prev };
       updatedFields.forEach(field => {
-        delete newErrors[field];
+        if (field === 'project') {
+          Object.keys(newErrors).forEach(k => {
+            if (k.startsWith('project.')) delete newErrors[k];
+          });
+        } else {
+          delete newErrors[field];
+        }
       });
       return newErrors;
     });
@@ -156,37 +189,29 @@ export default function JobCreationWizard({
 
   const validateStep = (step: number): boolean => {
     const errors: Record<string, string> = {};
-    
+
     switch (step) {
       case 1:
-        if (!jobData.title?.trim()) {
-          errors.title = 'Job title is required';
-        }
-        if (!jobData.description?.trim()) {
-          errors.description = 'Job description is required';
-        }
-        if (!jobData.location?.trim()) {
-          errors.location = 'Location is required';
-        }
+        if (!jobData.title?.trim()) errors.title = 'Job title is required';
+        if (!jobData.description?.trim()) errors.description = 'Job description is required';
+        if (!jobData.location?.trim()) errors.location = 'Location is required';
         break;
       case 2:
-        if (!jobData.requirements?.trim()) {
-          errors.requirements = 'Job requirements are required';
-        }
-        if (!jobData.skills?.technical?.length) {
-          errors.skills = 'At least one technical skill is required';
-        }
+        if (!jobData.project?.title?.trim()) errors['project.title'] = 'Project title is required';
+        if (!jobData.project?.description?.trim()) errors['project.description'] = 'Project description is required';
         break;
       case 3:
-        if (!jobData.salary?.minimum) {
-          errors.salary = 'Minimum salary is required';
-        }
-        if (!jobData.duration?.months) {
-          errors.duration = 'Duration is required';
-        }
+        if (!jobData.requirements?.trim()) errors.requirements = 'Job requirements are required';
+        if (!jobData.skills?.technical?.length) errors.skills = 'At least one technical skill is required';
+        break;
+      case 4:
+        if (!jobData.salary?.minimum) errors.salary = 'Minimum salary is required';
+        if (jobData.duration?.months == null) errors.duration = 'Duration is required';
+        break;
+      default:
         break;
     }
-    
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -234,7 +259,7 @@ export default function JobCreationWizard({
       const url = isEditing && jobId
         ? `/api/jobs/${jobId}`
         : '/api/jobs';
-      
+
       const method = isEditing ? 'PATCH' : 'POST';
 
       // Filter out draft attachments (ones with file objects) from the job data
@@ -274,7 +299,7 @@ export default function JobCreationWizard({
       if (jobData.attachments?.some(att => att.file)) {
         try {
           const attachmentsToUpload = jobData.attachments.filter(att => att.file);
-          
+
           for (const attachment of attachmentsToUpload) {
             const formData = new FormData();
             formData.append('file', attachment.file);
@@ -302,7 +327,6 @@ export default function JobCreationWizard({
         toast.success('Job saved as draft');
       } else {
         toast.success('Job saved successfully!');
-        onComplete?.(savedJob);
       }
 
       return savedJob;
@@ -316,7 +340,27 @@ export default function JobCreationWizard({
   };
 
   const handleComplete = async () => {
-    await saveJob(false);
+    try {
+      const saved = await saveJob(false);
+      const id = saved?._id || saved?.id;
+      if (id && token) {
+        try {
+          await fetch(`/api/company/jobs/${id}/status`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: 'Pending' })
+          });
+        } catch (e) {
+          console.error('Failed to set job to Pending:', e);
+        }
+      }
+      onComplete?.(saved);
+    } catch (e) {
+      // error already toasted in saveJob
+    }
   };
 
   const handleSaveDraft = async () => {
@@ -337,25 +381,27 @@ export default function JobCreationWizard({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <Link href="/company/jobs">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Jobs
-                </Button>
-              </Link>
-              <div className="h-6 w-px bg-gray-300" />
-              <h1 className="text-xl font-bold text-gray-900">
-                {isEditing ? 'Edit Job Posting' : 'Create Job Posting'}
-              </h1>
+      {showHeader && (
+        <div className="bg-white shadow-sm border-b">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-4">
+                <Link href="/company/jobs">
+                  <Button variant="ghost" size="sm">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Jobs
+                  </Button>
+                </Link>
+                <div className="h-6 w-px bg-gray-300" />
+                <h1 className="text-xl font-bold text-gray-900">
+                  {isEditing ? 'Edit Job Posting' : 'Create Job Posting'}
+                </h1>
+              </div>
+              <UserProfile />
             </div>
-            <UserProfile />
           </div>
         </div>
-      </div>
+      )}
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Bar */}

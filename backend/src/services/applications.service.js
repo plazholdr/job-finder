@@ -82,7 +82,7 @@ class ApplicationsService {
         throw new Error('Authentication required');
       }
 
-      const { $limit = 50, $skip = 0, $sort = { createdAt: -1 }, status, jobId, companyId } = params.query || {};
+      const { $limit = 50, $skip = 0, $sort = { createdAt: -1 }, status, statusCode, jobId, companyId } = params.query || {};
 
       let query = {};
       let options = {
@@ -107,6 +107,7 @@ class ApplicationsService {
 
       // Add additional filters
       if (status) query.status = status;
+      if (statusCode !== undefined && statusCode !== null && statusCode !== '') query.statusCode = parseInt(statusCode);
       if (jobId) query.jobId = jobId;
 
       let applications;

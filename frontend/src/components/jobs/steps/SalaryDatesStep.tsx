@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,6 +26,15 @@ interface SalaryDatesStepProps {
   errors: Record<string, string>;
 }
 
+function monthsBetween(startISO?: string | null, endISO?: string | null) {
+  if (!startISO || !endISO) return null;
+  const s = new Date(startISO);
+  const e = new Date(endISO);
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
+  const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+  return months >= 0 ? months || 0 : null; // 0 if same month
+}
+
 export default function SalaryDatesStep({ data, onChange, errors }: SalaryDatesStepProps) {
   const handleSalaryChange = (field: string, value: any) => {
     onChange({
@@ -36,21 +45,26 @@ export default function SalaryDatesStep({ data, onChange, errors }: SalaryDatesS
     });
   };
 
-  const handleDurationChange = (field: string, value: any) => {
-    onChange({
-      duration: {
-        ...data.duration,
-        [field]: value
-      }
-    });
+  const setDurationField = (field: 'startDate'|'endDate'|'months'|'flexible', value: any) => {
+    const next = { ...(data.duration || {}), [field]: value } as any;
+    // auto-calc months when both dates present
+    const auto = monthsBetween(next.startDate, next.endDate);
+    if (auto !== null) {
+      next.months = Math.max(0, auto);
+    }
+    onChange({ duration: next });
   };
+
+  const readOnlyMonths = useMemo(() => {
+    return Boolean(data.duration?.startDate && data.duration?.endDate);
+  }, [data.duration?.startDate, data.duration?.endDate]);
 
   return (
     <div className="space-y-8">
       {/* Salary Section */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium text-gray-900">Compensation</h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label className="text-sm font-medium text-gray-700">
@@ -141,25 +155,8 @@ export default function SalaryDatesStep({ data, onChange, errors }: SalaryDatesS
       {/* Duration Section */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium text-gray-900">Duration & Timeline</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
-              Duration (months) *
-            </Label>
-            <Input
-              id="duration"
-              type="number"
-              value={data.duration?.months || ''}
-              onChange={(e) => handleDurationChange('months', e.target.value ? parseInt(e.target.value) : null)}
-              placeholder="e.g. 6"
-              className={`mt-1 ${errors.duration ? 'border-red-500' : ''}`}
-            />
-            {errors.duration && (
-              <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
-            )}
-          </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label htmlFor="startDate" className="text-sm font-medium text-gray-700">
               Start Date
@@ -168,7 +165,7 @@ export default function SalaryDatesStep({ data, onChange, errors }: SalaryDatesS
               id="startDate"
               type="date"
               value={data.duration?.startDate || ''}
-              onChange={(e) => handleDurationChange('startDate', e.target.value)}
+              onChange={(e) => setDurationField('startDate', e.target.value)}
               className="mt-1"
             />
           </div>
@@ -181,9 +178,30 @@ export default function SalaryDatesStep({ data, onChange, errors }: SalaryDatesS
               id="endDate"
               type="date"
               value={data.duration?.endDate || ''}
-              onChange={(e) => handleDurationChange('endDate', e.target.value)}
+              onChange={(e) => setDurationField('endDate', e.target.value)}
               className="mt-1"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
+              Duration (months) *
+            </Label>
+            <Input
+              id="duration"
+              type="number"
+              value={data.duration?.months ?? ''}
+              onChange={(e) => setDurationField('months', e.target.value ? parseInt(e.target.value) : null)}
+              placeholder="e.g. 6"
+              className={`mt-1 ${errors.duration ? 'border-red-500' : ''}`}
+              readOnly={readOnlyMonths}
+            />
+            {readOnlyMonths && (
+              <p className="mt-1 text-xs text-gray-500">Auto-calculated from start and end dates</p>
+            )}
+            {errors.duration && (
+              <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
+            )}
           </div>
         </div>
 
@@ -191,7 +209,7 @@ export default function SalaryDatesStep({ data, onChange, errors }: SalaryDatesS
           <Checkbox
             id="flexible"
             checked={data.duration?.flexible || false}
-            onCheckedChange={(checked) => handleDurationChange('flexible', checked)}
+            onCheckedChange={(checked) => setDurationField('flexible', checked)}
           />
           <Label htmlFor="flexible" className="text-sm text-gray-700">
             Flexible start/end dates

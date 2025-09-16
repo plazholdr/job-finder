@@ -8,6 +8,14 @@ import PublicHeaderAndHero from "@/components/layout/PublicHeaderAndHero";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+
 
 import CompanyInternSearch from "@/components/dashboard/CompanyInternSearch";
 
@@ -253,9 +261,9 @@ export default function CompanyDashboard() {
                   recentJobs.map((job: any, idx: number) => (
                     <div
                       key={job._id || job.id || idx}
-                      className="flex items-center justify-between p-4 border rounded-lg"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                     >
-                      <div className="flex-1">
+                      <Link href={`/jobs/${job._id || job.id || ''}`} className="flex-1 block">
                         <h3 className="font-medium text-gray-900">{job.title}</h3>
                         <p className="text-sm text-gray-600">
                           {job.department} • {job.type}
@@ -270,12 +278,33 @@ export default function CompanyDashboard() {
                             {job.applicationsCount} applications
                           </span>
                         </div>
-                      </div>
+                      </Link>
                       <div className="flex items-center space-x-2">
                         <Badge className={companyStatusColor(job.status)}>{job.status}</Badge>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <Link href={`/jobs/${job._id || job.id || ''}`}>
+                              <DropdownMenuItem>View job</DropdownMenuItem>
+                            </Link>
+                            <Link href="/company/jobs">
+                              <DropdownMenuItem>Manage in Jobs</DropdownMenuItem>
+                            </Link>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const url = `${window.location.origin}/jobs/${job._id || job.id || ''}`;
+                                navigator.clipboard?.writeText(url);
+                              }}
+                            >
+                              Copy job link
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   ))

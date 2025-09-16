@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
+import {
   ArrowLeft,
   User,
   Mail,
@@ -179,7 +179,7 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
         setSuccess(`Application status updated to ${newStatus.replace('_', ' ')}`);
         setFeedback('');
         setRating(0);
-        
+
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(null), 3000);
       } else {
@@ -290,7 +290,7 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
                 <p className="text-sm text-gray-600">{application.candidate?.name || 'Unknown Candidate'}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <Badge className={getStatusColor(application.status)}>
                 {application.status.replace('_', ' ')}
@@ -464,12 +464,47 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
               </CardContent>
             </Card>
 
+            {/* Offer details */}
+            {(application.offerLetterUrl || (application as any).offerLetter || application.offerValidity) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <FileText className="h-5 w-5 mr-2" />
+                    Offer details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {((application as any).offerLetter || application.offerLetterUrl) && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">Letter of Offer</span>
+                        <a
+                          className="text-sm text-blue-600 hover:underline"
+                          href={(application as any).offerLetter || application.offerLetterUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View
+                        </a>
+                      </div>
+                    )}
+                    {application.offerValidity && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">Offer validity</span>
+                        <span className="text-sm text-gray-900">{new Date(application.offerValidity).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Review History */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Clock className="h-5 w-5 mr-2" />
-                  Review History
+                  Application details
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -575,11 +610,20 @@ export default function ApplicationDetailPage({ params }: ApplicationDetailPageP
                     <p className="text-sm text-gray-600 mb-2">
                       Offer submitted and pending candidate response
                     </p>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-500 mb-3">
                       {application.offerValidity && (
                         <p>Valid until: {application.offerValidity ? new Date(application.offerValidity).toLocaleDateString() : 'N/A'}</p>
                       )}
                     </div>
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={() => handleStatusUpdate('rejected')}
+                      disabled={isUpdating}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Withdraw offer
+                    </Button>
                   </div>
                 )}
 

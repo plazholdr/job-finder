@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Menu, X, LogOut, Settings as SettingsIcon, User as UserIcon } from 'lucide-react';
+import { Menu, X, LogOut, Settings as SettingsIcon, User as UserIcon, Building2, Briefcase, BookOpen, Star, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -63,15 +63,21 @@ export default function AppHeader({
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center space-x-6">
-            <Link href="/jobs" className="text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
-              Jobs
+          <div className="hidden md:flex items-center space-x-2">
+            <Link href="/companies" className="flex items-center gap-2 text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
+              <Building2 className="w-4 h-4" /> Companies
             </Link>
-            <Link href="/companies" className="text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
-              Companies
+            <Link href="/jobs" className="flex items-center gap-2 text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
+              <Briefcase className="w-4 h-4" /> Jobs
             </Link>
-            <Link href="/about" className="text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
-              About
+            <Link href="/internship/opportunities" className="flex items-center gap-2 text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
+              <BookOpen className="w-4 h-4" /> Internships
+            </Link>
+            <Link href="/saved-jobs" className="flex items-center gap-2 text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
+              <Star className="w-4 h-4" /> Saved
+            </Link>
+            <Link href="/applications" className="flex items-center gap-2 text-white/80 hover:text-white font-medium transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md">
+              <FileText className="w-4 h-4" /> Applications
             </Link>
           </div>
 
@@ -154,14 +160,20 @@ export default function AppHeader({
         {showMobileMenu && (
           <div className="md:hidden border-t border-white/20 py-4 bg-white/10 backdrop-blur-sm">
             <div className="flex flex-col space-y-4">
-              <Link href="/jobs" className="text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
-                Jobs
+              <Link href="/companies" className="flex items-center gap-2 text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
+                <Building2 className="w-4 h-4" /> Companies
               </Link>
-              <Link href="/companies" className="text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
-                Companies
+              <Link href="/jobs" className="flex items-center gap-2 text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
+                <Briefcase className="w-4 h-4" /> Jobs
               </Link>
-              <Link href="/about" className="text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
-                About
+              <Link href="/internship/opportunities" className="flex items-center gap-2 text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
+                <BookOpen className="w-4 h-4" /> Internships
+              </Link>
+              <Link href="/saved-jobs" className="flex items-center gap-2 text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
+                <Star className="w-4 h-4" /> Saved
+              </Link>
+              <Link href="/applications" className="flex items-center gap-2 text-white/80 hover:text-white font-medium px-4 py-2 hover:bg-white/10 rounded-md mx-2 transition-colors">
+                <FileText className="w-4 h-4" /> Applications
               </Link>
               {isAuthenticated && user ? (
                 <div className="flex flex-col space-y-2 px-4 pt-4 border-t border-white/20">

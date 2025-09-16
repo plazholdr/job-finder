@@ -21,6 +21,35 @@ import {
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import EnhancedJobApplicationModal from '@/components/EnhancedJobApplicationModal';
+import AppHeader from '@/components/layout/AppHeader';
+
+// Resolve image src from S3 key, absolute URL, data URL, or local path
+const resolveImageSrc = (val?: string | null) => {
+  if (!val) return 'https://placehold.co/80x80?text=Logo' as any;
+  if (/^https?:\/\//i.test(val) || /^data:/i.test(val)) return val as any;
+  // If it's a local absolute path in this app (e.g., /images/foo.png), use as-is
+  if ((val as string).startsWith('/')) return val as any;
+  // Otherwise treat it as a storage key and proxy through our signed image endpoint
+  return `/api/files/image?key=${encodeURIComponent(val as string)}` as any;
+};
+
+// Normalize Mongo/ObjectId values into a hex string
+const normalizeId = (val: any): string => {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    // Common shapes: { $oid: '...' } | ObjectId | { _id: '...' }
+    if (typeof (val as any).toHexString === 'function') return (val as any).toHexString();
+    if (typeof (val as any).$oid === 'string') return (val as any).$oid;
+    if (typeof (val as any)._id === 'string') return (val as any)._id;
+    if (typeof (val as any)._id?.toHexString === 'function') return (val as any)._id.toHexString();
+  }
+  // As a last resort, try val.toString() only if it looks like a 24-hex id
+  const str = String(val);
+  return /^[a-f0-9]{24}$/i.test(str) ? str : '';
+};
+
+
 
 interface JobDetails {
   id: string;
@@ -96,14 +125,14 @@ export default function JobDetailsPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const payload = await res.json();
 
-    
+
       const raw = payload?.data ?? payload;
       if (!raw || typeof raw !== 'object') throw new Error('Invalid job payload');
 
-      
-      const idStr = String(raw._id ?? raw.id ?? '');
 
-      
+      const idStr = normalizeId(raw._id ?? raw.id ?? '');
+
+
       const techSkills = Array.isArray(raw.skills?.technical)
         ? raw.skills.technical
         : typeof raw.skills?.technical === 'string'
@@ -114,23 +143,23 @@ export default function JobDetailsPage() {
         id: idStr,
         title: raw.title,
         company: {
-          id: String(raw.companyId ?? ''),
-          name: raw.companyName || raw.companyInfo?.name || 'Company Name',
-          logo: "/api/placeholder/80/80",
-          industry: raw.companyInfo?.industry || "Technology",
-          size: raw.companyInfo?.size || "Unknown",
+          id: normalizeId(raw.companyId ?? raw.company?._id ?? ''),
+          name: raw.companyName || raw.companyInfo?.name || raw.company?.name || '',
+          logo: raw.companyInfo?.logo || raw.companyInfo?.logoKey || raw.companyLogo || '',
+          industry: raw.companyInfo?.industry || 'Technology',
+          size: raw.companyInfo?.size || 'Unknown',
           location: raw.companyInfo?.location || raw.location,
-          website: raw.companyInfo?.website || "",
-          description: raw.companyInfo?.description || "Company description not available."
+          website: raw.companyInfo?.website || '',
+          description: raw.companyInfo?.description || 'Company description not available.'
         },
         location: raw.location,
-        type: "Internship",
-        level: "Entry",
+        type: 'Internship',
+        level: 'Entry',
         salary: {
           min: raw.salary?.minimum ?? 0,
           max: raw.salary?.maximum ?? 0,
-          currency: raw.salary?.currency || "USD",
-          period: raw.salary?.type || "hour"
+          currency: raw.salary?.currency || 'USD',
+          period: raw.salary?.type || 'hour'
         },
         posted: raw.createdAt,
         deadline: raw.duration?.endDate,
@@ -141,14 +170,37 @@ export default function JobDetailsPage() {
         responsibilities: [],
         benefits: [],
         skills: techSkills,
-        experience: "Entry level",
-        education: "Currently enrolled in relevant field",
+        experience: 'Entry level',
+        education: 'Currently enrolled in relevant field',
         remote: !!raw.remoteWork,
         applications: raw.applications ?? 0,
         views: raw.views ?? 0,
-        
         status: (raw.status && String(raw.status).toLowerCase() === 'active') ? 'active' : 'closed'
       };
+
+      // Fallback: if company name is missing OR logo is missing, fetch company details
+      const missingName = !transformedJob.company.name || transformedJob.company.name.toLowerCase() === 'company name';
+      const missingLogo = !transformedJob.company.logo || (typeof transformedJob.company.logo === 'string' && transformedJob.company.logo.startsWith('/api/placeholder/'));
+      if ((missingName || missingLogo) && transformedJob.company.id) {
+        try {
+          const cRes = await fetch(`/api/companies/${transformedJob.company.id}`);
+          if (cRes.ok) {
+            const cPayload = await cRes.json();
+            const c = cPayload?.data || cPayload;
+            transformedJob.company.name = c?.name || transformedJob.company.name || '';
+            transformedJob.company.logo = c?.logo || '';
+            transformedJob.company.industry = c?.industry || transformedJob.company.industry;
+            transformedJob.company.location = c?.headquarters || transformedJob.company.location;
+            transformedJob.company.website = c?.website || transformedJob.company.website;
+            transformedJob.company.description = c?.description || transformedJob.company.description;
+          }
+        } catch {}
+      }
+
+      // Ensure we always have a logo path for rendering
+      if (!transformedJob.company.logo) {
+        transformedJob.company.logo = 'https://placehold.co/80x80?text=Logo';
+      }
 
       setJob(transformedJob);
     } catch (err) {
@@ -259,37 +311,12 @@ export default function JobDetailsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link
-              href="/pages/student-dashboard"
-              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Jobs
-            </Link>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleShare}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-              >
-                <Share2 className="h-5 w-5" />
-              </button>
-              <button
-                onClick={handleSaveJob}
-                className={`p-2 rounded-lg ${
-                  isSaved
-                    ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                {isSaved ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
-              </button>
-            </div>
-          </div>
-        </div>
+      <AppHeader />
+      {/* Subheader: Back link */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <Link href="/pages/student-dashboard" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900">
+          <ArrowLeft className="h-4 w-4" /> Back to Jobs
+        </Link>
       </div>
 
       {/* Main Content */}
@@ -298,13 +325,13 @@ export default function JobDetailsPage() {
           {/* Job Details - Left Column */}
           <div className="lg:col-span-2 space-y-6">
             {/* Job Header */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-xl border shadow-sm p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-start gap-4">
                   <img
-                    src={job.company.logo}
+                    src={resolveImageSrc(job.company.logo)}
                     alt={job.company.name}
-                    className="w-16 h-16 rounded-lg object-cover"
+                    className="w-16 h-16 rounded-xl object-cover border"
                   />
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">{job.title}</h1>
@@ -316,10 +343,28 @@ export default function JobDetailsPage() {
                     </Link>
                   </div>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  job.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {job.status === 'active' ? 'Actively Hiring' : 'Closed'}
+                <div className="flex items-center gap-2">
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    job.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {job.status === 'active' ? 'Actively Hiring' : 'Closed'}
+                  </div>
+                  <button
+                    onClick={handleShare}
+                    className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+                  >
+                    <Share2 className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={handleSaveJob}
+                    className={`p-2 rounded-lg ${
+                      isSaved
+                        ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    {isSaved ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
 
@@ -349,7 +394,7 @@ export default function JobDetailsPage() {
                 </span>
                 <span>{job.views} views</span>
                 {job.remote && (
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                  <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full text-xs font-medium">
                     Remote OK
                   </span>
                 )}
@@ -357,7 +402,7 @@ export default function JobDetailsPage() {
             </div>
 
             {/* Job Description */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-xl border shadow-sm p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Job Description</h2>
               <div className="prose prose-gray max-w-none">
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">{job.description}</p>
@@ -365,7 +410,7 @@ export default function JobDetailsPage() {
             </div>
 
             {/* Requirements */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-xl border shadow-sm p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Requirements</h2>
               <ul className="space-y-2">
                 {job.requirements.map((requirement, index) => (
@@ -378,7 +423,7 @@ export default function JobDetailsPage() {
             </div>
 
             {/* Responsibilities */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-xl border shadow-sm p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Responsibilities</h2>
               <ul className="space-y-2">
                 {job.responsibilities.map((responsibility, index) => (
@@ -391,7 +436,7 @@ export default function JobDetailsPage() {
             </div>
 
             {/* Skills */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-xl border shadow-sm p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Required Skills</h2>
               <div className="flex flex-wrap gap-2">
                 {job.skills.map((skill, index) => (
@@ -406,7 +451,7 @@ export default function JobDetailsPage() {
             </div>
 
             {/* Benefits */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-xl border shadow-sm p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Benefits & Perks</h2>
               <ul className="space-y-2">
                 {job.benefits.map((benefit, index) => (
@@ -422,7 +467,7 @@ export default function JobDetailsPage() {
           {/* Sidebar - Right Column */}
           <div className="space-y-6">
             {/* Apply Section */}
-            <div className="bg-white rounded-lg shadow p-6 sticky top-6">
+            <div className="bg-white rounded-xl border shadow-sm p-6 sticky top-6">
               <div className="mb-4">
                 <div className="flex items-center gap-2 text-2xl font-bold text-gray-900 mb-2">
                   <DollarSign className="h-6 w-6" />
@@ -469,7 +514,7 @@ export default function JobDetailsPage() {
             </div>
 
             {/* Company Info */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-xl border shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">About {job.company.name}</h3>
 
               <div className="space-y-3 mb-4">
@@ -512,7 +557,7 @@ export default function JobDetailsPage() {
             </div>
 
             {/* Job Details */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-xl border shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Job Details</h3>
               <div className="space-y-3">
                 <div>

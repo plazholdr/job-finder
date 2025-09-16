@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import config from '@/config';
 
-const API_BASE_URL = config.api.baseUrl;
+// Prefer server-only BACKEND_URL when available; fallback to public config
+const API_BASE_URL = process.env.BACKEND_URL || config.api.baseUrl;
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,9 +31,15 @@ export async function GET(request: NextRequest) {
       queryParams.append('status', status);
     }
 
-    const authHeader = request.headers.get('authorization');
+    // Resolve auth token from header or cookie
+    let authHeader = request.headers.get('authorization') || '';
     if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
+      const cookieStore = await cookies();
+      const token = cookieStore.get('token')?.value;
+      if (token) authHeader = `Bearer ${token}`;
+    }
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Call backend API - this will automatically filter by company for company users

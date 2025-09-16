@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import config from '@/config';
 import {
   Building2,
   Briefcase,
@@ -29,6 +30,8 @@ import {
   XCircle
 } from 'lucide-react';
 import Link from 'next/link';
+import AppHeader from '@/components/layout/AppHeader';
+import { useRouter } from 'next/navigation';
 
 // Updated Job interface to match backend structure
 interface Job {
@@ -63,15 +66,19 @@ interface Job {
   applications: number;
   createdAt: string;
   updatedAt: string;
+  expiresAt?: string | null;
+  expiredAt?: string | null;
 }
 
 export default function CompanyJobsPage() {
+  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<string>('draft');
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   useEffect(() => {
     fetchJobs();
@@ -84,19 +91,25 @@ export default function CompanyJobsPage() {
   const fetchJobs = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/company/jobs', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const result = await response.json();
+      const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      if (result.success || result.data) {
-        setJobs(result.data || result);
+      const response = await fetch(`${config.api.baseUrl}/jobs?$limit=100&$sort=${encodeURIComponent(JSON.stringify({ createdAt: -1 }))}`, { headers });
+      const result = await response.json().catch(() => ({}));
+
+      // Normalize list shape: support Feathers pagination style and plain arrays
+      const list = Array.isArray(result?.data) ? result.data : (Array.isArray(result) ? result : []);
+
+      if (Array.isArray(list)) {
+        setJobs(list as Job[]);
+      } else {
+        console.error('Unexpected jobs API response:', result);
+        setJobs([]);
       }
     } catch (error) {
       console.error('Error fetching jobs:', error);
+      setJobs([]);
     } finally {
       setIsLoading(false);
     }
@@ -107,9 +120,10 @@ export default function CompanyJobsPage() {
 
     // Search filter
     if (searchTerm) {
+      const q = searchTerm.toLowerCase();
       filtered = filtered.filter(job =>
-        job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (job?.title || '').toLowerCase().includes(q) ||
+        (job?.description || '').toLowerCase().includes(q)
       );
     }
 
@@ -151,11 +165,32 @@ export default function CompanyJobsPage() {
     }
   };
 
+  const handleAmendAndEdit = async (jobId: string) => {
+    try {
+      setIsSubmitting(jobId);
+      const token = localStorage.getItem('authToken');
+      const resp = await fetch(`${config.api.baseUrl}/jobs/${jobId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ status: 'Draft' })
+      });
+      if (resp.ok) {
+        router.push(`/company/jobs/${jobId}/edit`);
+      } else {
+        console.error('Failed to move job to Draft for amendment');
+      }
+    } catch (e) {
+      console.error('Error amending job:', e);
+    } finally {
+      setIsSubmitting(null);
+    }
+  };
+
   const handleRequestApproval = async (jobId: string) => {
     try {
       setIsSubmitting(jobId);
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/company/jobs/${jobId}`, {
+      const response = await fetch(`${config.api.baseUrl}/jobs/${jobId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -177,6 +212,7 @@ export default function CompanyJobsPage() {
         console.error('Failed to request approval');
       }
     } catch (error) {
+
       console.error('Error requesting approval:', error);
     } finally {
       setIsSubmitting(null);
@@ -190,7 +226,7 @@ export default function CompanyJobsPage() {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/company/jobs/${jobId}`, {
+      const response = await fetch(`${config.api.baseUrl}/jobs/${jobId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -199,6 +235,7 @@ export default function CompanyJobsPage() {
 
       if (response.ok) {
         setJobs(prevJobs => prevJobs.filter(job => job._id !== jobId));
+
       }
     } catch (error) {
       console.error('Error deleting job:', error);
@@ -216,11 +253,12 @@ export default function CompanyJobsPage() {
       delete duplicatedJob._id;
 
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/company/jobs', {
+      const response = await fetch(`${config.api.baseUrl}/jobs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
+
         },
         body: JSON.stringify(duplicatedJob),
       });
@@ -236,6 +274,25 @@ export default function CompanyJobsPage() {
     }
   };
 
+
+  const handleRenew = async (jobId: string) => {
+    try {
+      setIsSubmitting(jobId);
+      const token = localStorage.getItem('authToken');
+      const resp = await fetch(`${config.api.baseUrl}/jobs/${jobId}/renew`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!resp.ok) throw new Error('Failed to renew job');
+      await fetchJobs();
+    } catch (e) {
+      console.error('Error renewing job', e);
+    } finally {
+      setIsSubmitting(null);
+    }
+  };
+
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -249,39 +306,41 @@ export default function CompanyJobsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Building2 className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Job Postings</h1>
-                <p className="text-sm text-gray-600">Manage your internship opportunities</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link href="/company/dashboard">
-                <Button variant="outline">
-                  Back to Dashboard
-                </Button>
-              </Link>
-              <Link href="/company/jobs/create">
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Job
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AppHeader />
 
       {/* Main Content */}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Job Postings</h1>
+            <p className="text-sm text-gray-600">Manage your internship opportunities</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex rounded-md border overflow-hidden">
+              <button
+                className={`px-3 py-2 text-sm ${viewMode === 'list' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}`}
+                onClick={() => setViewMode('list')}
+                aria-label="List view"
+              >
+                List
+              </button>
+              <button
+                className={`px-3 py-2 text-sm border-l ${viewMode === 'grid' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}`}
+                onClick={() => setViewMode('grid')}
+                aria-label="Grid view"
+              >
+                Grid
+              </button>
+            </div>
+            <Link href="/company/jobs/create">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Job
+              </Button>
+            </Link>
+          </div>
+        </div>
         {/* Search */}
         <Card className="mb-8">
           <CardContent className="p-6">
@@ -378,137 +437,207 @@ export default function CompanyJobsPage() {
             </div>
 
             {/* Jobs List */}
-            <div className="space-y-6">
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-6'}>
               {filteredJobs.length > 0 ? (
-                filteredJobs.map((job) => (
-                  <Card key={job._id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <h3 className="text-xl font-semibold text-gray-900 mb-2">{job.title}</h3>
-                              <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                filteredJobs.map((job) => {
+                  const min = job?.salary?.minimum;
+                  const max = job?.salary?.maximum;
+                  const currency = job?.salary?.currency || 'MYR';
+                  const type = job?.salary?.type || 'month';
+                  const created = job?.createdAt ? new Date(job.createdAt).toLocaleDateString() : '';
+                  const description = job?.description || '';
+                  const location = job?.remoteWork ? 'Remote' : (job?.location || 'Location not specified');
+
+                  return (
+                    <Card key={job._id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between mb-4">
+                              <div>
+                                <h3 className="text-xl font-semibold text-gray-900 mb-2">{job.title || 'Untitled job'}</h3>
+                                {job.expiresAt && (
+                                  <div className="mb-2">
+                                    {(() => {
+                                      const ms = new Date(job.expiresAt as any).getTime() - Date.now();
+                                      const days = Math.ceil(ms / (1000 * 60 * 60 * 24));
+                                      if (days <= 0) return (<Badge variant="destructive">Expired</Badge>);
+                                      if (days <= 7) return (<Badge variant="secondary">Expires in {days} day{days === 1 ? '' : 's'}</Badge>);
+                                      return null;
+                                    })()}
+                                  </div>
+                                )}
+
+                                <div className="flex items-center flex-wrap gap-4 text-sm text-gray-600 mb-3">
+                                  <span className="flex items-center">
+                                    <MapPin className="h-4 w-4 mr-1" />
+                                    {location}
+                                  </span>
+                                  <span className="flex items-center">
+                                    <DollarSign className="h-4 w-4 mr-1" />
+                                    {min != null && max != null ? `${currency} ${min}-${max}/${type}` : 'Salary not specified'}
+                                  </span>
+                                  {created && (
+                                    <span className="flex items-center">
+                                      <Calendar className="h-4 w-4 mr-1" />
+                                      {created}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-gray-700 mb-4 line-clamp-2">{description}</p>
+                              </div>
+
+                              <div className="flex items-center space-x-2 ml-4">
+                                <Badge className={`${getStatusColor(job.status)} flex items-center gap-1`}>
+                                  {getStatusIcon(job.status)}
+                                  {job.status || 'Draft'}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-6 text-sm text-gray-600">
                                 <span className="flex items-center">
-                                  <MapPin className="h-4 w-4 mr-1" />
-                                  {job.remoteWork ? 'Remote' : (job.location || 'Location not specified')}
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  {job?.views || 0} views
                                 </span>
                                 <span className="flex items-center">
-                                  <DollarSign className="h-4 w-4 mr-1" />
-                                  {job.salary.minimum && job.salary.maximum
-                                    ? `${job.salary.currency} ${job.salary.minimum}-${job.salary.maximum}/${job.salary.type}`
-                                    : 'Salary not specified'
-                                  }
-                                </span>
-                                <span className="flex items-center">
-                                  <Calendar className="h-4 w-4 mr-1" />
-                                  {new Date(job.createdAt).toLocaleDateString()}
+                                  <Users className="h-4 w-4 mr-1" />
+                                  {job?.applications || 0} applications
                                 </span>
                               </div>
-                              <p className="text-gray-700 mb-4 line-clamp-2">{job.description}</p>
-                            </div>
 
-                            <div className="flex items-center space-x-2 ml-4">
-                              <Badge className={`${getStatusColor(job.status)} flex items-center gap-1`}>
-                                {getStatusIcon(job.status)}
-                                {job.status}
-                              </Badge>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-6 text-sm text-gray-600">
-                              <span className="flex items-center">
-                                <Eye className="h-4 w-4 mr-1" />
-                                {job.views || 0} views
-                              </span>
-                              <span className="flex items-center">
-                                <Users className="h-4 w-4 mr-1" />
-                                {job.applications || 0} applications
-                              </span>
-                            </div>
-
-                            <div className="flex items-center space-x-2">
-                              {/* View Button - Always available */}
-                              <Link href={`/company/jobs/${job._id}`}>
-                                <Button variant="outline" size="sm">
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View
-                                </Button>
-                              </Link>
-
-                              {/* Applications Button - Only for Active jobs */}
-                              {job.status === 'Active' && (
-                                <Link href={`/company/jobs/${job._id}/applications`}>
+                              <div className="flex items-center space-x-2">
+                                {/* View Button - Always available */}
+                                <Link href={`/company/jobs/${job._id}`}>
                                   <Button variant="outline" size="sm">
-                                    <Users className="h-4 w-4 mr-2" />
-                                    Applications
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View
                                   </Button>
                                 </Link>
-                              )}
 
-                              {/* Edit Button - Only for Draft jobs */}
-                              {job.status === 'Draft' && (
-                                <Link href={`/company/jobs/${job._id}/edit`}>
-                                  <Button variant="outline" size="sm">
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Edit
-                                  </Button>
-                                </Link>
-                              )}
-
-                              {/* Request Approval Button - Only for Draft jobs */}
-                              {job.status === 'Draft' && (
-                                <Button
-                                  onClick={() => handleRequestApproval(job._id)}
-                                  disabled={isSubmitting === job._id}
-                                  size="sm"
-                                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                                >
-                                  {isSubmitting === job._id ? (
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                  ) : (
-                                    <Send className="h-4 w-4 mr-2" />
-                                  )}
-                                  Request Approval
-                                </Button>
-                              )}
-
-                              {/* More Options */}
-                              <div className="relative group">
-                                <Button variant="outline" size="sm">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-
-                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                                  <div className="py-1">
-                                    <button
-                                      onClick={() => handleDuplicateJob(job)}
-                                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    >
-                                      <Copy className="h-4 w-4 mr-2" />
-                                      Duplicate
-                                    </button>
-
-                                    {job.status === 'Draft' && (
-                                      <button
-                                        onClick={() => handleDeleteJob(job._id)}
-                                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                                      >
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Delete
-                                      </button>
+                                {/* Amend and Edit - For Rejected jobs: move to Draft then open editor */}
+                                {job.status === 'Rejected' && (
+                                  <Button
+                                    onClick={() => handleAmendAndEdit(job._id)}
+                                    disabled={isSubmitting === job._id}
+                                    size="sm"
+                                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                                  >
+                                    {isSubmitting === job._id ? (
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    ) : (
+                                      <Edit className="h-4 w-4 mr-2" />
                                     )}
+                                    Amend & Edit
+                                  </Button>
+                                )}
+
+                                {/* Applications Button - Only for Active jobs */}
+                                {/* Renewal Button - Active jobs expiring within 7 days */}
+                                {job.status === 'Active' && job.expiresAt && (() => {
+                                  const msLeft = new Date(job.expiresAt as any).getTime() - Date.now();
+                                  const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+                                  return daysLeft <= 7 ? (
+                                    <Button
+                                      onClick={() => handleRenew(job._id)}
+                                      disabled={isSubmitting === job._id}
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                    >
+                                      {isSubmitting === job._id ? (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                      ) : (
+                                        <Clock className="h-4 w-4 mr-2" />
+                                      )}
+                                      Renew (+30d)
+                                    </Button>
+                                  ) : null;
+                                })()}
+
+                                {job.status === 'Active' && (!job.expiresAt || new Date(job.expiresAt as any).getTime() > Date.now()) && (
+                                  <Link href={`/company/jobs/${job._id}/applications`}>
+                                    <Button variant="outline" size="sm">
+                                      <Users className="h-4 w-4 mr-2" />
+                                      Applications
+                                    </Button>
+                                  </Link>
+                                )}
+
+                                {/* Edit Button - Only for Draft jobs */}
+                                {job.status === 'Draft' && (
+                                  <Link href={`/company/jobs/${job._id}/edit`}>
+                                    <Button variant="outline" size="sm">
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </Button>
+                                  </Link>
+                                )}
+
+                                {/* Request Approval Button - Only for Draft jobs */}
+                                {job.status === 'Draft' && (
+                                  <Button
+                                    onClick={() => handleRequestApproval(job._id)}
+                                    disabled={isSubmitting === job._id}
+                                    size="sm"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                  >
+                                    {isSubmitting === job._id ? (
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    ) : (
+                                      <Send className="h-4 w-4 mr-2" />
+                                    )}
+                                    Request Approval
+                                  </Button>
+                                )}
+
+                                {/* More Options */}
+                                <div className="relative group">
+                                  <Button variant="outline" size="sm">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+
+                                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                                    <div className="py-1">
+                                      <button
+                                        onClick={() => handleDuplicateJob(job)}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                      >
+                                        <Copy className="h-4 w-4 mr-2" />
+                                        Duplicate
+                                      </button>
+
+                                      {job.status === 'Draft' && (
+                                        <button
+                                          onClick={() => handleDeleteJob(job._id)}
+                                          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Delete
+                                        </button>
+                                      )}
+                                    </div>
+
+                                      {job.status === 'Rejected' && (
+                                        <button
+                                          onClick={() => handleAmendAndEdit(job._id)}
+                                          className="flex items-center w-full px-4 py-2 text-sm text-orange-600 hover:bg-orange-50"
+                                        >
+                                          <Edit className="h-4 w-4 mr-2" />
+                                          Amend & Edit
+                                        </button>
+                                      )}
+
                                   </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                      </CardContent>
+                    </Card>
+                  );
+                })
               ) : (
                 <Card>
                   <CardContent className="p-12 text-center">
@@ -522,8 +651,7 @@ export default function CompanyJobsPage() {
                     <p className="text-gray-600 mb-6">
                       {jobs.length === 0
                         ? "You haven't created any job postings yet."
-                        : `No jobs in ${activeTab} status match your search.`
-                      }
+                        : `No jobs in ${activeTab} status match your search.`}
                     </p>
                     {jobs.length === 0 && (
                       <Link href="/company/jobs/create">

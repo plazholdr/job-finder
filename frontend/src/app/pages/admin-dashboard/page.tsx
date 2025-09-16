@@ -15,17 +15,14 @@ import {
   MoreVertical,
   Search,
   Filter,
-  Plus,
-  AlertTriangle,
   Clock,
   TrendingUp,
   UserCheck,
-  UserX,
-  FileText,
   Activity
 } from 'lucide-react';
 import UserProfile from '@/components/UserProfile';
 import { withAuth } from '@/contexts/auth-context';
+import { JOB_STATUS, JOB_STATUS_LABEL, normalizeJobStatus } from '@/constants/constants';
 
 interface User {
   _id: string;
@@ -41,6 +38,18 @@ interface User {
     name: string;
     verificationStatus: 'pending' | 'verified' | 'rejected';
   };
+}
+
+interface Job {
+  _id: string;
+  title: string;
+  description?: string;
+  companyId: string;
+  companyName?: string;
+  salary?: { minimum?: number; maximum?: number; currency?: string; type?: string };
+  status: 'Draft' | 'Pending' | 'Active' | 'Closed' | 'Rejected';
+  statusCode?: number;
+  createdAt?: string;
 }
 
 interface SystemStats {
@@ -82,17 +91,27 @@ function AdminDashboard() {
   const [notesByCompany, setNotesByCompany] = useState<Record<string, string>>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // Jobs moderation state
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobSearch, setJobSearch] = useState('');
+
+
   useEffect(() => {
     if (activeTab === 'overview') {
       fetchSystemStats();
+      // Preload pending jobs for the overview widget
+      fetchPendingJobs();
     } else if (activeTab === 'users') {
       fetchUsers();
     } else if (activeTab === 'companies') {
       fetchPendingCompanies();
     } else if (activeTab === 'logs') {
       fetchAdminLogs();
+    } else if (activeTab === 'jobs') {
+      fetchPendingJobs();
     }
-  }, [activeTab, searchTerm, roleFilter, statusFilter]);
+  }, [activeTab, searchTerm, roleFilter, statusFilter, jobSearch]);
 
   const fetchSystemStats = async () => {
     try {
@@ -175,6 +194,51 @@ function AdminDashboard() {
     }
   };
 
+  const fetchPendingJobs = async () => {
+    try {
+      setJobsLoading(true);
+      const params = new URLSearchParams();
+      // Show all jobs (admin view). Apply search if provided.
+      if (jobSearch) params.set('search', jobSearch);
+      params.set('$limit', '50');
+      params.set('$sort[createdAt]', '-1');
+      const resp = await fetch(`/api/admin/jobs?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      });
+      const json = await resp.json();
+      const list = json?.data?.data || json?.data || [];
+      setJobs(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error('Error fetching pending jobs:', e);
+      setJobs([]);
+    } finally {
+      setJobsLoading(false);
+    }
+  };
+
+  const updateJobStatus = async (jobId: string, statusCode: number, reason?: string) => {
+    try {
+      setProcessingId(jobId);
+      const resp = await fetch(`/api/admin/jobs/${jobId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ status: statusCode, reason })
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        console.error('Failed to update job status', err);
+      }
+      await fetchPendingJobs();
+    } catch (e) {
+      console.error('Error updating job status:', e);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const updateUserStatus = async (userId: string, status: string, reason?: string) => {
     try {
       const response = await fetch(`/api/admin/users/${userId}/status`, {
@@ -222,20 +286,17 @@ function AdminDashboard() {
     { key: '2', displayName: 'TechCorp Inc', email: 'hr@techcorp.com', role: 'company', status: 'active', joinDate: '2024-01-10', lastActive: '1 day ago' },
   ];
 
-  const pendingJobs = [
-    { id: '1', title: 'Senior Software Engineer', company: 'TechCorp Inc', status: 'pending', posted: '2 hours ago', salary: '$120k-150k' },
-    { id: '2', title: 'Data Scientist', company: 'DataWorks', status: 'pending', posted: '1 day ago', salary: '$100k-130k' },
-  ];
 
   const getStatusBadge = (status: string) => {
     const colors = {
+      draft: 'bg-gray-100 text-gray-800',
       active: 'bg-green-100 text-green-800',
       pending: 'bg-yellow-100 text-yellow-800',
       suspended: 'bg-red-100 text-red-800',
       approved: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800'
-    };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    } as const;
+    return (colors as any)[status] || 'bg-gray-100 text-gray-800';
   };
 
   const getRoleIcon = (role: string) => {
@@ -472,22 +533,27 @@ function AdminDashboard() {
                 </div>
                 <div className="p-6">
                   <div className="space-y-4">
-                    {pendingJobs.map((job) => (
-                      <div key={job.id} className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{job.title}</p>
-                          <p className="text-sm text-gray-500">{job.company} • {job.salary}</p>
+                    {(jobs || []).slice(0, 6).map((job) => {
+                      const salary = job?.salary && (job.salary.minimum || job.salary.maximum)
+                        ? `${job.salary.currency || '$'}${job.salary.minimum ?? ''}${job.salary.maximum ? '-' + (job.salary.currency || '$') + job.salary.maximum : ''}`
+                        : '—';
+                      return (
+                        <div key={job._id} className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{job.title}</p>
+                            <p className="text-sm text-gray-500">{job.companyName || '—'} • {salary}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => updateJobStatus(job._id, JOB_STATUS.ACTIVE)} className="p-1 text-green-600 hover:bg-green-50 rounded">
+                              <CheckCircle className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => updateJobStatus(job._id, JOB_STATUS.REJECTED)} className="p-1 text-red-600 hover:bg-red-50 rounded">
+                              <XCircle className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button className="p-1 text-green-600 hover:bg-green-50 rounded">
-                            <CheckCircle className="h-4 w-4" />
-                          </button>
-                          <button className="p-1 text-red-600 hover:bg-red-50 rounded">
-                            <XCircle className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -593,6 +659,8 @@ function AdminDashboard() {
                     type="text"
                     placeholder="Search job postings"
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    value={jobSearch}
+                    onChange={(e) => setJobSearch(e.target.value)}
                   />
                 </div>
                 <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
@@ -616,34 +684,48 @@ function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingJobs.map((job) => (
-                    <tr key={job.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                  {jobs.map((job: Job) => (
+                    <tr key={job._id} className="border-b last:border-b-0 hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="font-medium text-gray-900">{job.title}</div>
                       </td>
-                      <td className="px-6 py-4 text-gray-900">{job.company}</td>
-                      <td className="px-6 py-4 text-gray-900">{job.salary}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(job.status)}`}>
-                          {job.status}
-                        </span>
+                      <td className="px-6 py-4 text-gray-900">{job.companyName || ''}</td>
+                      <td className="px-6 py-4 text-gray-900">
+                        {job?.salary && (job.salary.minimum || job.salary.maximum)
+                          ? `${job.salary.currency || '$'}${job.salary.minimum ?? ''}${job.salary.maximum ? '-' + (job.salary.currency || '$') + job.salary.maximum : ''}`
+                          : ''}
                       </td>
-                      <td className="px-6 py-4 text-gray-500">{job.posted}</td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button className="p-1 text-blue-600 hover:bg-blue-50 rounded">
+                        {(() => { const s = normalizeJobStatus((job as any).statusCode ?? job.status).name; return (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(s.toLowerCase())}`}>{s}</span>
+                        )})()}
+                      </td>
+                      <td className="px-6 py-4 text-gray-500">{job.createdAt ? new Date(job.createdAt).toLocaleString() : ''}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <button className="p-1 text-blue-600 hover:bg-blue-50 rounded" onClick={() => window.open(`/jobs/${job._id}`, '_blank') }>
                             <Eye className="h-4 w-4" />
                           </button>
-                          {job.status === 'pending' && (
-                            <>
-                              <button className="p-1 text-green-600 hover:bg-green-50 rounded">
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                              <button className="p-1 text-red-600 hover:bg-red-50 rounded">
-                                <XCircle className="h-4 w-4" />
-                              </button>
-                            </>
-                          )}
+                          {(() => {
+                            const current = normalizeJobStatus((job as any).statusCode ?? job.status).name;
+                            const selected = current === 'Active' ? 'Approved' : current === 'Rejected' ? 'Rejected' : 'Pending';
+                            return (
+                              <select
+                                className="px-2 py-1.5 border border-gray-300 rounded text-sm"
+                                value={selected}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  const code = v === 'Approved' ? JOB_STATUS.ACTIVE : v === 'Rejected' ? JOB_STATUS.REJECTED : JOB_STATUS.PENDING;
+                                  updateJobStatus(job._id, code);
+                                }}
+                                disabled={processingId === job._id}
+                              >
+                                <option value="Approved">Approved</option>
+                                <option value="Rejected">Rejected</option>
+                                <option value="Pending">Pending</option>
+                              </select>
+                            );
+                          })()}
                         </div>
                       </td>
                     </tr>

@@ -35,8 +35,16 @@ export async function GET(
   try {
     const { id: companyId } = await params;
 
-    // Call backend API to get company details
-    const company = await makeBackendRequest(`/companies/${companyId}`);
+    // Call backend API to get company details WITHOUT auth header so it works for any viewer
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3030';
+    const resp = await fetch(`${backendUrl}/companies/${companyId}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `HTTP ${resp.status}`);
+    }
+    const company = await resp.json();
 
     // Transform backend data to match frontend expectations
     const transformedCompany = {
@@ -44,7 +52,8 @@ export async function GET(
       name: company.company?.name || `${company.firstName} ${company.lastName}`,
       description: company.company?.description || 'Company description not available',
       nature: company.company?.industry || 'Technology',
-      logo: company.company?.logo || '/api/placeholder/64/64',
+      // Do not set a broken internal placeholder path; leave empty when missing
+      logo: company.company?.logo || '',
       email: company.email,
       address: company.company?.headquarters || 'Address not available',
       phoneNumber: company.company?.phone || 'Phone not available',

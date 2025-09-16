@@ -1,4 +1,5 @@
 const { ObjectId } = require('mongodb');
+const { APPLICATION_PIPELINE, statusToPipelineCode } = require('../constants/constants');
 
 class ApplicationModel {
   constructor(db) {
@@ -13,12 +14,15 @@ class ApplicationModel {
       await this.collection.createIndex({ jobId: 1 });
       await this.collection.createIndex({ companyId: 1 });
       await this.collection.createIndex({ status: 1 });
+      await this.collection.createIndex({ statusCode: 1 });
       await this.collection.createIndex({ createdAt: -1 });
-      
+
       // Compound indexes for common queries
       await this.collection.createIndex({ jobId: 1, userId: 1 }, { unique: true }); // Prevent duplicate applications
       await this.collection.createIndex({ companyId: 1, status: 1 });
+      await this.collection.createIndex({ companyId: 1, statusCode: 1 });
       await this.collection.createIndex({ userId: 1, status: 1 });
+      await this.collection.createIndex({ userId: 1, statusCode: 1 });
     } catch (error) {
       console.warn('Failed to create application indexes:', error.message);
     }
@@ -66,22 +70,23 @@ class ApplicationModel {
       userId: userObjectId,
       jobId: jobObjectId,
       companyId: companyObjectId,
-      
+
       // Application content
       personalInformation: personalInformation || '',
       internshipDetails: internshipDetails || '',
       courseInformation: courseInformation || '',
       assignmentInformation: assignmentInformation || '',
       coverLetter: coverLetter || '',
-      
+
       // File attachments
       resumeUrl: resumeUrl || null,
       portfolioUrl: portfolioUrl || null,
       additionalDocuments: additionalDocuments,
-      
+
       // Application status workflow
       status: 'submitted', // submitted, under_review, interview_scheduled, interview_completed, offered, pending_acceptance, accepted, rejected, withdrawn
-      
+      statusCode: APPLICATION_PIPELINE.NEW,
+
       // Status history for tracking
       statusHistory: [{
         status: 'submitted',
@@ -89,22 +94,22 @@ class ApplicationModel {
         changedBy: userObjectId,
         reason: 'Application submitted'
       }],
-      
+
       // Timestamps
       createdAt: new Date(),
       updatedAt: new Date(),
       submittedAt: new Date(),
-      
+
       // Review tracking
       reviewedAt: null,
       reviewedBy: null,
       reviewNotes: null,
-      
+
       // Interview tracking
       interviewScheduledAt: null,
       interviewCompletedAt: null,
       interviewNotes: null,
-      
+
       // Offer tracking
       offeredAt: null,
       offerAcceptedAt: null,
@@ -128,12 +133,12 @@ class ApplicationModel {
   async findByUserId(userId, options = {}) {
     const userObjectId = typeof userId === 'string' ? new ObjectId(userId) : userId;
     const { limit = 50, skip = 0, sort = { createdAt: -1 }, status } = options;
-    
+
     const query = { userId: userObjectId };
     if (status) {
       query.status = status;
     }
-    
+
     const applications = await this.collection
       .find(query)
       .sort(sort)
@@ -147,12 +152,12 @@ class ApplicationModel {
   async findByJobId(jobId, options = {}) {
     const jobObjectId = typeof jobId === 'string' ? new ObjectId(jobId) : jobId;
     const { limit = 50, skip = 0, sort = { createdAt: -1 }, status } = options;
-    
+
     const query = { jobId: jobObjectId };
     if (status) {
       query.status = status;
     }
-    
+
     const applications = await this.collection
       .find(query)
       .sort(sort)
@@ -173,7 +178,7 @@ class ApplicationModel {
     }
 
 
-    
+
     const applications = await this.collection
       .find(query)
       .sort(sort)
@@ -186,7 +191,7 @@ class ApplicationModel {
 
   async find(query = {}, options = {}) {
     const { limit = 50, skip = 0, sort = { createdAt: -1 } } = options;
-    
+
     const applications = await this.collection
       .find(query)
       .sort(sort)
@@ -209,6 +214,13 @@ class ApplicationModel {
       status: newStatus,
       updatedAt: new Date()
     };
+
+    // Keep a numeric pipeline code in parallel for efficient filtering (0..3)
+    const pipelineCode = statusToPipelineCode(newStatus);
+    if (newStatus !== 'rejected') {
+      // Do not change pipeline code when rejecting; preserve last active stage
+      setData.statusCode = pipelineCode;
+    }
 
     // Add specific timestamp fields based on status
     switch (newStatus) {
@@ -283,9 +295,9 @@ class ApplicationModel {
 
   async deleteById(applicationId) {
     const applicationObjectId = typeof applicationId === 'string' ? new ObjectId(applicationId) : applicationId;
-    
+
     const result = await this.collection.deleteOne({ _id: applicationObjectId });
-    
+
     if (result.deletedCount === 0) {
       throw new Error('Application not found');
     }
@@ -297,7 +309,7 @@ class ApplicationModel {
   async hasUserApplied(userId, jobId) {
     const userObjectId = typeof userId === 'string' ? new ObjectId(userId) : userId;
     const jobObjectId = typeof jobId === 'string' ? new ObjectId(jobId) : jobId;
-    
+
     const application = await this.collection.findOne({
       userId: userObjectId,
       jobId: jobObjectId
@@ -309,7 +321,7 @@ class ApplicationModel {
   // Get application statistics for a company
   async getCompanyStats(companyId) {
     const companyObjectId = typeof companyId === 'string' ? new ObjectId(companyId) : companyId;
-    
+
     const pipeline = [
       { $match: { companyId: companyObjectId } },
       {
@@ -321,7 +333,7 @@ class ApplicationModel {
     ];
 
     const stats = await this.collection.aggregate(pipeline).toArray();
-    
+
     // Convert to object format
     const result = {
       total: 0,
