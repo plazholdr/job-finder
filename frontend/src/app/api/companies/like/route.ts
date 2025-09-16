@@ -1,62 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
+import config from '@/config';
 
-// Mock storage for liked companies (in a real app, this would be in a database)
-let likedCompanies: { id: string; userId: string; companyId: string; createdAt: Date }[] = [];
+const API_BASE_URL = config.api.baseUrl;
 
 export async function POST(request: NextRequest) {
   try {
-    const { companyId } = await request.json();
-    
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, error: 'Authorization header required' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const companyId = body?.companyId;
+
     if (!companyId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Company ID is required'
-        },
+        { success: false, error: 'Company ID is required' },
         { status: 400 }
       );
     }
 
-    // Mock user ID (in a real app, this would come from authentication)
-    const userId = 'mock-user-id';
-
-    // Check if already liked
-    const existingLike = likedCompanies.find(
-      like => like.userId === userId && like.companyId === companyId
-    );
-
-    if (existingLike) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Company already liked'
-        },
-        { status: 400 }
-      );
-    }
-
-    // Add to liked companies
-    const newLike = {
-      id: `like-${Date.now()}`,
-      userId,
-      companyId,
-      createdAt: new Date()
-    };
-
-    likedCompanies.push(newLike);
-
-    return NextResponse.json({
-      success: true,
-      data: newLike,
-      message: 'Company liked successfully'
+    const response = await fetch(`${API_BASE_URL}/companies/like`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+      body: JSON.stringify({ companyId }),
     });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data.error || 'Failed to like company' },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Error liking company:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to like company'
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -64,49 +53,46 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { companyId } = await request.json();
-    
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, error: 'Authorization header required' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const companyId = body?.companyId;
+
     if (!companyId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Company ID is required'
-        },
+        { success: false, error: 'Company ID is required' },
         { status: 400 }
       );
     }
 
-    // Mock user ID (in a real app, this would come from authentication)
-    const userId = 'mock-user-id';
+    const response = await fetch(`${API_BASE_URL}/companies/like/${companyId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+    });
 
-    // Find and remove the like
-    const likeIndex = likedCompanies.findIndex(
-      like => like.userId === userId && like.companyId === companyId
-    );
+    const data = await response.json();
 
-    if (likeIndex === -1) {
+    if (!response.ok) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Company not found in liked list'
-        },
-        { status: 404 }
+        { error: data.error || 'Failed to unlike company' },
+        { status: response.status }
       );
     }
 
-    likedCompanies.splice(likeIndex, 1);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Company unliked successfully'
-    });
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Error unliking company:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to unlike company'
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -114,24 +100,39 @@ export async function DELETE(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Mock user ID (in a real app, this would come from authentication)
-    const userId = 'mock-user-id';
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, error: 'Authorization header required' },
+        { status: 401 }
+      );
+    }
 
-    // Get all liked companies for the user
-    const userLikedCompanies = likedCompanies.filter(like => like.userId === userId);
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
 
-    return NextResponse.json({
-      success: true,
-      data: userLikedCompanies,
-      message: 'Liked companies fetched successfully'
+    const response = await fetch(`${API_BASE_URL}/companies/liked${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
     });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data.error || 'Failed to fetch liked companies' },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching liked companies:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch liked companies'
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

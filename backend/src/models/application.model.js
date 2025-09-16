@@ -20,6 +20,9 @@ class ApplicationModel {
       await this.collection.createIndex({ jobId: 1, userId: 1 }, { unique: true }); // Prevent duplicate applications
       await this.collection.createIndex({ companyId: 1, status: 1 });
       await this.collection.createIndex({ userId: 1, status: 1 });
+
+      await this.collection.createIndex({ withdrawalDate: -1 });
+
     } catch (error) {
       console.warn('Failed to create application indexes:', error.message);
     }
@@ -71,8 +74,8 @@ class ApplicationModel {
       // Application content
       personalInformation: personalInformation || '',
       internshipDetails: internshipDetails || '',
-      courseInformation: courseInformation || '',
-      assignmentInformation: assignmentInformation || '',
+      courseInformation: Array.isArray(courseInformation) ? courseInformation : [],
+      assignmentInformation: Array.isArray(assignmentInformation) ? assignmentInformation : [],
       coverLetter: coverLetter || '',
 
       // File attachments
@@ -114,7 +117,10 @@ class ApplicationModel {
 
       // Offer details - always set to null initially for student applications
       offerValidity: null,
-      offerLetterUrl: null
+      offerLetterUrl: null,
+
+      withdrawalDate: null,
+      withdrawalReason: null
     };
 
     const result = await this.collection.insertOne(applicationDoc);

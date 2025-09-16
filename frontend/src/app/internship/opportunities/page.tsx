@@ -238,20 +238,20 @@ function InternshipOpportunities() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 border-b border-blue-500 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-4">
             <Link
               href="/internship"
-              className="text-gray-600 hover:text-gray-900"
+              className="text-white/80 hover:text-white transition-colors duration-200 hover:bg-white/10 px-3 py-2 rounded-md"
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Internship Opportunities</h1>
-              <p className="mt-2 text-gray-600">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">Internship Opportunities</h1>
+              <p className="text-xl text-blue-100">
                 Discover internships that match your skills and interests
               </p>
             </div>
@@ -261,7 +261,7 @@ function InternshipOpportunities() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6 mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Search */}
             <div className="flex-1">
@@ -272,24 +272,24 @@ function InternshipOpportunities() {
                   placeholder="Search internships, companies, or keywords..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 />
               </div>
             </div>
             
             {/* Quick Filters */}
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setSelectedFilters(prev => ({ ...prev, remote: !prev.remote }))}
-                className={`px-4 py-2 rounded-lg border ${
-                  selectedFilters.remote 
-                    ? 'bg-blue-100 border-blue-300 text-blue-700' 
-                    : 'bg-white border-gray-300 text-gray-700'
-                } hover:bg-blue-50`}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                  selectedFilters.remote
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
               >
                 Remote
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+              <button className="flex items-center gap-2 px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-all duration-200">
                 <Filter className="h-4 w-4" />
                 More Filters
               </button>

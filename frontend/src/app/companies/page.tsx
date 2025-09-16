@@ -10,6 +10,7 @@ import { Heart, Search, Building2, MapPin, Globe, Briefcase, SlidersHorizontal }
 import { Company, CompanyFilters, LikedCompany } from '@/types/company-job';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import { useRouter } from 'next/navigation';
 
 function normalizeCompany(c: any) {
   const pickName = () => {
@@ -39,6 +40,7 @@ function normalizeCompany(c: any) {
 
 
 export default function CompaniesPage() {
+  const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [likedCompanies, setLikedCompanies] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<CompanyFilters>({});
@@ -59,6 +61,50 @@ export default function CompaniesPage() {
   const fetchCompanies = async () => {
       try {
         setLoading(true);
+
+        // If sorting by liked companies, fetch liked companies instead
+        if (sortBy === 'liked') {
+          const token = localStorage.getItem('authToken');
+          if (!token) {
+            // Redirect to login page if not authenticated
+            router.push('/auth/login');
+            setLoading(false);
+            return;
+          }
+
+          const res = await fetch('/api/companies/liked?includeCompanyDetails=true', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          const raw = await res.json();
+
+          if (raw.success) {
+            const list = Array.isArray(raw.data) ? raw.data : [];
+            // Transform liked companies data to match company structure
+            const normalized = list.map((likedCompany: any) => {
+              const company = likedCompany.company;
+              return normalizeCompany({
+                ...company,
+                id: company._id,
+                name: company.company?.name || `${company.firstName} ${company.lastName}`,
+                description: company.company?.description || '',
+                nature: company.company?.industry || 'Company',
+                address: company.company?.headquarters || '',
+                website: company.company?.website || '',
+                logo: company.company?.logo || '',
+                activeJobsCount: 0 // Will be populated if needed
+              });
+            });
+            setCompanies(normalized);
+          } else {
+            setCompanies([]);
+          }
+          setLoading(false);
+          return;
+        }
+
+        // Regular company fetching logic
         const queryParams = new URLSearchParams();
 
         // Search filter
@@ -103,13 +149,25 @@ export default function CompaniesPage() {
 
   const fetchLikedCompanies = async () => {
     try {
-      const res = await fetch('/api/companies/liked');
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        return; // Skip if not authenticated
+      }
+
+      const res = await fetch('/api/companies/liked', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const raw = await res.json();
-      const list = Array.isArray(raw) ? raw : (raw.data ?? []);
-      const likedIds = new Set<string>(
-        list.map((x: any) => String(x.companyId ?? x.id ?? x._id))
-      );
-      setLikedCompanies(likedIds);
+
+      if (raw.success) {
+        const list = Array.isArray(raw.data) ? raw.data : [];
+        const likedIds = new Set<string>(
+          list.map((x: any) => String(x.companyId ?? x.id ?? x._id))
+        );
+        setLikedCompanies(likedIds);
+      }
     } catch (error) {
       console.error('Error fetching liked companies:', error);
     }
@@ -118,6 +176,13 @@ export default function CompaniesPage() {
 
   const handleLikeCompany = async (companyId: string) => {
     try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        // Redirect to login page if not authenticated
+        router.push('/auth/login');
+        return;
+      }
+
       const isLiked = likedCompanies.has(companyId);
       const method = isLiked ? 'DELETE' : 'POST';
 
@@ -125,9 +190,15 @@ export default function CompaniesPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ companyId }),
       });
+
+      if (response.status === 401) {
+        router.push('/auth/login');
+        return;
+      }
 
       if (response.ok) {
         const newLikedCompanies = new Set(likedCompanies);
@@ -137,6 +208,13 @@ export default function CompaniesPage() {
           newLikedCompanies.add(companyId);
         }
         setLikedCompanies(newLikedCompanies);
+
+        // If currently viewing liked companies, refresh the list
+        if (sortBy === 'liked') {
+          fetchCompanies();
+        }
+      } else {
+        console.error('Failed to toggle like. HTTP', response.status);
       }
     } catch (error) {
       console.error('Error toggling company like:', error);
@@ -297,6 +375,7 @@ export default function CompaniesPage() {
                       <SelectItem value="latest">Latest</SelectItem>
                       <SelectItem value="name">Company Name</SelectItem>
                       <SelectItem value="jobs">Most Jobs</SelectItem>
+                      <SelectItem value="liked">Liked Companies</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

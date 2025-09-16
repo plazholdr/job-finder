@@ -1,29 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
+import config from '@/config';
 
-// Mock storage for liked companies (in a real app, this would be in a database)
-// This should be the same storage as in the like route
-let likedCompanies: { id: string; userId: string; companyId: string; createdAt: Date }[] = [];
+const API_BASE_URL = config.api.baseUrl;
 
 export async function GET(request: NextRequest) {
   try {
-    // Mock user ID (in a real app, this would come from authentication)
-    const userId = 'mock-user-id';
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, error: 'Authorization header required' },
+        { status: 401 }
+      );
+    }
 
-    // Get all liked companies for the user
-    const userLikedCompanies = likedCompanies.filter(like => like.userId === userId);
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
 
-    return NextResponse.json({
-      success: true,
-      data: userLikedCompanies,
-      message: 'Liked companies fetched successfully'
+    const response = await fetch(`${API_BASE_URL}/companies/liked${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
     });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data.error || 'Failed to fetch liked companies' },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching liked companies:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch liked companies'
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
