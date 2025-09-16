@@ -17,6 +17,9 @@ const multer = require('multer');
 const { S3StorageUtils } = require('../utils/s3-storage');
 const ApplicationModel = require('../models/application.model');
 const { getDB } = require('../db');
+const cron = require('node-cron');
+const { JOB_STATUS, JOB_STATUS_LABEL } = require('../constants/constants');
+
 
 // Configure multer for file uploads
 const upload = multer({
@@ -666,6 +669,241 @@ module.exports = function (app) {
   });
 
 
+  // Renew job for 30 days
+  app.post('/jobs/:id/renew', authenticateToken(app), async (req, res) => {
+    try {
+      const jobsService = new JobsService(app);
+      const result = await jobsService.renew(req.params.id, req.userId);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+  // Duplicate a job into a new Draft job
+  app.post('/jobs/:id/duplicate', authenticateToken(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const authed = await usersService.getCurrentUser(req.userId);
+      if (!authed || authed.role !== 'company') {
+        return res.status(403).json({ error: 'Only company users can duplicate jobs' });
+      }
+
+      const { id } = req.params;
+      const jobsService = new JobsService(app);
+      const existing = await jobsService.jobModel.findById(id);
+      if (!existing) return res.status(404).json({ error: 'Job not found' });
+      if (String(existing.companyId) !== String(authed._id)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      // Build a fresh job document (Draft) copying core fields
+      const jobData = {
+        companyId: existing.companyId,
+        title: existing.title,
+        description: existing.description,
+        requirements: existing.requirements,
+        location: existing.location,
+        remoteWork: existing.remoteWork,
+        project: existing.project,
+        skills: existing.skills,
+        salary: existing.salary,
+        duration: existing.duration,
+        startDate: existing.duration?.startDate || null,
+        endDate: existing.duration?.endDate || null,
+        attachments: existing.attachments || [],
+      };
+
+      const created = await jobsService.jobModel.create(jobData);
+      return res.json({ success: true, data: created });
+    } catch (error) {
+      console.error('Duplicate job error:', error);
+      return res.status(400).json({ error: error.message });
+    }
+  });
+
+
+  // Update PIC details for a specific job (default: company-level PIC; this endpoint sets per-job PIC)
+  app.patch('/jobs/:id/pic', authenticateToken(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const authed = await usersService.getCurrentUser(req.userId);
+      if (!authed || authed.role !== 'company') {
+        return res.status(403).json({ error: 'Only company users can update PIC' });
+      }
+
+      const { id } = req.params;
+      const { name, email, phone, title } = req.body || {};
+
+      const jobsService = new JobsService(app);
+      const job = await jobsService.jobModel.findById(id);
+      if (!job) return res.status(404).json({ error: 'Job not found' });
+      if (String(job.companyId) !== String(authed._id)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const statusName = job.status || (JOB_STATUS_LABEL[job.statusCode] || 'Draft');
+      if (statusName !== 'Pending') {
+        return res.status(400).json({ error: 'PIC can only be edited while job is Pending' });
+      }
+
+      // Basic email validation if provided
+      if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(String(email).trim())) return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      const now = new Date();
+      const prev = job.contactPerson || {};
+      const nextPIC = {
+        ...(prev),
+        ...(name !== undefined ? { name: String(name).trim() } : {}),
+        ...(email !== undefined ? { email: String(email).trim() } : {}),
+        ...(phone !== undefined ? { phone: String(phone).trim() } : {}),
+        ...(title !== undefined ? { title: String(title).trim() } : {}),
+      };
+
+      // Detect which fields changed for audit trail
+      const changedFields = [];
+      if (name !== undefined && String(prev.name || '') !== String(nextPIC.name || '')) changedFields.push('name');
+      if (email !== undefined && String(prev.email || '') !== String(nextPIC.email || '')) changedFields.push('email');
+      if (phone !== undefined && String(prev.phone || '') !== String(nextPIC.phone || '')) changedFields.push('phone');
+      if (title !== undefined && String(prev.title || '') !== String(nextPIC.title || '')) changedFields.push('title');
+
+      await jobsService.jobModel.collection.updateOne(
+        { _id: job._id },
+        {
+          $set: { contactPerson: nextPIC, updatedAt: now },
+          $push: {
+            statusHistory: {
+              status: statusName,
+              changedAt: now,
+              changedBy: job.companyId,
+              reason: changedFields.length
+                ? `PIC updated (${changedFields.join(', ')})`
+                : 'PIC updated'
+            }
+          }
+        }
+      );
+
+      const updated = await jobsService.jobModel.findById(id);
+      return res.json({ success: true, data: updated });
+    } catch (error) {
+      console.error('Update job PIC error:', error);
+      return res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update company-level PIC (contact person)
+  app.patch('/company/pic', authenticateToken(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const authed = await usersService.getCurrentUser(req.userId);
+      if (!authed || authed.role !== 'company') {
+        return res.status(403).json({ error: 'Only company users can update PIC' });
+      }
+
+      const { name, email, phone, title } = req.body || {};
+      if (!name && !email && !phone && !title) {
+        return res.status(400).json({ error: 'At least one field is required' });
+      }
+      if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(String(email).trim())) return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      const next = {
+        ...(authed.company || {}),
+        contactPerson: {
+          ...(authed.company?.contactPerson || {}),
+          ...(name !== undefined ? { name: String(name).trim() } : {}),
+          ...(email !== undefined ? { email: String(email).trim() } : {}),
+          ...(phone !== undefined ? { phone: String(phone).trim() } : {}),
+          ...(title !== undefined ? { title: String(title).trim() } : {}),
+        }
+      };
+
+      await usersService.userModel.updateById(authed._id, {
+        company: next,
+        updatedAt: new Date()
+      });
+
+      // Return updated PIC only
+      const updated = await usersService.getCurrentUser(req.userId);
+      return res.json({ success: true, data: { contactPerson: updated.company?.contactPerson || null } });
+    } catch (error) {
+      console.error('Update company PIC error:', error);
+      return res.status(400).json({ error: error.message });
+    }
+  });
+
+
+
+
+  // ADMIN: Run job expiry maintenance now (backfill expiresAt, auto-expire overdue, send reminders)
+  app.post('/admin/jobs/expiry/run-now', authenticateToken(app), async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const jobsService = new JobsService(app);
+      const notificationSvc = new NotificationService(app);
+      const now = new Date();
+      const sevenDaysAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const col = jobsService.jobModel.collection;
+
+      // Backfill expiresAt for active jobs missing it
+      const missingCursor = col.find({
+        status: 'Active',
+        isActive: true,
+        $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }]
+      });
+      const missing = await missingCursor.toArray();
+      for (const job of missing) {
+        const base = job.approvedAt ? new Date(job.approvedAt) : new Date(job.createdAt || now);
+        const exp = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+        await col.updateOne({ _id: job._id }, { $set: { expiresAt: exp, updatedAt: now } });
+      }
+
+      // Auto-expire overdue jobs
+      const expireCursor = col.find({ status: 'Active', isActive: true, expiresAt: { $lt: now } });
+      const toExpire = await expireCursor.toArray();
+      for (const job of toExpire) {
+        await col.updateOne(
+          { _id: job._id },
+          { $set: { isActive: false, expiredAt: now } }
+        );
+      }
+
+      // Send reminders for jobs expiring within 7 days
+      const soonCursor = col.find({ status: 'Active', isActive: true, expiresAt: { $gte: now, $lte: sevenDaysAhead } });
+      const soon = await soonCursor.toArray();
+      for (const job of soon) {
+        const lastSent = job.expiryReminderSentAt ? new Date(job.expiryReminderSentAt) : null;
+        if (lastSent && (now - lastSent) < 20 * 60 * 60 * 1000) continue; // avoid spamming
+        const daysLeft = Math.max(0, Math.ceil((new Date(job.expiresAt) - now) / (1000 * 60 * 60 * 24)));
+        try {
+          await notificationSvc.createNotification(job.companyId, {
+            type: 'job_expiring',
+            title: 'Job listing expiring soon',
+            message: `${job.title || 'Your job'} will expire in ${daysLeft} day(s). Renew to keep it active.`,
+            category: 'job',
+            priority: 'normal',
+            actionUrl: `/company/jobs/${job._id}`,
+            actionText: 'Renew now'
+          });
+        } catch (e) {
+          console.error('Failed to create expiry notification for job', job._id?.toString(), e.message);
+        }
+        await col.updateOne({ _id: job._id }, { $set: { expiryReminderSentAt: now } });
+      }
+
+      res.json({ success: true, message: 'Expiry maintenance executed' });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   // Liked Companies service endpoints - MUST come before /companies/:id routes
   app.post('/companies/like', authenticateToken(app), async (req, res) => {
@@ -681,6 +919,106 @@ module.exports = function (app) {
       res.status(500).json({ error: error.message });
     }
   });
+
+
+
+  // Admin: Jobs moderation endpoints
+  app.get('/admin/jobs', authenticateToken(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const authed = await usersService.getCurrentUser(req.userId);
+      if (!authed || authed.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      const jobsService = new JobsService(app);
+      const serviceParams = { user: authed, userId: req.userId, query: req.query };
+      const result = await jobsService.find(serviceParams);
+
+      // Enrich with company names for admin convenience
+      const list = Array.isArray(result?.data) ? result.data : [];
+      const ids = [...new Set(list.map(j => String(j.companyId)))];
+      const map = new Map();
+      await Promise.all(ids.map(async (id) => {
+        try {
+          const u = await jobsService.userModel.findById(id, { projection: { password: 0, resetPasswordToken: 0, resetPasswordExpires: 0 } });
+          if (u) {
+            map.set(id, u.company?.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email);
+          }
+        } catch(e) { /* ignore */ }
+      }));
+
+      const enriched = { ...result, data: list.map(j => ({ ...j, companyName: map.get(String(j.companyId)) || '—' })) };
+      return res.json({ success: true, data: enriched });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch('/admin/jobs/:id/status', authenticateToken(app), async (req, res) => {
+    try {
+      const usersService = new UsersService(app);
+      const authed = await usersService.getCurrentUser(req.userId);
+      if (!authed || authed.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      const { status, reason } = req.body || {};
+      if (status === undefined || status === null || status === '') return res.status(400).json({ error: 'Status is required' });
+
+      const { normalizeJobStatus, JOB_STATUS_LABEL } = require('../constants/constants');
+      const norm = normalizeJobStatus(typeof status === 'string' && /^\d+$/.test(status) ? parseInt(status, 10) : status);
+
+      const jobsService = new JobsService(app);
+      const job = await jobsService.jobModel.findById(req.params.id);
+      if (!job) return res.status(404).json({ error: 'Job not found' });
+
+      const currentStatus = job.status || JOB_STATUS_LABEL[job.statusCode] || 'Draft';
+
+      // Admin transitions: allow direct approval from Draft, and flexible moderation
+      const validTransitions = {
+        Draft: ['Pending', 'Active', 'Rejected'],
+        Pending: ['Active', 'Rejected', 'Draft'],
+        Active: ['Rejected', 'Pending'],
+        Closed: ['Active'],
+        Rejected: ['Pending', 'Draft', 'Active']
+      };
+      if (!validTransitions[currentStatus] || !validTransitions[currentStatus].includes(norm.name)) {
+        return res.status(400).json({ error: `Invalid status transition from ${currentStatus} to ${norm.name}` });
+      }
+
+      const now = new Date();
+      const updateDoc = { status: norm.name, statusCode: norm.code, updatedAt: now };
+      // Timestamps
+      if (norm.name === 'Pending') updateDoc.submittedAt = now;
+      if (norm.name === 'Active') {
+        updateDoc.approvedAt = now;
+        // If approving directly from Draft, mark submittedAt as well
+        if (currentStatus === 'Draft' && !job.submittedAt) updateDoc.submittedAt = now;
+      }
+      if (norm.name === 'Rejected') { updateDoc.rejectedAt = now; updateDoc.rejectionReason = reason || null; }
+
+      const statusHistoryEntry = {
+        status: norm.name,
+        changedAt: now,
+        changedBy: jobsService.userModel.toObjectId
+          ? jobsService.userModel.toObjectId(req.userId)
+          : (require('mongodb').ObjectId.isValid(req.userId) ? new (require('mongodb').ObjectId)(req.userId) : req.userId),
+        reason: reason || `Status changed to ${norm.name} by admin`
+      };
+
+      await jobsService.jobModel.collection.updateOne(
+        { _id: job._id },
+        { $set: updateDoc, $push: { statusHistory: statusHistoryEntry } }
+      );
+
+      const updated = await jobsService.jobModel.findById(req.params.id);
+      return res.json({ success: true, data: updated, message: `Job ${norm.name.toLowerCase()}` });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
 
   app.delete('/companies/like', authenticateToken(app), async (req, res) => {
     try {
@@ -725,6 +1063,7 @@ module.exports = function (app) {
       res.status(500).json({ error: error.message });
     }
   });
+
 
   // Register companies service endpoints
   app.get('/companies', optionalAuth(app), async (req, res) => {
@@ -957,6 +1296,8 @@ module.exports = function (app) {
 
       const companyState = authedUser.company || {};
       const isApproved = (companyState.approvalStatusCode === 1)
+
+
         || (companyState.verificationStatusCode === 1)
         || (companyState.verificationStatus === 'verified');
       if (!isApproved) {
@@ -1052,6 +1393,8 @@ module.exports = function (app) {
 
       // Reset to pending and store appeal message
       await usersService.userModel.collection.updateOne(
+
+
         { _id: user._id },
         {
           $set: {
@@ -1101,6 +1444,22 @@ module.exports = function (app) {
     }
   });
 
+  app.get('/applications/counts', authenticateToken(app), async (req, res) => {
+    try {
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        query: req.query
+      };
+      const result = await applicationsService.counts(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+
   app.get('/applications/:id', authenticateToken(app), async (req, res) => {
     try {
       const applicationsService = new ApplicationsService(app);
@@ -1112,6 +1471,8 @@ module.exports = function (app) {
       res.json(result);
     } catch (error) {
       if (error.code === 404) {
+
+
         res.status(404).json({ error: error.message });
       } else {
         res.status(500).json({ error: error.message });
@@ -1524,6 +1885,74 @@ module.exports = function (app) {
       app.set('workflowScheduler', workflowScheduler);
 
       console.log('✅ Workflow services initialized successfully');
+
+      // Schedule daily job expiry checks and reminders (03:00 UTC)
+      try {
+        cron.schedule('0 3 * * *', async () => {
+          const jobsService = new JobsService(app);
+          const notificationSvc = new NotificationService(app);
+          const now = new Date();
+          const sevenDaysAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+          const col = jobsService.jobModel.collection;
+
+          // Backfill expiresAt for active jobs missing it
+          const missingCursor = col.find({
+            status: 'Active',
+            isActive: true,
+            $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }]
+          });
+          const missing = await missingCursor.toArray();
+          for (const job of missing) {
+            const base = job.approvedAt ? new Date(job.approvedAt) : new Date(job.createdAt || now);
+            const exp = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+            await col.updateOne({ _id: job._id }, { $set: { expiresAt: exp, updatedAt: now } });
+          }
+
+          // Auto-expire overdue jobs
+          const expireCursor = col.find({ status: 'Active', isActive: true, expiresAt: { $lt: now } });
+          const toExpire = await expireCursor.toArray();
+          for (const job of toExpire) {
+            await col.updateOne(
+              { _id: job._id },
+              {
+                $set: {
+                  isActive: false,
+                  expiredAt: now,
+                  updatedAt: now
+                },
+                $push: { statusHistory: { status: 'Active', changedAt: now, changedBy: job.companyId, reason: 'Auto expired after 30 days from approval' } }
+              }
+            );
+          }
+
+          // Send reminders for jobs expiring within 7 days
+          const soonCursor = col.find({ status: 'Active', isActive: true, expiresAt: { $gte: now, $lte: sevenDaysAhead } });
+          const soon = await soonCursor.toArray();
+          for (const job of soon) {
+            const lastSent = job.expiryReminderSentAt ? new Date(job.expiryReminderSentAt) : null;
+            if (lastSent && (now - lastSent) < 20 * 60 * 60 * 1000) continue; // avoid spamming
+            const daysLeft = Math.max(0, Math.ceil((new Date(job.expiresAt) - now) / (1000 * 60 * 60 * 24)));
+            try {
+              await notificationSvc.createNotification(job.companyId, {
+                type: 'job_expiring',
+                title: 'Job listing expiring soon',
+                message: `${job.title || 'Your job'} will expire in ${daysLeft} day(s). Renew to keep it active.`,
+                category: 'job',
+                priority: 'normal',
+                actionUrl: `/company/jobs/${job._id}`,
+                actionText: 'Renew now'
+              });
+            } catch (e) {
+              console.error('Failed to create expiry notification for job', job._id?.toString(), e.message);
+            }
+            await col.updateOne({ _id: job._id }, { $set: { expiryReminderSentAt: now } });
+          }
+        }, { scheduled: true, timezone: 'UTC' });
+        console.log('⏰ Job expiry scheduler started');
+      } catch (e) {
+        console.error('Failed to start job expiry scheduler', e.message);
+      }
+
     } catch (error) {
       console.error('❌ Failed to initialize workflow services:', error.message);
     }

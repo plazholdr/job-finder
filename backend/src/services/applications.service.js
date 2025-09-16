@@ -1,8 +1,12 @@
 const { getDB } = require('../db');
+const { ObjectId } = require('mongodb');
+
 const ApplicationModel = require('../models/application.model');
 const JobModel = require('../models/job.model');
 const UserModel = require('../models/user.model');
 const logger = require('../logger');
+const { APPLICATION_STATUS, normalizeApplicationStatus } = require('../constants/constants');
+
 
 class ApplicationsService {
   constructor(app) {
@@ -84,6 +88,10 @@ class ApplicationsService {
 
       const { $limit = 50, $skip = 0, $sort = { createdAt: -1 }, status, jobId, companyId } = params.query || {};
 
+      const normStatus = (status !== undefined && status !== null && status !== '')
+        ? normalizeApplicationStatus(status).code
+        : undefined;
+
       let query = {};
       let options = {
         limit: parseInt($limit),
@@ -99,32 +107,44 @@ class ApplicationsService {
         query.companyId = userId;
       } else if (userRole === 'admin') {
         // Admins can see all applications
-        // Apply any filters from params.query
         if (companyId) query.companyId = companyId;
       } else {
         throw new Error('Access denied');
       }
 
       // Add additional filters
-      if (status) query.status = status;
+      if (normStatus !== undefined) query.status = normStatus;
       if (jobId) query.jobId = jobId;
 
       let applications;
       let total;
 
       if (userRole === 'student') {
-        applications = await this.applicationModel.findByUserId(userId, { ...options, status });
+        applications = await this.applicationModel.findByUserId(userId, { ...options, status: normStatus });
       } else if (userRole === 'company') {
-        applications = await this.applicationModel.findByCompanyId(userId, { ...options, status });
+        applications = await this.applicationModel.findByCompanyId(userId, { ...options, status: normStatus });
       } else {
         applications = await this.applicationModel.find(query, options);
       }
 
       total = await this.applicationModel.count(query);
 
+      // Lazy auto-expire for any pending_acceptance offers that passed validity
+      const now = new Date();
+      const refreshed = await Promise.all(applications.map(async (app) => {
+        try {
+          if (app.status === APPLICATION_STATUS.PENDING_ACCEPTANCE && app.offerValidity && new Date(app.offerValidity) < now) {
+            await this.applicationModel.updateStatus(app._id, APPLICATION_STATUS.REJECTED, userId, 'Offer expired');
+            return await this.applicationModel.findById(app._id);
+          }
+        } catch (e) { /* ignore */ }
+        return app;
+      }));
+      const applicationsRef = refreshed;
+
       // Enrich applications with job and user information
       const enrichedApplications = await Promise.all(
-        applications.map(async (application) => {
+        applicationsRef.map(async (application) => {
           try {
             // Get job information
             const job = await this.jobModel.findById(application.jobId);
@@ -214,7 +234,6 @@ class ApplicationsService {
       if (!userId) {
         throw new Error('Authentication required');
       }
-
       const application = await this.applicationModel.findById(id);
       console.log('Found application:', application ? { id: application._id, companyId: application.companyId, userId: application.userId } : 'null');
 
@@ -230,6 +249,18 @@ class ApplicationsService {
       } else if (userRole === 'company' && application.companyId.toString() !== userId.toString()) {
         throw new Error('Access denied: You can only view applications for your jobs');
       }
+
+      // Lazy auto-expire if offer validity has passed
+      try {
+        const now = new Date();
+        if (application.status === APPLICATION_STATUS.PENDING_ACCEPTANCE && application.offerValidity && new Date(application.offerValidity) < now) {
+          await this.applicationModel.updateStatus(id, APPLICATION_STATUS.REJECTED, userId, 'Offer expired');
+          const refreshed = await this.applicationModel.findById(id);
+          if (refreshed) {
+            Object.assign(application, refreshed);
+          }
+        }
+      } catch (e) { /* ignore */ }
 
       // Enrich with job and user information
       const job = await this.jobModel.findById(application.jobId);
@@ -302,22 +333,19 @@ class ApplicationsService {
       }
 
       // Handle status updates
-      if (data.status && data.status !== application.status) {
+      const hasStatus = data.status !== undefined && data.status !== null && data.status !== '';
+      const nextStatusCode = hasStatus ? normalizeApplicationStatus(data.status).code : undefined;
+      if (hasStatus && nextStatusCode !== application.status) {
         let updateData = { ...data };
 
-        // Handle offer submission when status is pending_acceptance
-        if (data.status === 'pending_acceptance') {
-          console.log('DEBUG: User role check - userRole:', userRole, 'type:', typeof userRole);
-          console.log('DEBUG: User object:', JSON.stringify(params.user, null, 2));
+        // Handle offer submission when status is Pending acceptance
+        if (nextStatusCode === APPLICATION_STATUS.PENDING_ACCEPTANCE) {
           if (userRole !== 'company') {
             throw new Error('Only companies can submit offers');
           }
 
-          console.log('Received offer data:', JSON.stringify(data, null, 2));
-
           // Validate offer data
           if (!data.offerValidity) {
-            console.log('Missing offerValidity:', data.offerValidity);
             throw new Error('Offer validity date is required');
           }
 
@@ -343,12 +371,29 @@ class ApplicationsService {
           updateData.offerValidity = new Date(data.offerValidity);
         }
 
-        const updatedApplication = await this.applicationModel.updateStatus(
+        // Determine if company withdrawal intent while offer is pending
+        const isCompanyWithdrawal = (
+          userRole === 'company' &&
+          application.status === APPLICATION_STATUS.PENDING_ACCEPTANCE &&
+          (nextStatusCode === APPLICATION_STATUS.REJECTED || data?.withdraw === true || data?.action === 'withdraw')
+        );
+        const effectiveStatusCode = isCompanyWithdrawal
+          ? APPLICATION_STATUS.WITHDRAWN
+          : nextStatusCode;
+
+        await this.applicationModel.updateStatus(
           id,
-          data.status,
+          effectiveStatusCode,
           userId,
           data.reason || ''
         );
+
+        if (isCompanyWithdrawal) {
+          await this.applicationModel.updateById(id, {
+            withdrawalDate: new Date(),
+            withdrawalReason: data.reason || 'Offer withdrawn by company'
+          });
+        }
 
         // Update additional fields if needed
         if (updateData.offerValidity || updateData.offerLetterUrl) {
@@ -357,7 +402,7 @@ class ApplicationsService {
         }
 
         // Create internship when application is accepted
-        if (data.status === 'accepted') {
+        if (nextStatusCode === APPLICATION_STATUS.ACCEPTED) {
           try {
             const InternshipsService = require('./internships.service');
             const internshipsService = new InternshipsService(this.app);
@@ -379,7 +424,7 @@ class ApplicationsService {
           }
         }
 
-        logger.info(`Application status updated: ${id} to ${data.status} by user: ${userId}`);
+        logger.info(`Application status updated: ${id} to ${nextStatusCode} by user: ${userId}`);
         return await this.applicationModel.findById(id); // Return updated application
       }
 
@@ -424,14 +469,20 @@ class ApplicationsService {
         throw new Error('Access denied');
       }
 
-      // For students, update status to withdrawn instead of deleting
+      // For students, mark as Rejected instead of deleting (numeric-only)
       if (userRole === 'student') {
         const withdrawnApplication = await this.applicationModel.updateStatus(
           id,
-          'withdrawn',
+          APPLICATION_STATUS.WITHDRAWN,
           userId,
           'Application withdrawn by student'
         );
+
+        // Capture withdrawal metadata
+        await this.applicationModel.updateById(id, {
+          withdrawalDate: new Date(),
+          withdrawalReason: 'Application withdrawn by student'
+        });
 
         // Decrease job application count
         const job = await this.jobModel.findById(application.jobId);
@@ -441,7 +492,7 @@ class ApplicationsService {
         }, application.companyId);
 
         logger.info(`Application withdrawn: ${id} by user: ${userId}`);
-        return withdrawnApplication;
+        return await this.applicationModel.findById(id);
       }
 
       // For admins, actually delete
@@ -510,6 +561,53 @@ class ApplicationsService {
       return stats;
     } catch (error) {
       logger.error('Application stats failed', {
+        userId: params.user?._id,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  // Counts per status for a given job (with lazy auto-expire)
+  async counts(params) {
+    try {
+      const userId = params.user?._id;
+      const userRole = params.user?.role;
+      const jobId = params.query?.jobId;
+
+      if (!userId) throw new Error('Authentication required');
+      if (!jobId) throw new Error('jobId is required');
+
+      const jobObjectId = typeof jobId === 'string' ? new ObjectId(jobId) : jobId;
+
+      // Scope: company can only see their own job's applications
+      const match = { jobId: jobObjectId };
+      if (userRole === 'company') {
+        match.companyId = userId;
+      } else if (userRole !== 'admin') {
+        throw new Error('Access denied');
+      }
+
+      // Lazy auto-expire before counting
+      await this.applicationModel.expireOverdueOffers(match);
+
+      const pipeline = [
+        { $match: match },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ];
+      const result = await this.applicationModel.collection.aggregate(pipeline).toArray();
+
+      const byCode = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
+      let total = 0;
+      for (const r of result) {
+        const code = typeof r._id === 'number' ? r._id : normalizeApplicationStatus(r._id).code;
+        byCode[code] = r.count;
+        total += r.count;
+      }
+
+      return { success: true, data: { total, byCode } };
+    } catch (error) {
+      logger.error('Applications counts failed', {
         userId: params.user?._id,
         error: error.message
       });

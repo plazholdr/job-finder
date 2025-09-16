@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CandidateApplication } from '@/types/company';
 import config from '@/config';
 
-const API_BASE_URL = config.api.baseUrl;
+// Prefer server-only BACKEND_URL when available; fallback to public config
+const API_BASE_URL = process.env.BACKEND_URL || config.api.baseUrl;
 
 // Mock applications data
 const mockApplications: CandidateApplication[] = [
@@ -369,7 +370,7 @@ export async function PUT(request: NextRequest) {
 
     // Find application
     const applicationIndex = mockApplications.findIndex(app => app.id === applicationId);
-    
+
     if (applicationIndex === -1) {
       return NextResponse.json(
         {

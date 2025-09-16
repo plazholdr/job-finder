@@ -3,6 +3,8 @@ const JobModel = require('../models/job.model');
 const UserModel = require('../models/user.model');
 const StorageUtils = require('../utils/storage');
 const logger = require('../logger');
+const { ObjectId } = require('mongodb');
+const { normalizeJobStatus, JOB_STATUS_LABEL } = require('../constants/constants');
 
 class JobsService {
   constructor(app) {
@@ -79,9 +81,10 @@ class JobsService {
 
     const { $limit = 50, $skip = 0, $sort = { createdAt: -1 }, status, search } = params.query || {};
 
-    // Add status filter if provided
-    if (status && (userRole === 'company' || userRole === 'admin')) {
-      query.status = status;
+    // Add status filter if provided (accepts numeric code or name)
+    if ((status !== undefined && status !== null && status !== '') && (userRole === 'company' || userRole === 'admin')) {
+      const norm = normalizeJobStatus(typeof status === 'string' && /^\d+$/.test(status) ? parseInt(status, 10) : status);
+      query.$or = [ { statusCode: norm.code }, { status: norm.name } ];
     }
 
     const options = {
@@ -119,11 +122,17 @@ class JobsService {
     }
 
     // ADDED: normalize IDs to strings so React keys are stable (prevents "only last item" render)
-    const normalize = (doc) => ({
-      ...doc,
-      _id: String(doc._id),
-      companyId: String(doc.companyId),
-    });
+    const normalize = (doc) => {
+      const statusName = doc.status || (typeof doc.statusCode === 'number' ? JOB_STATUS_LABEL?.[doc.statusCode] : undefined);
+      const statusCode = typeof doc.statusCode === 'number' ? doc.statusCode : normalizeJobStatus(statusName || 'Draft').code;
+      return {
+        ...doc,
+        _id: String(doc._id),
+        companyId: String(doc.companyId),
+        status: statusName || JOB_STATUS_LABEL[statusCode],
+        statusCode,
+      };
+    };
     const plainJobs = jobs.map(normalize); // ADDED
 
     // For students and unauthenticated users, include company information
@@ -140,16 +149,21 @@ class JobsService {
             });
 
             if (company && company.role === 'company') {
+              const name = company.company?.name || `${company.firstName} ${company.lastName}`;
+              const logo = company.company?.logo || company.company?.logoKey || company.logo || '';
               return {
                 ...job,
                 companyInfo: company.company,
-                companyName: company.company?.name || `${company.firstName} ${company.lastName}`,
-                companyEmail: company.email
+                companyName: name,
+                companyLogo: logo,
+                companyEmail: company.email,
+                company: { id: String(job.companyId), name, logo }
               };
             } else {
               return {
                 ...job,
-                companyName: 'Company Name Not Available'
+                companyName: 'Company Name Not Available',
+                companyLogo: '',
               };
             }
           } catch (companyError) {
@@ -160,7 +174,8 @@ class JobsService {
             });
             return {
               ...job,
-              companyName: 'Company Name Not Available'
+              companyName: 'Company Name Not Available',
+              companyLogo: '',
             };
           }
         })
@@ -240,8 +255,8 @@ class JobsService {
         );
       }
 
-      // For students, include company information
-      if (userRole === 'student') {
+      // For students and unauthenticated users, include company information
+      if (userRole === 'student' || !userRole) {
         try {
           const company = await this.userModel.findById(job.companyId, {
             projection: {
@@ -252,10 +267,14 @@ class JobsService {
           });
 
           if (company) {
+            const name = company.company?.name || `${company.firstName} ${company.lastName}`;
+            const logo = company.company?.logo || company.company?.logoKey || company.logo || '';
             return {
               ...job,
               companyInfo: company.company,
-              companyName: company.company?.name || `${company.firstName} ${company.lastName}`
+              companyName: name,
+              companyLogo: logo,
+              company: { id: String(job.companyId), name, logo }
             };
           }
         } catch (companyError) {
@@ -365,6 +384,19 @@ class JobsService {
         companyId,
         error: error.message
       });
+      throw error;
+    }
+  }
+
+
+  // Renew job for another 30 days
+  async renew(jobId, companyId) {
+    try {
+      const job = await this.jobModel.renew(jobId, companyId);
+      logger.info('Job renewed', { jobId, companyId, newExpiry: job.expiresAt, renewalsCount: job.renewalsCount });
+      return job;
+    } catch (error) {
+      logger.error('Job renewal failed', { jobId, companyId, error: error.message });
       throw error;
     }
   }

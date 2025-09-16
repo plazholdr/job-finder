@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import MainNavigation from '@/components/navigation/MainNavigation';
+import AppHeader from '@/components/layout/AppHeader';
 import { InternWorkflowProvider } from '@/contexts/InternWorkflowContext';
-import NotificationCenter from '@/components/notifications/NotificationCenter';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -19,7 +18,7 @@ export default function AppLayout({ children, user }: AppLayoutProps) {
   return (
     <InternWorkflowProvider>
       <div className="min-h-screen bg-gray-50">
-        <MainNavigation user={user} />
+        <AppHeader />
         <main className="flex-1">
           {children}
         </main>
