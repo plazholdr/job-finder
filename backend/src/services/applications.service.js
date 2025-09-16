@@ -378,6 +378,19 @@ class ApplicationsService {
           data.reason || ''
         );
 
+        // If company withdraws an offer (Pending -> Rejected), capture withdrawal metadata
+        const isCompanyWithdrawal = (
+          nextStatusCode === APPLICATION_STATUS.REJECTED &&
+          userRole === 'company' &&
+          application.status === APPLICATION_STATUS.PENDING_ACCEPTANCE
+        ) || data?.withdraw === true || data?.action === 'withdraw';
+        if (isCompanyWithdrawal) {
+          await this.applicationModel.updateById(id, {
+            withdrawalDate: new Date(),
+            withdrawalReason: data.reason || 'Offer withdrawn by company'
+          });
+        }
+
         // Update additional fields if needed
         if (updateData.offerValidity || updateData.offerLetterUrl) {
           const { status, reason, ...additionalData } = updateData;
@@ -461,6 +474,12 @@ class ApplicationsService {
           'Application withdrawn by student'
         );
 
+        // Capture withdrawal metadata
+        await this.applicationModel.updateById(id, {
+          withdrawalDate: new Date(),
+          withdrawalReason: 'Application withdrawn by student'
+        });
+
         // Decrease job application count
         const job = await this.jobModel.findById(application.jobId);
         const currentApplications = job.applications || 0;
@@ -469,7 +488,7 @@ class ApplicationsService {
         }, application.companyId);
 
         logger.info(`Application withdrawn: ${id} by user: ${userId}`);
-        return withdrawnApplication;
+        return await this.applicationModel.findById(id);
       }
 
       // For admins, actually delete
