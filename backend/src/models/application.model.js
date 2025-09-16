@@ -1,5 +1,5 @@
 const { ObjectId } = require('mongodb');
-const { APPLICATION_PIPELINE, statusToPipelineCode } = require('../constants/constants');
+const { APPLICATION_STATUS, normalizeApplicationStatus } = require('../constants/constants');
 
 class ApplicationModel {
   constructor(db) {
@@ -13,16 +13,13 @@ class ApplicationModel {
       await this.collection.createIndex({ userId: 1 });
       await this.collection.createIndex({ jobId: 1 });
       await this.collection.createIndex({ companyId: 1 });
-      await this.collection.createIndex({ status: 1 });
-      await this.collection.createIndex({ statusCode: 1 });
+      await this.collection.createIndex({ status: 1 }); // numeric status 0..4
       await this.collection.createIndex({ createdAt: -1 });
 
       // Compound indexes for common queries
       await this.collection.createIndex({ jobId: 1, userId: 1 }, { unique: true }); // Prevent duplicate applications
       await this.collection.createIndex({ companyId: 1, status: 1 });
-      await this.collection.createIndex({ companyId: 1, statusCode: 1 });
       await this.collection.createIndex({ userId: 1, status: 1 });
-      await this.collection.createIndex({ userId: 1, statusCode: 1 });
     } catch (error) {
       console.warn('Failed to create application indexes:', error.message);
     }
@@ -83,13 +80,12 @@ class ApplicationModel {
       portfolioUrl: portfolioUrl || null,
       additionalDocuments: additionalDocuments,
 
-      // Application status workflow
-      status: 'submitted', // submitted, under_review, interview_scheduled, interview_completed, offered, pending_acceptance, accepted, rejected, withdrawn
-      statusCode: APPLICATION_PIPELINE.NEW,
+      // Application status workflow (numeric only)
+      status: APPLICATION_STATUS.NEW,
 
-      // Status history for tracking
+      // Status history for tracking (store numeric code)
       statusHistory: [{
-        status: 'submitted',
+        status: APPLICATION_STATUS.NEW,
         changedAt: new Date(),
         changedBy: userObjectId,
         reason: 'Application submitted'
@@ -135,8 +131,8 @@ class ApplicationModel {
     const { limit = 50, skip = 0, sort = { createdAt: -1 }, status } = options;
 
     const query = { userId: userObjectId };
-    if (status) {
-      query.status = status;
+    if (status !== undefined && status !== null) {
+      query.status = typeof status === 'string' && /^\d+$/.test(status) ? parseInt(status, 10) : status;
     }
 
     const applications = await this.collection
@@ -154,8 +150,8 @@ class ApplicationModel {
     const { limit = 50, skip = 0, sort = { createdAt: -1 }, status } = options;
 
     const query = { jobId: jobObjectId };
-    if (status) {
-      query.status = status;
+    if (status !== undefined && status !== null) {
+      query.status = typeof status === 'string' && /^\d+$/.test(status) ? parseInt(status, 10) : status;
     }
 
     const applications = await this.collection
@@ -173,8 +169,8 @@ class ApplicationModel {
     const { limit = 50, skip = 0, sort = { createdAt: -1 }, status } = options;
 
     const query = { companyId: companyObjectId };
-    if (status) {
-      query.status = status;
+    if (status !== undefined && status !== null) {
+      query.status = typeof status === 'string' && /^\d+$/.test(status) ? parseInt(status, 10) : status;
     }
 
 
@@ -210,42 +206,30 @@ class ApplicationModel {
     const applicationObjectId = typeof applicationId === 'string' ? new ObjectId(applicationId) : applicationId;
     const changedByObjectId = typeof changedBy === 'string' ? new ObjectId(changedBy) : changedBy;
 
+    const norm = normalizeApplicationStatus(newStatus);
+
     const setData = {
-      status: newStatus,
+      status: norm.code,
       updatedAt: new Date()
     };
 
-    // Keep a numeric pipeline code in parallel for efficient filtering (0..3)
-    const pipelineCode = statusToPipelineCode(newStatus);
-    if (newStatus !== 'rejected') {
-      // Do not change pipeline code when rejecting; preserve last active stage
-      setData.statusCode = pipelineCode;
-    }
-
-    // Add specific timestamp fields based on status
-    switch (newStatus) {
-      case 'under_review':
+    // Add specific timestamp fields based on status code
+    switch (norm.code) {
+      case APPLICATION_STATUS.SHORTLISTED:
         setData.reviewedAt = new Date();
         setData.reviewedBy = changedByObjectId;
         break;
-      case 'interview_scheduled':
-        setData.interviewScheduledAt = new Date();
-        break;
-      case 'interview_completed':
-        setData.interviewCompletedAt = new Date();
-        break;
-      case 'offered':
+      case APPLICATION_STATUS.PENDING_ACCEPTANCE:
         setData.offeredAt = new Date();
         break;
-      case 'pending_acceptance':
-        setData.offeredAt = new Date();
-        break;
-      case 'accepted':
+      case APPLICATION_STATUS.ACCEPTED:
         setData.offerAcceptedAt = new Date();
         break;
-      case 'rejected':
+      case APPLICATION_STATUS.REJECTED:
         setData.offerRejectedAt = new Date();
         if (reason) setData.rejectionReason = reason;
+        break;
+      default:
         break;
     }
 
@@ -253,10 +237,11 @@ class ApplicationModel {
       $set: setData,
       $push: {
         statusHistory: {
-          status: newStatus,
+          status: norm.code,
+          statusName: norm.name,
           changedAt: new Date(),
           changedBy: changedByObjectId,
-          reason: reason || `Status changed to ${newStatus}`
+          reason: reason || `Status changed to ${norm.name}`
         }
       }
     };
@@ -318,7 +303,39 @@ class ApplicationModel {
     return !!application;
   }
 
-  // Get application statistics for a company
+  // Auto-expire offers that have passed validity (lazy maintenance helper)
+  async expireOverdueOffers(filter = {}) {
+    const now = new Date();
+    const query = {
+      ...(filter || {}),
+      status: APPLICATION_STATUS.PENDING_ACCEPTANCE,
+      offerValidity: { $ne: null, $lt: now }
+    };
+    const update = {
+      $set: {
+        status: APPLICATION_STATUS.REJECTED,
+        offerRejectedAt: now,
+        updatedAt: now,
+        rejectionReason: 'Offer expired'
+      },
+      $push: {
+        statusHistory: {
+          status: APPLICATION_STATUS.REJECTED,
+          statusName: 'Rejected',
+          changedAt: now,
+          changedBy: null,
+          reason: 'Offer expired'
+        }
+      }
+    };
+    try {
+      await this.collection.updateMany(query, update);
+    } catch (e) {
+      // best-effort; ignore errors here
+    }
+  }
+
+  // Get application statistics for a company (numeric status)
   async getCompanyStats(companyId) {
     const companyObjectId = typeof companyId === 'string' ? new ObjectId(companyId) : companyId;
 
@@ -326,7 +343,7 @@ class ApplicationModel {
       { $match: { companyId: companyObjectId } },
       {
         $group: {
-          _id: '$status',
+          _id: '$status', // numeric code
           count: { $sum: 1 }
         }
       }
@@ -334,38 +351,30 @@ class ApplicationModel {
 
     const stats = await this.collection.aggregate(pipeline).toArray();
 
-    // Convert to object format
-    const result = {
-      total: 0,
-      submitted: 0,
-      under_review: 0,
-      interview_scheduled: 0,
-      interview_completed: 0,
-      offered: 0,
-      accepted: 0,
-      rejected: 0,
-      withdrawn: 0
-    };
-
+    const byCode = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
+    let total = 0;
     stats.forEach(stat => {
-      result[stat._id] = stat.count;
-      result.total += stat.count;
+      const key = typeof stat._id === 'number' ? stat._id : normalizeApplicationStatus(stat._id).code;
+      byCode[key] = stat.count;
+      total += stat.count;
     });
 
-    return result;
+    return { total, byCode };
   }
 
-  // Find applications by status (for workflow scheduler)
+  // Find applications by status (numeric array)
   async findByStatus(statusArray) {
-    const query = { status: { $in: statusArray } };
+    const arr = (Array.isArray(statusArray) ? statusArray : [statusArray])
+      .map(s => (typeof s === 'number' ? s : normalizeApplicationStatus(s).code));
+    const query = { status: { $in: arr } };
     return await this.collection.find(query).toArray();
   }
 
-  // Find stuck applications (no updates in specified time)
+  // Find stuck applications (no updates in specified time); exclude final states (Accepted/Rejected)
   async findStuckApplications(thresholdDate) {
     const query = {
       updatedAt: { $lt: thresholdDate },
-      status: { $nin: ['offer_accepted', 'offer_declined', 'rejected'] }
+      status: { $nin: [APPLICATION_STATUS.ACCEPTED, APPLICATION_STATUS.REJECTED] }
     };
     return await this.collection.find(query).toArray();
   }
@@ -373,7 +382,7 @@ class ApplicationModel {
   // Find active applications (not in final states)
   async findActiveApplications() {
     const query = {
-      status: { $nin: ['offer_accepted', 'offer_declined', 'rejected'] }
+      status: { $nin: [APPLICATION_STATUS.ACCEPTED, APPLICATION_STATUS.REJECTED] }
     };
     return await this.collection.find(query).toArray();
   }
@@ -383,7 +392,7 @@ class ApplicationModel {
     const pipeline = [
       {
         $group: {
-          _id: '$status',
+          _id: '$status', // numeric code
           count: { $sum: 1 },
           averageProcessingTime: {
             $avg: {

@@ -53,26 +53,38 @@ export function normalizeJobStatus(input: number | string | undefined | null): {
 }
 
 
-// Application pipeline codes (0..3) used for company manage-application buckets
-export const APPLICATION_PIPELINE = {
+// Application status codes (0..4) numeric-only for manage-application buckets
+export const APPLICATION_STATUS = {
   NEW: 0,
   SHORTLISTED: 1,
   PENDING_ACCEPTANCE: 2,
   ACCEPTED: 3,
+  REJECTED: 4,
 } as const;
 
-export const APPLICATION_PIPELINE_LABEL: Record<number, string> = {
-  [APPLICATION_PIPELINE.NEW]: 'New application',
-  [APPLICATION_PIPELINE.SHORTLISTED]: 'Short listed',
-  [APPLICATION_PIPELINE.PENDING_ACCEPTANCE]: 'Pending acceptance',
-  [APPLICATION_PIPELINE.ACCEPTED]: 'Accepted',
+export const APPLICATION_STATUS_LABEL: Record<number, string> = {
+  [APPLICATION_STATUS.NEW]: 'New application',
+  [APPLICATION_STATUS.SHORTLISTED]: 'Short listed',
+  [APPLICATION_STATUS.PENDING_ACCEPTANCE]: 'Pending acceptance',
+  [APPLICATION_STATUS.ACCEPTED]: 'Accepted',
+  [APPLICATION_STATUS.REJECTED]: 'Rejected',
 };
 
-export function statusToPipelineCode(status: string | number | undefined | null): number {
-  if (typeof status === 'number') return [0,1,2,3].includes(status) ? status : 0;
-  const s = (status || '').toString().trim().toLowerCase();
-  if (s === 'shortlisted') return APPLICATION_PIPELINE.SHORTLISTED;
-  if (s === 'pending_acceptance' || s === 'offered') return APPLICATION_PIPELINE.PENDING_ACCEPTANCE;
-  if (s === 'accepted' || s === 'offer_accepted') return APPLICATION_PIPELINE.ACCEPTED;
-  return APPLICATION_PIPELINE.NEW;
+export function normalizeApplicationStatus(input: number | string | undefined | null): { code: number; name: string } {
+  if (typeof input === 'number') {
+    const code = [0,1,2,3,4].includes(input) ? input : 0;
+    return { code, name: APPLICATION_STATUS_LABEL[code] };
+  }
+  const s = (input || '').toString().trim().toLowerCase();
+  const name = s === 'shortlisted' || s === 'short listed' ? 'Short listed'
+    : (s === 'pending_acceptance' || s === 'pending-acceptance' || s === 'offered' || s === 'offer_sent') ? 'Pending acceptance'
+    : (s === 'accepted' || s === 'offer_accepted') ? 'Accepted'
+    : (s === 'rejected' || s === 'declined' || s === 'withdrawn' || s === 'expired') ? 'Rejected'
+    : 'New application';
+  const code = name === 'Short listed' ? APPLICATION_STATUS.SHORTLISTED
+    : name === 'Pending acceptance' ? APPLICATION_STATUS.PENDING_ACCEPTANCE
+    : name === 'Accepted' ? APPLICATION_STATUS.ACCEPTED
+    : name === 'Rejected' ? APPLICATION_STATUS.REJECTED
+    : APPLICATION_STATUS.NEW;
+  return { code, name };
 }

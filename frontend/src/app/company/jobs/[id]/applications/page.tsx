@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft } from "lucide-react";
 import config from "@/config";
+import { APPLICATION_STATUS, APPLICATION_STATUS_LABEL, normalizeApplicationStatus } from "@/constants/constants";
 
 export default function JobApplicationsPage() {
   const params = useParams<{ id: string }>();
@@ -16,12 +17,13 @@ export default function JobApplicationsPage() {
 
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState<{ total?: number; byCode: Record<number, number> } | null>(null);
   const TABS = [
-    { label: 'New application', query: { statusCode: 0 } },
-    { label: 'Short listed', query: { statusCode: 1 } },
-    { label: 'Pending acceptance', query: { statusCode: 2 } },
-    { label: 'Accepted', query: { statusCode: 3 } },
-    { label: 'Rejected', query: { status: 'rejected' as const } },
+    { label: 'New application', code: APPLICATION_STATUS.NEW },
+    { label: 'Short listed', code: APPLICATION_STATUS.SHORTLISTED },
+    { label: 'Pending acceptance', code: APPLICATION_STATUS.PENDING_ACCEPTANCE },
+    { label: 'Accepted', code: APPLICATION_STATUS.ACCEPTED },
+    { label: 'Rejected', code: APPLICATION_STATUS.REJECTED },
   ];
   const [activeTab, setActiveTab] = useState(0);
 
@@ -32,8 +34,8 @@ export default function JobApplicationsPage() {
         setLoading(true);
         const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
         const qs = new URLSearchParams({ limit: "50", jobId });
-        const tabQuery = TABS[activeTab]?.query || {} as any;
-        Object.entries(tabQuery).forEach(([k, v]) => qs.append(k, String(v)));
+        const code = TABS[activeTab]?.code as number | undefined;
+        if (code !== undefined) qs.append('status', String(code));
         const resp = await fetch(`${config.api.baseUrl}/applications?${qs.toString()}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
@@ -49,6 +51,25 @@ export default function JobApplicationsPage() {
     };
     if (jobId) loadApplications();
   }, [jobId, activeTab]);
+
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+        const qs = new URLSearchParams({ jobId });
+        const resp = await fetch(`${config.api.baseUrl}/applications/counts?${qs.toString()}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const payload = await resp.json().catch(() => ({}));
+        const data = payload?.data || payload || null;
+        if (data && data.byCode) setCounts(data);
+      } catch (e) {
+        console.error("Failed to load application counts", e);
+        setCounts(null);
+      }
+    };
+    if (jobId) loadCounts();
+  }, [jobId]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -67,16 +88,26 @@ export default function JobApplicationsPage() {
         </div>
         {/* Status tabs */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {TABS.map((tab, i) => (
-            <Button
-              key={tab.label}
-              variant={i === activeTab ? "default" : "outline"}
-              size="sm"
-              onClick={() => setActiveTab(i)}
-            >
-              {tab.label}
-            </Button>
-          ))}
+          {TABS.map((tab, i) => {
+            const code = tab.code as number;
+            const count = counts?.byCode?.[code] ?? undefined;
+            return (
+              <Button
+                key={tab.label}
+                variant={i === activeTab ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveTab(i)}
+                className="flex items-center gap-2"
+              >
+                <span>{tab.label}</span>
+                {typeof count === 'number' && (
+                  <span className="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-2 rounded-full text-xs bg-gray-200 text-gray-700">
+                    {count}
+                  </span>
+                )}
+              </Button>
+            );
+          })}
         </div>
 
 
@@ -96,7 +127,7 @@ export default function JobApplicationsPage() {
                     <div>
                       <div className="font-medium text-gray-900">{app.candidate?.name || app.applicantName || "Unnamed"}</div>
                       <div className="text-sm text-gray-600">{app.candidate?.email || app.applicantEmail || ""}</div>
-                      <div className="text-xs text-gray-500 mt-1">Status: {app.status || "submitted"}</div>
+                      <div className="text-xs text-gray-500 mt-1">Status: {APPLICATION_STATUS_LABEL[typeof app.status === 'number' ? app.status : normalizeApplicationStatus(app.status).code] || 'New application'}</div>
                     </div>
                     <div className="flex items-center gap-3 text-sm text-gray-500">
                       <span>{app.submittedAt ? new Date(app.submittedAt).toLocaleString() : ""}</span>

@@ -1293,6 +1293,22 @@ module.exports = function (app) {
     }
   });
 
+  app.get('/applications/counts', authenticateToken(app), async (req, res) => {
+    try {
+      const applicationsService = new ApplicationsService(app);
+      const serviceParams = {
+        user: req.user,
+        userId: req.userId,
+        query: req.query
+      };
+      const result = await applicationsService.counts(serviceParams);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+
   app.get('/applications/:id', authenticateToken(app), async (req, res) => {
     try {
       const applicationsService = new ApplicationsService(app);

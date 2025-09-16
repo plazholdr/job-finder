@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { 
+import {
   Upload,
   FileText,
   X,
@@ -22,6 +22,8 @@ import {
   Loader2
 } from 'lucide-react';
 
+import { APPLICATION_STATUS } from '@/constants/constants';
+
 interface OfferModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -30,12 +32,12 @@ interface OfferModalProps {
   onSuccess: () => void;
 }
 
-export default function OfferModal({ 
-  isOpen, 
-  onClose, 
-  applicationId, 
-  candidateName, 
-  onSuccess 
+export default function OfferModal({
+  isOpen,
+  onClose,
+  applicationId,
+  candidateName,
+  onSuccess
 }: OfferModalProps) {
   const [offerValidity, setOfferValidity] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -110,7 +112,7 @@ export default function OfferModal({
       });
 
       const requestData = {
-        status: 'pending_acceptance',
+        status: APPLICATION_STATUS.PENDING_ACCEPTANCE,
         offerValidity: offerValidity,
         offerLetter: {
           data: fileBase64,
@@ -231,7 +233,7 @@ export default function OfferModal({
               <Upload className="h-4 w-4 mr-2" />
               Offer Letter (PDF)
             </Label>
-            
+
             {!selectedFile ? (
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
                 <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />

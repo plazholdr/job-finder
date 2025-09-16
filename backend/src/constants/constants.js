@@ -84,30 +84,42 @@ function normalizeJobStatus(input) {
   return { code: JOB_STATUS.DRAFT, name: 'Draft' };
 }
 
-// Application pipeline codes (0..3)
-const APPLICATION_PIPELINE = {
-  NEW: 0,
-  SHORTLISTED: 1,
-  PENDING_ACCEPTANCE: 2,
-  ACCEPTED: 3,
+// Application status codes (0..4) — numeric only
+const APPLICATION_STATUS = {
+  NEW: 0,                 // New application (submitted/under review)
+  SHORTLISTED: 1,         // Short listed
+  PENDING_ACCEPTANCE: 2,  // Offer sent, waiting for candidate
+  ACCEPTED: 3,            // Candidate accepted
+  REJECTED: 4             // Rejected (by company or auto-expired/withdrawn)
 };
 
-const APPLICATION_PIPELINE_LABEL = {
-  [APPLICATION_PIPELINE.NEW]: 'New application',
-  [APPLICATION_PIPELINE.SHORTLISTED]: 'Short listed',
-  [APPLICATION_PIPELINE.PENDING_ACCEPTANCE]: 'Pending acceptance',
-  [APPLICATION_PIPELINE.ACCEPTED]: 'Accepted',
+const APPLICATION_STATUS_LABEL = {
+  [APPLICATION_STATUS.NEW]: 'New application',
+  [APPLICATION_STATUS.SHORTLISTED]: 'Short listed',
+  [APPLICATION_STATUS.PENDING_ACCEPTANCE]: 'Pending acceptance',
+  [APPLICATION_STATUS.ACCEPTED]: 'Accepted',
+  [APPLICATION_STATUS.REJECTED]: 'Rejected'
 };
 
-// Helper: map detailed backend status strings to pipeline code
-function statusToPipelineCode(status) {
-  const s = (status || '').toString().trim().toLowerCase();
-  if (s === 'shortlisted') return APPLICATION_PIPELINE.SHORTLISTED;
-  if (s === 'pending_acceptance' || s === 'offered') return APPLICATION_PIPELINE.PENDING_ACCEPTANCE;
-  if (s === 'accepted' || s === 'offer_accepted') return APPLICATION_PIPELINE.ACCEPTED;
-  return APPLICATION_PIPELINE.NEW; // submitted/under_review/etc → New application
+// Normalize various inputs to the numeric application status
+function normalizeApplicationStatus(input) {
+  if (typeof input === 'number') {
+    const code = [0,1,2,3,4].includes(input) ? input : 0;
+    return { code, name: APPLICATION_STATUS_LABEL[code] };
+  }
+  const s = (input || '').toString().trim().toLowerCase();
+  const name = s === 'shortlisted' || s === 'short listed' ? 'Short listed'
+    : (s === 'pending_acceptance' || s === 'pending-acceptance' || s === 'offered' || s === 'offer_sent') ? 'Pending acceptance'
+    : (s === 'accepted' || s === 'offer_accepted') ? 'Accepted'
+    : (s === 'rejected' || s === 'declined' || s === 'withdrawn' || s === 'expired') ? 'Rejected'
+    : 'New application';
+  const code = name === 'Short listed' ? APPLICATION_STATUS.SHORTLISTED
+    : name === 'Pending acceptance' ? APPLICATION_STATUS.PENDING_ACCEPTANCE
+    : name === 'Accepted' ? APPLICATION_STATUS.ACCEPTED
+    : name === 'Rejected' ? APPLICATION_STATUS.REJECTED
+    : APPLICATION_STATUS.NEW;
+  return { code, name };
 }
-
 
 module.exports = {
   STATUS,
@@ -116,7 +128,7 @@ module.exports = {
   JOB_STATUS,
   JOB_STATUS_LABEL,
   normalizeJobStatus,
-  APPLICATION_PIPELINE,
-  APPLICATION_PIPELINE_LABEL,
-  statusToPipelineCode,
+  APPLICATION_STATUS,
+  APPLICATION_STATUS_LABEL,
+  normalizeApplicationStatus,
 };
