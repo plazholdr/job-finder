@@ -5,10 +5,10 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json yarn.lock ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN yarn install --frozen-lockfile --production
 
 # Copy source code
 COPY . .
@@ -29,4 +29,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node healthcheck.js
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["yarn", "start"]

@@ -11,7 +11,9 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src/ test/",
     "lint:fix": "eslint src/ test/ --fix",
-    "format": "prettier --write src/ test/"
+    "format": "prettier --write src/ test/",
+    "clean": "rm -rf node_modules yarn.lock",
+    "fresh": "yarn clean && yarn install"
   },
   "keywords": [
     "feathers",
