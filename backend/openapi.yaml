@@ -1,0 +1,406 @@
+openapi: 3.0.3
+info:
+  title: Job Finder Backend API
+  version: 1.0.0
+  description: |
+    OpenAPI for the Job Finder (FeathersJS) backend.
+    Authentication uses JWT. Send `Authorization: Bearer <token>` for secured endpoints.
+servers:
+  - url: http://localhost:3030
+    description: Local dev
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [System]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  timestamp: { type: string, format: date-time }
+                  uptime: { type: number }
+
+  /authentication:
+    post:
+      summary: Login (email or username)
+      description: Provide either `email` or `username` along with `password` and `strategy=local`.
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [strategy, password]
+              properties:
+                strategy:
+                  type: string
+                  example: local
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /refresh-token:
+    post:
+      summary: Refresh access token
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '201':
+          description: New tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /users:
+    post:
+      summary: Register user
+      description: If `username` is not provided, `email` will be used as the identifier and normalized to username.
+      tags: [Users]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    get:
+      summary: List users (JWT)
+      tags: [Users]
+      responses:
+        '200':
+          description: Paged users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsers'
+
+  /users/{id}:
+    get:
+      summary: Get a user by id (JWT)
+      tags: [Users]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: The user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    patch:
+      summary: Update own user (JWT)
+      tags: [Users]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatch'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /companies:
+    get:
+      summary: List companies (JWT)
+      description: |
+        Supports search, filters, sorting, and recommendations.
+        Query params:
+        - q/keyword: search by company name
+        - industry/nature: business nature filter
+        - city/location: location filter (address.city or fullAddress)
+        - salaryMin, salaryMax: filter by internships' salary range
+        - latest=true or sort=latest
+        - sortBy=name|salary
+        - recommended=true (uses user.internProfile.preferences.industries)
+      tags: [Companies]
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: keyword
+          schema: { type: string }
+        - in: query
+          name: industry
+          schema: { type: string }
+        - in: query
+          name: nature
+          schema: { type: string }
+        - in: query
+          name: city
+          schema: { type: string }
+        - in: query
+          name: location
+          schema: { type: string }
+        - in: query
+          name: salaryMin
+          schema: { type: number }
+        - in: query
+          name: salaryMax
+          schema: { type: number }
+        - in: query
+          name: latest
+          schema: { type: boolean }
+        - in: query
+          name: sort
+          schema: { type: string, enum: [latest] }
+        - in: query
+          name: sortBy
+          schema: { type: string, enum: [name, salary] }
+        - in: query
+          name: recommended
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Paged companies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCompanies'
+    post:
+      summary: Create company profile (company role only)
+      tags: [Companies]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyCreate'
+      responses:
+        '201':
+          description: Created company
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+
+  /companies/{id}:
+    get:
+      summary: Get company by id (JWT)
+      tags: [Companies]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Company detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+    patch:
+      summary: Update company (owner/admin)
+      tags: [Companies]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyPatch'
+      responses:
+        '200':
+          description: Updated company
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdParam:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        authentication:
+          type: object
+          properties:
+            strategy: { type: string }
+        user:
+          $ref: '#/components/schemas/User'
+
+    UserCreate:
+      type: object
+      required: [password]
+      properties:
+        email: { type: string, format: email }
+        username: { type: string }
+        password: { type: string, minLength: 6 }
+        role:
+          type: string
+          description: Defaults to student
+          enum: [student, company, admin]
+        profile:
+          type: object
+          properties:
+            firstName: { type: string }
+            lastName: { type: string }
+            phone: { type: string }
+            avatar: { type: string }
+            icPassportNumber: { type: string }
+        internProfile:
+          type: object
+          properties:
+            university: { type: string }
+            major: { type: string }
+            graduationYear: { type: integer }
+            skills: { type: array, items: { type: string } }
+            preferences:
+              type: object
+              properties:
+                industries: { type: array, items: { type: string } }
+    UserPatch:
+      type: object
+      properties:
+        profile: { $ref: '#/components/schemas/UserCreate/properties/profile' }
+        internProfile: { $ref: '#/components/schemas/UserCreate/properties/internProfile' }
+    User:
+      allOf:
+        - $ref: '#/components/schemas/UserCreate'
+        - type: object
+          properties:
+            _id: { type: string }
+            isEmailVerified: { type: boolean }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    PaginatedUsers:
+      type: object
+      properties:
+        total: { type: integer }
+        limit: { type: integer }
+        skip: { type: integer }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/User' }
+
+    InternshipJob:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        postedAt: { type: string, format: date-time }
+        duration: { type: string }
+        location: { type: string }
+        salaryRange:
+          type: object
+          properties:
+            min: { type: number }
+            max: { type: number }
+
+    CompanyCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        industry: { type: string }
+        website: { type: string }
+        description: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        address:
+          type: object
+          properties:
+            street: { type: string }
+            city: { type: string }
+            state: { type: string }
+            country: { type: string }
+            zipCode: { type: string }
+            fullAddress: { type: string }
+        internships:
+          type: array
+          items: { $ref: '#/components/schemas/InternshipJob' }
+    CompanyPatch:
+      type: object
+      properties:
+        name: { type: string }
+        industry: { type: string }
+        website: { type: string }
+        description: { type: string }
+        address: { $ref: '#/components/schemas/CompanyCreate/properties/address' }
+        internships:
+          type: array
+          items: { $ref: '#/components/schemas/InternshipJob' }
+    Company:
+      allOf:
+        - $ref: '#/components/schemas/CompanyCreate'
+        - type: object
+          properties:
+            _id: { type: string }
+            ownerUserId: { type: string }
+            logoKey: { type: string }
+            verifiedStatus:
+              type: string
+              enum: [pending, approved, rejected]
+            internshipListingCount: { type: integer }
+            internshipTopTitles:
+              type: array
+              items: { type: string }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    PaginatedCompanies:
+      type: object
+      properties:
+        total: { type: integer }
+        limit: { type: integer }
+        skip: { type: integer }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Company' }
+

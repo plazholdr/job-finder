@@ -6,6 +6,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 
+const path = require('path');
+
 const middleware = require('./middleware');
 const services = require('./services');
 const appHooks = require('./app.hooks');
@@ -61,6 +63,22 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
+});
+
+// Serve OpenAPI spec and simple docs
+app.get('/openapi.yaml', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'openapi.yaml'));
+});
+
+app.get('/docs', (req, res) => {
+  res.type('html').send(`<!doctype html>
+<html>
+<head><meta charset="utf-8"/><title>Job Finder API Docs</title></head>
+<body>
+  <redoc spec-url="/openapi.yaml"></redoc>
+  <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+</body>
+</html>`);
 });
 
 
