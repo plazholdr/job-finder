@@ -9,6 +9,7 @@ const shortlists = require('./shortlists/shortlists.service.js');
 const favorites = require('./favorites/favorites.service.js');
 const threads = require('./threads/threads.service.js');
 const messages = require('./messages/messages.service.js');
+const emailVerification = require('./email-verification/email-verification.service.js');
 
 module.exports = function (app) {
   app.configure(users);
@@ -22,4 +23,5 @@ module.exports = function (app) {
   app.configure(favorites);
   app.configure(threads);
   app.configure(messages);
+  app.configure(emailVerification);
 };

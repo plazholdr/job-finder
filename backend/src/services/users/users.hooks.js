@@ -2,7 +2,7 @@ const { authenticate } = require('@feathersjs/authentication').hooks;
 const { hashPassword, protect } = require('@feathersjs/authentication-local').hooks;
 const { disallow, iff, isProvider } = require('feathers-hooks-common');
 const mongoose = require('mongoose');
-const { getCompanyForUser, hasAcceptedInvite, maskStudent } = require('../../utils/access');
+const { getCompanyForUser, hasAcceptedInvite, maskStudent, isCompanyVerified } = require('../../utils/access');
 
 async function maskForCompanies(context) {
   // Only apply when requester is a company and viewing other users
@@ -31,11 +31,64 @@ async function maskForCompanies(context) {
   return context;
 }
 
+// Require verified company before browsing students
+async function requireVerifiedCompany(context) {
+  const requester = context.params && context.params.user;
+  if (requester && requester.role === 'company') {
+    const { ok } = await isCompanyVerified(context.app, requester._id);
+    if (!ok) {
+      const err = new Error('Company verification required');
+      err.code = 403;
+      err.name = 'COMPANY_UNVERIFIED';
+      throw err;
+    }
+  }
+  return context;
+}
+
+// Map friendly filters to Mongo query for student search
+async function mapStudentFilters(context) {
+  if (!context.params) return context;
+  const q = context.params.query || {};
+  const m = {};
+  if (q.keyword) {
+    m.$or = [
+      { 'profile.firstName': { $regex: String(q.keyword), $options: 'i' } },
+      { 'profile.lastName': { $regex: String(q.keyword), $options: 'i' } },
+      { 'internProfile.skills': { $regex: String(q.keyword), $options: 'i' } }
+    ];
+  }
+  if (q.university) m['internProfile.university'] = { $regex: String(q.university), $options: 'i' };
+  if (q.major) m['internProfile.major'] = { $regex: String(q.major), $options: 'i' };
+  if (q.skill) {
+    const skills = Array.isArray(q.skill) ? q.skill : [ q.skill ];
+    m['internProfile.skills'] = { $in: skills };
+  }
+  if (q.city) m['profile.location.city'] = { $regex: String(q.city), $options: 'i' };
+  if (q.gpaMin != null) m['internProfile.gpa'] = { ...(m['internProfile.gpa']||{}), $gte: Number(q.gpaMin) };
+  if (q.gpaMax != null) m['internProfile.gpa'] = { ...(m['internProfile.gpa']||{}), $lte: Number(q.gpaMax) };
+  if (q.gradYear != null) m['internProfile.graduationYear'] = Number(q.gradYear);
+
+  // Force role=student for search
+  context.params.query = { role: 'student', ...m };
+
+  // Remove friendly params
+  ['keyword','university','major','skill','city','gpaMin','gpaMax','gradYear'].forEach(k => delete q[k]);
+  return context;
+}
+
 module.exports = {
   before: {
     all: [],
-    find: [ iff(isProvider('external'), authenticate('jwt')) ],
-    get: [ iff(isProvider('external'), authenticate('jwt')) ],
+    find: [
+      iff(isProvider('external'), authenticate('jwt')),
+      requireVerifiedCompany,
+      mapStudentFilters
+    ],
+    get: [
+      iff(isProvider('external'), authenticate('jwt')),
+      requireVerifiedCompany
+    ],
     create: [
       hashPassword('password'),
       // Normalize username/email and validate

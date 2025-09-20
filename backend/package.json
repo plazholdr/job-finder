@@ -35,6 +35,7 @@
     "@feathersjs/express": "^5.0.35",
     "@feathersjs/feathers": "^5.0.35",
     "@feathersjs/socketio": "^5.0.35",
+    "@types/nodemailer": "^7.0.1",
     "aws-sdk": "^2.1692.0",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.1",
@@ -48,6 +49,7 @@
     "mongoose": "^8.18.1",
     "multer": "^2.0.2",
     "multer-s3": "^3.0.1",
+    "nodemailer": "^7.0.6",
     "rate-limiter-flexible": "^7.3.1",
     "redis": "^5.8.2",
     "winston": "^3.17.0"

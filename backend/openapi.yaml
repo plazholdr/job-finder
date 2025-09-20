@@ -82,6 +82,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
 
+  /email-verification:
+    post:
+      summary: Request email verification token
+      description: Generates a verification token and sends it via in-app notification. Optionally pass `email`; otherwise the authenticated user is used if available.
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '201':
+          description: Token generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+    patch:
+      summary: Verify email with token or 6-digit code
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token: { type: string, description: Token from the link }
+                code: { type: string, description: 6-digit OTP code }
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+
   /users:
     post:
       summary: Register user
@@ -103,7 +152,37 @@ paths:
                 $ref: '#/components/schemas/User'
     get:
       summary: List users (JWT)
+      description: Company users must be verified to browse students. Supports filters.
       tags: [Users]
+      parameters:
+        - in: query
+          name: keyword
+          schema: { type: string }
+          description: Search by first/last name or skills
+        - in: query
+          name: university
+          schema: { type: string }
+        - in: query
+          name: major
+          schema: { type: string }
+        - in: query
+          name: skill
+          schema: { type: array, items: { type: string } }
+          style: form
+          explode: true
+          description: May be provided multiple times
+        - in: query
+          name: city
+          schema: { type: string }
+        - in: query
+          name: gpaMin
+          schema: { type: number }
+        - in: query
+          name: gpaMax
+          schema: { type: number }
+        - in: query
+          name: gradYear
+          schema: { type: integer }
       responses:
         '200':
           description: Paged users
@@ -111,6 +190,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedUsers'
+        '403':
+          description: Company verification required
 
   /users/{id}:
     get:
