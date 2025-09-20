@@ -15,6 +15,14 @@ async function maskForCompanies(context) {
   const applyMask = async (record) => {
     if (!record || (record._id && record._id.toString() === requester._id.toString())) return record;
     if (record.role !== 'student') return record;
+
+    // If private, block direct access on get
+    if (context.method === 'get' && record.privacySetting === 'private') {
+      const err = new Error('Not found');
+      err.code = 404;
+      throw err;
+    }
+
     if (!companyId) return maskStudent(record);
     const ok = await hasAcceptedInvite(context.app, new mongoose.Types.ObjectId(companyId), new mongoose.Types.ObjectId(record._id));
     return ok ? record : maskStudent(record);
@@ -68,6 +76,12 @@ async function mapStudentFilters(context) {
   if (q.gpaMin != null) m['internProfile.gpa'] = { ...(m['internProfile.gpa']||{}), $gte: Number(q.gpaMin) };
   if (q.gpaMax != null) m['internProfile.gpa'] = { ...(m['internProfile.gpa']||{}), $lte: Number(q.gpaMax) };
   if (q.gradYear != null) m['internProfile.graduationYear'] = Number(q.gradYear);
+
+  // If company is searching, exclude private profiles entirely
+  const requester = context.params && context.params.user;
+  if (requester && requester.role === 'company') {
+    m.privacySetting = { $ne: 'private' };
+  }
 
   // Force role=student for search
   context.params.query = { role: 'student', ...m };
@@ -125,6 +139,15 @@ module.exports = {
           }
         }
       ),
+      // Whitelist fields for patch (profile/internProfile/privacySetting/password)
+      (context) => {
+        const allowedRoots = ['profile','internProfile','privacySetting','password'];
+        const data = context.data || {};
+        Object.keys(data).forEach(k => {
+          if (!allowedRoots.includes(k)) delete data[k];
+        });
+        context.data = data;
+      },
       hashPassword('password')
     ],
     remove: [

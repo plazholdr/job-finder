@@ -33,6 +33,13 @@ const userSchema = new mongoose.Schema({
     required: true,
     default: 'student'
   },
+  // Profile privacy for student side
+  privacySetting: {
+    type: String,
+    enum: ['full', 'restricted', 'private'],
+    default: 'full',
+    index: true
+  },
   profile: {
     firstName: String,
     lastName: String,

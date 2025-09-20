@@ -168,7 +168,9 @@ paths:
                 $ref: '#/components/schemas/User'
     get:
       summary: List users (JWT)
-      description: Company users must be verified to browse students. Supports filters.
+      description: |
+        Company users must be verified to browse students. Supports filters.
+        Private student profiles are excluded from company search results; restricted profiles hide name/email/phone.
       tags: [Users]
       parameters:
         - in: query
@@ -212,6 +214,7 @@ paths:
   /users/{id}:
     get:
       summary: Get a user by id (JWT)
+      description: Companies cannot view private student profiles (404).
       tags: [Users]
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -222,6 +225,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+        '404':
+          description: Not found (private profile or no access)
     patch:
       summary: Update own user (JWT)
       tags: [Users]
@@ -453,6 +458,10 @@ components:
           type: string
           description: Defaults to student
           enum: [student, company, admin]
+        privacySetting:
+          type: string
+          description: Student profile privacy. Default full.
+          enum: [full, restricted, private]
         profile:
           type: object
           properties:
@@ -475,6 +484,9 @@ components:
     UserPatch:
       type: object
       properties:
+        privacySetting:
+          type: string
+          enum: [full, restricted, private]
         profile: { $ref: '#/components/schemas/UserCreate/properties/profile' }
         internProfile: { $ref: '#/components/schemas/UserCreate/properties/internProfile' }
     User:
