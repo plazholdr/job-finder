@@ -15,15 +15,15 @@ module.exports = function(app) {
     if(connection) {
       // Obtain the logged in user from the connection
       const user = connection.user = authResult.user;
-      
+
       // The connection is no longer anonymous, remove it
       app.channel('anonymous').leave(connection);
 
       // Add it to the authenticated user channel
       app.channel('authenticated').join(connection);
 
-      // Channels can be named anything and joined on any condition 
-      
+      // Channels can be named anything and joined on any condition
+
       // E.g. to send real-time events only to admins use
       if(user.role === 'admin') {
         app.channel('admins').join(connection);
@@ -34,9 +34,9 @@ module.exports = function(app) {
         app.channel('companies').join(connection);
       }
 
-      // If the user has the role of 'intern', add them to the intern channel
-      if(user.role === 'intern') {
-        app.channel('interns').join(connection);
+      // If the user has the role of 'student', add them to the student channel
+      if(user.role === 'student') {
+        app.channel('students').join(connection);
       }
     }
   });

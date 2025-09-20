@@ -2,8 +2,8 @@ const Redis = require('ioredis');
 const logger = require('./logger');
 
 module.exports = function (app) {
-  const redisUrl = app.get('redis') || process.env.REDIS_URI;
-  
+  const redisUrl = process.env.REDIS_URI || app.get('redis');
+
   const redis = new Redis(redisUrl, {
     retryDelayOnFailover: 100,
     enableReadyCheck: false,

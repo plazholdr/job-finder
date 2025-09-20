@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const logger = require('./logger');
 
 module.exports = function (app) {
-  const mongoUrl = app.get('mongodb') || process.env.MONGODB_URI;
+  const mongoUrl = process.env.MONGODB_URI || app.get('mongodb');
 
   mongoose.connect(mongoUrl).then(() => {
     logger.info('Connected to MongoDB');

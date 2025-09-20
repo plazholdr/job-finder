@@ -8,6 +8,9 @@ services:
       - "3030:3030"
     env_file:
       - .env
+    environment:
+      # Override REDIS host for containerized environment
+      - REDIS_URI=redis://redis:6379
     depends_on:
       - redis
     volumes:
