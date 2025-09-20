@@ -1,0 +1,166 @@
+{
+  "info": {
+    "name": "Job Finder API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "5f5a2d0b-3ab6-4f7b-8b24-1f4cf6eb2ac9"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [ { "key": "token", "value": "{{accessToken}}", "type": "string" } ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /authentication (login)",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"strategy\": \"local\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/authentication", "host": ["{{baseUrl}}"], "path": ["authentication"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.accessToken) pm.environment.set('accessToken', json.accessToken);",
+                  "  if (json.refreshToken) pm.environment.set('refreshToken', json.refreshToken);",
+                  "  if (json.user && json.user._id) pm.environment.set('userId', json.user._id);",
+                  "  if (json.user && json.user.role) pm.environment.set('role', json.user.role);",
+                  "  try {",
+                  "    const parts = json.accessToken.split('.')",
+                  "    const payload = JSON.parse(atob(parts[1]));",
+                  "    if (payload.exp) pm.environment.set('tokenExpiresAt', (payload.exp*1000).toString());",
+                  "  } catch (e) { /* ignore */ }",
+                  "} else {",
+                  "  console.warn('Login failed:', pm.response.code);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /refresh-token",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/refresh-token", "host": ["{{baseUrl}}"], "path": ["refresh-token"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.accessToken) pm.environment.set('accessToken', json.accessToken);",
+                  "  if (json.refreshToken) pm.environment.set('refreshToken', json.refreshToken);",
+                  "  try {",
+                  "    const parts = json.accessToken.split('.')",
+                  "    const payload = JSON.parse(atob(parts[1]));",
+                  "    if (payload.exp) pm.environment.set('tokenExpiresAt', (payload.exp*1000).toString());",
+                  "  } catch (e) { /* ignore */ }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "POST /users (register student)",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"student1@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"role\": \"student\",\n  \"profile\": { \"firstName\": \"Ali\", \"lastName\": \"Bin Abu\" }\n}" },
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "POST /users (register company admin)",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"company1@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"role\": \"company\",\n  \"companyProfile\": { \"companyName\": \"Acme Sdn Bhd\" }\n}" },
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "GET /users/:id (me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["users","{{userId}}"] }
+          }
+        },
+        {
+          "name": "GET /users?role=student (search)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users?role=student",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"],
+              "query": [ {"key":"role","value":"student"} ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /users/:id (update self)",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"profile\": { \"bio\": \"Hello world\" }\n}" },
+            "url": { "raw": "{{baseUrl}}/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["users","{{userId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload",
+      "item": [
+        {
+          "name": "POST /upload (resume)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "resume", "type": "file", "src": "{{resumePath}}" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/upload", "host": ["{{baseUrl}}"], "path": ["upload"] }
+          }
+        }
+      ]
+    }
+  ]
+}
+
