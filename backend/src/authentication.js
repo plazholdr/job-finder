@@ -3,17 +3,40 @@ const { LocalStrategy } = require('@feathersjs/authentication-local');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
+// Local strategy that accepts either email or username in the same field
+class EmailOrUsernameStrategy extends LocalStrategy {
+  async findEntity(identifier, params) {
+    const entityService = this.entityService;
+    const id = String(identifier || '').toLowerCase();
+    const query = {
+      $or: [
+        { email: id },
+        { username: id }
+      ],
+      $limit: 1
+    };
+    const result = await entityService.find({ ...params, query });
+    const list = result && Array.isArray(result.data) ? result.data : result;
+    const entity = Array.isArray(list) ? list[0] : list;
+    return entity;
+  }
+}
+
 class CustomAuthenticationService extends AuthenticationService {
   async getPayload(authResult, params) {
-    const payload = await super.getPayload(authResult, params);
-    const { user } = authResult;
+    const { user } = authResult || {};
 
-    return {
-      ...payload,
-      userId: user._id || user.id,
-      email: user.email,
-      role: user.role
-    };
+    // If we already have the user (local login path), avoid super.getPayload() which fetches via users.get
+    if (user) {
+      return {
+        userId: user._id || user.id,
+        email: user.email,
+        role: user.role
+      };
+    }
+
+    // Fallback to default behavior for other strategies
+    return super.getPayload(authResult, params);
   }
 
   async createAccessToken(payload, optsOverride, secretOverride) {
@@ -54,27 +77,38 @@ class CustomAuthenticationService extends AuthenticationService {
   }
 
   async authenticate(authentication, params) {
-    const authResult = await super.authenticate(authentication, params);
+    // Defer to Feathers strategies (LocalStrategy/JWTStrategy) and keep hooks intact
+    return super.authenticate(authentication, params);
+  }
 
-    if (authResult.user) {
-      // Create refresh token
-      const refreshToken = await this.createRefreshToken(authResult.user);
+  async create(data, params) {
+    // Authenticate via registered strategy to obtain the authResult (includes user for 'local')
+    const authResult = await super.authenticate(data, params);
+    const payload = await this.getPayload(authResult, params);
+    const accessToken = await this.createAccessToken(payload);
 
-      return {
-        ...authResult,
-        refreshToken
-      };
+    const result = { accessToken, authentication: { strategy: data && data.strategy } };
+
+    // Attach refresh token when a user is present (e.g., local strategy)
+    if (authResult && authResult.user) {
+      result.refreshToken = await this.createRefreshToken(authResult.user);
     }
 
-    return authResult;
+    return result;
   }
 }
 
 module.exports = app => {
   const authentication = new CustomAuthenticationService(app);
-
+  // Rely on configuration from config/default.json for strategies and options
   authentication.register('jwt', new JWTStrategy());
-  authentication.register('local', new LocalStrategy());
-
+  authentication.register('local', new EmailOrUsernameStrategy());
   app.use('/authentication', authentication);
+
+  // Allow clients to send either { email, password } or { username, password }
+  app.service('authentication').hooks({
+    before: {
+      create: [ (ctx) => { if (ctx.data && ctx.data.username && !ctx.data.email) { ctx.data.email = ctx.data.username; } return ctx; } ]
+    }
+  });
 };

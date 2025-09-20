@@ -14,6 +14,14 @@ const userSchema = new mongoose.Schema({
       message: 'Please enter a valid email'
     }
   },
+  username: {
+    type: String,
+    unique: true,
+    sparse: true,
+    lowercase: true,
+    trim: true
+  },
+
   password: {
     type: String,
     required: true,
@@ -29,15 +37,16 @@ const userSchema = new mongoose.Schema({
     firstName: String,
     lastName: String,
     phone: String,
-    avatar: String,
+    avatar: String, // photo
     bio: String,
+    icPassportNumber: String, // national ID / IC / passport
     location: {
       city: String,
       state: String,
       country: String
     }
   },
-  // For interns
+  // For students/interns
   internProfile: {
     university: String,
     major: String,
@@ -48,6 +57,65 @@ const userSchema = new mongoose.Schema({
     portfolio: String,
     linkedIn: String,
     github: String,
+
+    // Education background (multiple)
+    educations: [
+      {
+        level: { type: String }, // diploma/degree/etc
+        institutionName: { type: String },
+        qualification: { type: String }, // programme
+        startDate: { type: Date },
+        endDate: { type: Date },
+        fieldOfStudy: { type: String }
+      }
+    ],
+
+    // Certifications (multiple)
+    certifications: [
+      {
+        title: { type: String },
+        issuer: { type: String },
+        acquiredDate: { type: Date },
+        description: { type: String }
+      }
+    ],
+
+    // Interests (multiple)
+    interests: [
+      {
+        title: { type: String },
+        description: { type: String },
+        socialLinks: [{ type: String }],
+        thumbnailUrl: { type: String }
+      }
+    ],
+
+    // Previous work experience (multiple)
+    workExperiences: [
+      {
+        companyName: { type: String },
+        industry: { type: String },
+        jobTitle: { type: String },
+        employmentType: { type: String }, // part-time/full-time
+        startDate: { type: Date },
+        endDate: { type: Date },
+        jobDescription: { type: String }
+      }
+    ],
+
+    // Previous event experience (multiple)
+    eventExperiences: [
+      {
+        eventName: { type: String },
+        description: { type: String },
+        position: { type: String },
+        startDate: { type: Date },
+        endDate: { type: Date },
+        location: { type: String },
+        socialLinks: [{ type: String }]
+      }
+    ],
+
     preferences: {
       jobTypes: [String],
       locations: [String],
@@ -88,19 +156,6 @@ const userSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
-});
-
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-
-  try {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
 });
 
 // Compare password method
