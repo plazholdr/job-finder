@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 const { sendMail } = require('../../utils/mailer');
+const { verifyEmailTemplate } = require('../../utils/email-templates');
+const { authenticate } = require('@feathersjs/authentication').hooks;
 
 class EmailVerificationService {
   constructor(options, app) {
@@ -40,7 +42,7 @@ class EmailVerificationService {
     const verifyLink = `${process.env.PUBLIC_WEB_URL || ''}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`;
     const subject = 'Verify your email';
     const text = `Your verification code is ${code}. It expires in 10 minutes.\n\nOr click the link: ${verifyLink}`;
-    const html = `<p>Your verification code is <b>${code}</b>. It expires in 10 minutes.</p><p>Or click the link: <a href="${verifyLink}">${verifyLink}</a></p>`;
+    const html = verifyEmailTemplate({ brandName: 'JobFinder', code, verifyLink });
     try { await sendMail({ to: user.email, subject, text, html }); } catch (_) {}
 
     // Also notify in-app
@@ -105,10 +107,12 @@ class EmailVerificationService {
 
 module.exports = function (app) {
   const options = { paginate: app.get('paginate') };
-  app.use('/email-verification', new EmailVerificationService(options, app));
+  const svc = new EmailVerificationService(options, app);
+  app.use('/email-verification', svc);
+  app.use('/email-verification/resend', svc);
 
-  // Basic no-op hooks (public endpoints by design)
-  const service = app.service('email-verification');
-  service.hooks({ before: { all: [] }, after: { all: [] }, error: { all: [] } });
+  // Public for primary endpoint; alias requires auth
+  app.service('email-verification').hooks({ before: { all: [] }, after: { all: [] }, error: { all: [] } });
+  app.service('email-verification/resend').hooks({ before: { all: [ authenticate('jwt') ] }, after: { all: [] }, error: { all: [] } });
 };
 

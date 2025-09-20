@@ -130,6 +130,22 @@ paths:
                 type: object
                 properties:
                   ok: { type: boolean }
+  /email-verification/resend:
+    post:
+      summary: Resend email verification (current user)
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Token/code re-sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+
 
   /users:
     post:
@@ -233,6 +249,75 @@ paths:
         - q/keyword: search by company name
         - industry/nature: business nature filter
         - city/location: location filter (address.city or fullAddress)
+  /company-verifications:
+    get:
+      summary: List company verifications
+      description: Admins see all; company users see only their own submissions.
+      tags: [Admin, Companies]
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, approved, rejected] }
+      responses:
+        '200':
+          description: Paged company verifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCompanyVerifications'
+    post:
+      summary: Submit company verification (KYC)
+      tags: [Companies]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyVerificationCreate'
+      responses:
+        '201':
+          description: Submitted verification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyVerification'
+
+  /company-verifications/{id}:
+    get:
+      summary: Get a company verification by id
+      tags: [Admin, Companies]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: The verification record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyVerification'
+    patch:
+      summary: Approve/Reject a company verification (Admin only)
+      tags: [Admin]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [approve, reject] }
+                rejectionReason: { type: string }
+      responses:
+        '200':
+          description: Updated verification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyVerification'
+
         - salaryMin, salaryMax: filter by internships' salary range
         - latest=true or sort=latest
         - sortBy=name|salary
@@ -485,3 +570,39 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Company' }
 
+
+    CompanyVerificationDocument:
+      type: object
+      properties:
+        type: { type: string, enum: [SSM_SUPERFORM, OTHERS] }
+        fileKey: { type: string }
+        metadata: { type: object }
+    CompanyVerificationCreate:
+      type: object
+      required: [companyId, documents]
+      properties:
+        companyId: { type: string }
+        documents:
+          type: array
+          items: { $ref: '#/components/schemas/CompanyVerificationDocument' }
+    CompanyVerification:
+      allOf:
+        - $ref: '#/components/schemas/CompanyVerificationCreate'
+        - type: object
+          properties:
+            _id: { type: string }
+            submittedBy: { type: string }
+            status: { type: string, enum: [pending, approved, rejected] }
+            rejectionReason: { type: string }
+            submittedAt: { type: string, format: date-time }
+            reviewedAt: { type: string, format: date-time }
+            reviewerId: { type: string }
+    PaginatedCompanyVerifications:
+      type: object
+      properties:
+        total: { type: integer }
+        limit: { type: integer }
+        skip: { type: integer }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/CompanyVerification' }

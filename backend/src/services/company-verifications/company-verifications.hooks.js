@@ -45,14 +45,27 @@ module.exports = (app) => ({
   after: {
     all: [], find: [], get: [],
     create: [ async (ctx) => {
-      // notify admins
+      // Receipt to submitter
       await app.service('notifications').create({
-        recipientUserId: ctx.params.user._id, // optional: admins broadcast; for now, notify submitter as receipt
+        recipientUserId: ctx.params.user._id,
         recipientRole: 'company',
         type: 'kyc_submitted',
         title: 'KYC submitted',
         body: 'Your company verification has been submitted.'
       }).catch(()=>{});
+
+      // Notify all admins
+      try {
+        const admins = await app.service('users').find({ paginate: false, query: { role: 'admin' } });
+        await Promise.all((admins || []).map(a => app.service('notifications').create({
+          recipientUserId: a._id,
+          recipientRole: 'admin',
+          type: 'kyc_review_required',
+          title: 'KYC review required',
+          body: 'A new company verification was submitted and awaits review.',
+          data: { verificationId: ctx.result?._id, companyId: ctx.result?.companyId }
+        }).catch(()=>{})));
+      } catch (_) {}
     } ],
     patch: [ async (ctx) => {
       // notify owner based on updated status
