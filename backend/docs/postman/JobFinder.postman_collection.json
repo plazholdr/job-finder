@@ -143,6 +143,146 @@
       ]
     },
     {
+      "name": "Companies",
+      "item": [
+        {
+          "name": "POST /companies (create)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Acme Sdn Bhd\",\n  \"registrationNumber\": \"202401234567\",\n  \"industry\": \"IT\",\n  \"size\": \"51-200\",\n  \"website\": \"https://acme.my\"\n}" },
+            "url": { "raw": "{{baseUrl}}/companies", "host": ["{{baseUrl}}"], "path": ["companies"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Company Verifications",
+      "item": [
+        {
+          "name": "POST /company-verifications (submit KYC)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"documents\": [ { \"type\": \"SSM_SUPERFORM\", \"fileKey\": \"uploads/ssm.pdf\" } ]\n}" },
+            "url": { "raw": "{{baseUrl}}/company-verifications", "host": ["{{baseUrl}}"], "path": ["company-verifications"] }
+          }
+        },
+        {
+          "name": "PATCH /company-verifications/:id (admin approve)",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"approve\"\n}" },
+            "url": { "raw": "{{baseUrl}}/company-verifications/{{verificationId}}", "host": ["{{baseUrl}}"], "path": ["company-verifications","{{verificationId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invites",
+      "item": [
+        {
+          "name": "POST /invites (company)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"profile_access\",\n  \"userId\": \"{{targetUserId}}\",\n  \"message\": \"We'd like to view your full profile.\"\n}" },
+            "url": { "raw": "{{baseUrl}}/invites", "host": ["{{baseUrl}}"], "path": ["invites"] }
+          }
+        },
+        {
+          "name": "PATCH /invites/:id (student accept/decline)",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"accepted\"\n}" },
+            "url": { "raw": "{{baseUrl}}/invites/{{inviteId}}", "host": ["{{baseUrl}}"], "path": ["invites","{{inviteId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "GET /notifications (mine)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/notifications", "host": ["{{baseUrl}}"], "path": ["notifications"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shortlists",
+      "item": [
+        {
+          "name": "POST /shortlists (company)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{targetUserId}}\",\n  \"note\": \"Promising profile\"\n}" },
+            "url": { "raw": "{{baseUrl}}/shortlists", "host": ["{{baseUrl}}"], "path": ["shortlists"] }
+          }
+        },
+        {
+          "name": "GET /shortlists (mine)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/shortlists", "host": ["{{baseUrl}}"], "path": ["shortlists"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Favorites",
+      "item": [
+        {
+          "name": "POST /favorites (student)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"companyId\": \"{{companyId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/favorites", "host": ["{{baseUrl}}"], "path": ["favorites"] }
+          }
+        },
+        {
+          "name": "GET /favorites (mine)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/favorites", "host": ["{{baseUrl}}"], "path": ["favorites"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Threads & Messages",
+      "item": [
+        {
+          "name": "POST /threads (open or get existing)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"userId\": \"{{targetUserId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/threads", "host": ["{{baseUrl}}"], "path": ["threads"] }
+          }
+        },
+        {
+          "name": "POST /messages (send)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"threadId\": \"{{threadId}}\",\n  \"body\": \"Hello!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/messages", "host": ["{{baseUrl}}"], "path": ["messages"] }
+          }
+        }
+      ]
+    },
+    {
       "name": "Upload",
       "item": [
         {

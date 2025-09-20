@@ -21,6 +21,8 @@ module.exports = function(app) {
 
       // Add it to the authenticated user channel
       app.channel('authenticated').join(connection);
+      // Also join a user-specific channel for targeted notifications
+      try { app.channel(`users/${user._id}`).join(connection); } catch (_) {}
 
       // Channels can be named anything and joined on any condition
 

@@ -159,13 +159,61 @@ Steps:
 
 ---
 
-## Roadmap (to be added next)
-- Companies service and KYC verification (manual admin approval with SSM Superform doc upload)
-- Invites service with gated fields logic for student profiles
-- Shortlists (company→students) and Favorites (student→companies)
-- Messaging (threads/messages) with notifications
-- Notifications service (admin/company/student) and real-time channels
-- Extended search filters and saved search profiles
+## MongoDB (Atlas)
+- Set MONGODB_URI in backend/.env to your Atlas connection string. The code prefers env MONGODB_URI over config.
+- Example: mongodb+srv://USER:PASS@cluster0.tffyagz.mongodb.net/jobfinder?retryWrites=true&w=majority&appName=Cluster0
 
-As each service is added, both this document and the Postman collection will be updated with request/response examples and testing notes.
+## Companies Service
+Path: `/companies`
+- POST /companies (company user only): create company profile (verifiedStatus=pending)
+  Body: { name, registrationNumber?, industry?, size?, website?, address?, picName?, picPhone?, picEmail? }
+- GET /companies/:id (JWT)
+- PATCH /companies/:id (owner or admin)
+- FIND /companies (JWT)
+
+## Company Verifications (KYC)
+Path: `/company-verifications`
+- POST (company owner): { companyId, documents: [ { type:'SSM_SUPERFORM', fileKey } ] }
+- FIND (admin sees all; owner sees own)
+- GET (owner or admin)
+- PATCH /:id (admin): { action: 'approve' | 'reject', rejectionReason? }
+  - Also updates related company.verifiedStatus
+
+## Invites (Gated Access)
+Path: `/invites`
+- POST (verified company): { type:'profile_access'|'interview', userId, message? }
+- PATCH /:id (student target): { status:'accepted'|'declined' }
+- FIND (company sees its own; student sees theirs)
+
+Gating logic
+- Companies viewing `/users` only see public fields for students unless there is an accepted invite; private fields (phone, GPA, resume, portfolio) are masked.
+
+## Notifications
+Path: `/notifications`
+- FIND (recipient only; admin can access all)
+- PATCH /:id { isRead:true } (recipient or admin)
+- Created automatically by other services (e.g., invite_sent, invite_accepted, kyc_submitted, kyc_approved, message)
+- Real-time: clients connected join `users/<userId>` channel and receive events
+
+## Shortlists
+Path: `/shortlists` (company only)
+- POST { userId, note? }
+- FIND (company’s own)
+- DELETE /:id (owner)
+
+## Favorites
+Path: `/favorites` (student)
+- POST { companyId }
+- FIND (user’s own)
+- DELETE /:id (owner)
+
+## Threads & Messages
+- Threads `/threads`
+  - POST { companyId, userId } → returns existing or creates a thread
+  - FIND (participant only)
+- Messages `/messages`
+  - POST { threadId, body, attachments? } (participant only)
+  - FIND ?threadId=... (participant only)
+
+The Postman collection has corresponding folders. Update backend/docs/postman collection when adding fields.
 

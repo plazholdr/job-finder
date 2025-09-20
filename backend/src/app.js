@@ -38,6 +38,7 @@ app.configure(socketio());
 app.configure(mongoose);
 app.configure(redis);
 
+
 // Configure authentication
 app.configure(authentication);
 
@@ -61,6 +62,7 @@ app.get('/health', (req, res) => {
     uptime: process.uptime()
   });
 });
+
 
 // Configure error handling
 app.use(express.notFound());
