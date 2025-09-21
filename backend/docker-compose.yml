@@ -9,24 +9,14 @@ services:
     env_file:
       - .env
     environment:
-      # Override Redis + Mongo hosts for containerized environment
+      # Override Redis host for containerized environment
       - REDIS_URI=redis://redis:6379
-      - MONGODB_URI=mongodb://mongo:27017/jobfinder
+      # MONGODB_URI will use the value from .env file (Atlas)
     depends_on:
       - redis
-      - mongo
     volumes:
       - .:/app
     command: sh -lc "yarn install --frozen-lockfile && yarn dev"
-    restart: unless-stopped
-
-  # MongoDB
-  mongo:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
     restart: unless-stopped
 
 
@@ -48,11 +38,10 @@ services:
     ports:
       - "8082:8081"
     environment:
-      - REDIS_HOSTS=local:redis:6379
+      - REDIS_HOSTS=development:redis:6379
     depends_on:
       - redis
     restart: unless-stopped
 
 volumes:
   redis_data:
-  mongo_data:

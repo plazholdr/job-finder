@@ -6,7 +6,8 @@ import hooks from './users.hooks.js';
 export default function (app) {
   const options = {
     Model: Users,
-    paginate: app.get('paginate')
+    paginate: app.get('paginate'),
+    lean: true // return plain objects so password stays available for internal auth
   };
 
   // Initialize our service with any options it requires

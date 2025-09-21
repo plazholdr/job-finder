@@ -99,12 +99,12 @@ export default {
     all: [],
     find: [
       iff(isProvider('external'), authenticate('jwt')),
-      requireVerifiedCompany,
-      mapStudentFilters
+      iff(isProvider('external'), requireVerifiedCompany),
+      iff(isProvider('external'), mapStudentFilters)
     ],
     get: [
       iff(isProvider('external'), authenticate('jwt')),
-      requireVerifiedCompany
+      iff(isProvider('external'), requireVerifiedCompany)
     ],
     create: [
       hashPassword('password'),
@@ -169,8 +169,8 @@ export default {
 
   after: {
     all: [
-      // Make sure the password field is never sent to the client
-      protect('password')
+      // Make sure the password field is never sent to external clients
+      iff(isProvider('external'), protect('password'))
     ],
     find: [ maskForCompanies ],
     get: [ maskForCompanies ],

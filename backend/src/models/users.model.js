@@ -171,15 +171,9 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Remove password from JSON output
-userSchema.methods.toJSON = function() {
-  const userObject = this.toObject();
-  delete userObject.password;
-  delete userObject.emailVerificationToken;
-  delete userObject.passwordResetToken;
-  delete userObject.passwordResetExpires;
-  return userObject;
-};
+// Note: Do not override toJSON to strip password here.
+// We rely on the service hook `protect('password')` to hide it from external responses.
+// Keeping the raw document intact ensures internal auth can compare passwords reliably.
 
 const userModel = mongoose.model('User', userSchema);
 
