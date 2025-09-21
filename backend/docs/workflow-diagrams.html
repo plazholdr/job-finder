@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Finder - Workflow Diagrams & API Documentation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+            margin-top: 40px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+        }
+        .diagram-section {
+            margin-bottom: 50px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .flow-step {
+            background: #ecf0f1;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 3px solid #3498db;
+            border-radius: 4px;
+        }
+        .api-endpoint {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .payload {
+            background: #34495e;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .note {
+            background: #f39c12;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #27ae60;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .privacy-options {
+            background: #e8f4fd;
+            border: 1px solid #3498db;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .privacy-option {
+            margin: 8px 0;
+            padding: 8px;
+            background: white;
+            border-radius: 3px;
+            border-left: 3px solid #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Job Finder - Workflow Diagrams & API Documentation</h1>
+        <p style="text-align: center; color: #7f8c8d; font-style: italic;">
+            Complete workflow documentation with API endpoints and payloads
+        </p>
+
+        <!-- Diagram 1: Student Registration Workflow -->
+        <div class="diagram-section">
+            <h2>🎓 Diagram 1: Student Registration Workflow</h2>
+
+            <h3>🔄 Flow Steps:</h3>
+            <div class="flow-step">1. User opens the WEB website</div>
+            <div class="flow-step">2. Decision: User login?</div>
+            <div class="flow-step">3. If NO: User finds "Username/Email can be email or Password"</div>
+            <div class="flow-step">4. User gets redirected back to the WEB system homepage after successful verification</div>
+            <div class="flow-step">5. User input their profile information (First name, Last name, Email, Phone, Bio, IC/Passport no, not email)</div>
+            <div class="flow-step">6. User input their education background (Level of education, Institution name, Qualification, Start date, End date)</div>
+            <div class="flow-step">7. User input their certification (multiple) - Certificate title, Certificate issuer, Acquired date, Description</div>
+            <div class="flow-step">8. User input their interest (multiple) - Interest title, Interest description, Since</div>
+            <div class="flow-step">9. User input their previous work experience (multiple) - Event name, Event position, Event date (start-end), Event description</div>
+            <div class="flow-step">10. User information will be stored to the db</div>
+            <div class="flow-step">11. User gets redirected back to the WEB system homepage</div>
+
+            <h3>🌐 API Endpoints:</h3>
+
+            <h4>Registration:</h4>
+            <div class="api-endpoint">
+                POST /users
+                Content-Type: application/json
+            </div>
+
+            <h4>Authentication:</h4>
+            <div class="api-endpoint">
+                POST /authentication
+                Content-Type: application/json
+            </div>
+
+            <h3>📦 Payload Examples:</h3>
+
+            <h4>Student Registration:</h4>
+            <div class="payload">{
+  "email": "student@example.com",
+  "password": "SecurePass123!",
+  "role": "student",
+  "profile": {
+    "firstName": "Ahmad",
+    "lastName": "Ibrahim",
+    "phone": "+60123456789",
+    "bio": "Passionate computer science student",
+    "icPassportNumber": "123456789012",
+    "location": {
+      "city": "Kuala Lumpur",
+      "state": "Selangor",
+      "country": "Malaysia"
+    }
+  },
+  "internProfile": {
+    "university": "Universiti Malaya",
+    "major": "Computer Science",
+    "graduationYear": 2025,
+    "gpa": 3.8,
+    "skills": ["JavaScript", "React", "Node.js"],
+    "educations": [
+      {
+        "level": "Bachelor's Degree",
+        "institutionName": "Universiti Malaya",
+        "qualification": "Bachelor of Computer Science",
+        "startDate": "2022-09-01",
+        "endDate": "2025-06-30",
+        "fieldOfStudy": "Computer Science"
+      }
+    ],
+    "certifications": [
+      {
+        "title": "AWS Cloud Practitioner",
+        "issuer": "Amazon Web Services",
+        "acquiredDate": "2024-03-15",
+        "description": "Cloud computing fundamentals"
+      }
+    ],
+    "interests": [
+      {
+        "title": "Web Development",
+        "description": "Building modern web applications",
+        "since": "2022-01-01"
+      }
+    ],
+    "workExperiences": [
+      {
+        "eventName": "Tech Startup Internship",
+        "eventPosition": "Frontend Developer Intern",
+        "startDate": "2024-06-01",
+        "endDate": "2024-08-31",
+        "eventDescription": "Developed React components for e-commerce platform"
+      }
+    ]
+  }
+}</div>
+
+            <h4>Login:</h4>
+            <div class="payload">{
+  "strategy": "local",
+  "email": "student@example.com",
+  "password": "SecurePass123!"
+}</div>
+
+            <div class="success">
+                � Status: FULLY IMPLEMENTED - All registration fields and workflows are complete and functional
+            </div>
+        </div>
+
+        <!-- Diagram 2: Company Registration Workflow -->
+        <div class="diagram-section">
+            <h2>🏢 Diagram 2: Company Registration Workflow</h2>
+
+            <h3>🔄 Flow Steps:</h3>
+            <div class="flow-step">1. Company admin opens the WEB website</div>
+            <div class="flow-step">2. Decision: Company login?</div>
+            <div class="flow-step">3. If NO: Company admin inputs Username/Email and Password</div>
+            <div class="flow-step">4. Decision: Account exists?</div>
+            <div class="flow-step">5. If NO: Company admin inputs personal information (First name, Last name, Email, Phone)</div>
+            <div class="flow-step">6. Company admin inputs company information (Company name, Company registration number, Company industry, Company size, Company website, Company description, Company business nature, Company address)</div>
+            <div class="flow-step">7. Decision: Upload company documents?</div>
+            <div class="flow-step">8. If YES: Company admin uploads documents (Company logo, Company registration certificate, Company business license, etc.)</div>
+            <div class="flow-step">9. Company admin views the verification status</div>
+            <div class="flow-step">10. Company admin views company profile</div>
+            <div class="flow-step">11. Company admin can perform the functions below (Search for interns, Filter list of interns, Shortlist interns, View intern profile, Create intern profile, Invite intern for interview)</div>
+
+            <h3>🌐 API Endpoints:</h3>
+
+            <h4>Company Registration:</h4>
+            <div class="api-endpoint">
+                POST /users
+                Content-Type: application/json
+            </div>
+
+            <h4>Company Profile Creation:</h4>
+            <div class="api-endpoint">
+                POST /companies
+                Authorization: Bearer &lt;accessToken&gt;
+                Content-Type: application/json
+            </div>
+
+            <h4>Document Upload:</h4>
+            <div class="api-endpoint">
+                POST /upload
+                Authorization: Bearer &lt;accessToken&gt;
+                Content-Type: multipart/form-data
+            </div>
+
+            <h4>Company Verification:</h4>
+            <div class="api-endpoint">
+                POST /company-verifications
+                Authorization: Bearer &lt;accessToken&gt;
+                Content-Type: application/json
+            </div>
+
+            <h3>📦 Payload Examples:</h3>
+
+            <h4>Company User Registration:</h4>
+            <div class="payload">{
+  "email": "admin@techsolutions.com",
+  "password": "SecurePass123!",
+  "role": "company",
+  "profile": {
+    "firstName": "Sarah",
+    "lastName": "Tan",
+    "phone": "+60321234567"
+  }
+}</div>
+
+            <h4>Company Profile Creation:</h4>
+            <div class="payload">{
+  "name": "Tech Solutions Sdn Bhd",
+  "registrationNumber": "123456-A",
+  "industry": "Information Technology",
+  "size": "51-200 employees",
+  "website": "https://techsolutions.com.my",
+  "description": "Leading software development company",
+  "address": {
+    "street": "Level 15, Menara ABC",
+    "city": "Kuala Lumpur",
+    "state": "Federal Territory",
+    "country": "Malaysia",
+    "zipCode": "50450"
+  },
+  "picName": "Sarah Tan",
+  "picPhone": "+60321234567",
+  "picEmail": "sarah@techsolutions.com"
+}</div>
+
+            <h4>Company Verification Submission:</h4>
+            <div class="payload">{
+  "companyId": "64f7e8c9d51afe6de123456",
+  "documents": [
+    {
+      "type": "SSM_SUPERFORM",
+      "fileKey": "documents/company-registration-cert.pdf"
+    },
+    {
+      "type": "BUSINESS_LICENSE",
+      "fileKey": "documents/business-license.pdf"
+    }
+  ]
+}</div>
+
+            <div class="success">
+                ✅ Status: IMPLEMENTED - Company registration, verification, and profile management are fully functional
+            </div>
+        </div>
+
+        <!-- Diagram 3: Intern Profile Update -->
+        <div class="diagram-section">
+            <h2>📋 Diagram 3: Intern Profile Update Workflow</h2>
+
+            <h3>🔄 Flow Steps:</h3>
+            <div class="flow-step">1. Intern clicks on the profile button</div>
+            <div class="flow-step">2. Intern sees the existing profile information</div>
+            <div class="flow-step">3. Intern clicks on the update profile button</div>
+            <div class="flow-step">4. Decision: Update profile OR privacy setting?</div>
+            <div class="flow-step">5a. If profile update: Intern inputs the new value</div>
+            <div class="flow-step">5b. If privacy setting: Intern chooses the new privacy setting</div>
+            <div class="flow-step">6. The new information/privacy setting will be updated</div>
+
+            <h3>🌐 API Endpoint:</h3>
+            <div class="api-endpoint">
+                PATCH /users/:id
+                Authorization: Bearer &lt;accessToken&gt;
+                Content-Type: application/json
+            </div>
+
+            <h3>📦 Payload Examples:</h3>
+
+            <h4>Profile Update:</h4>
+            <div class="payload">{
+  "profile": {
+    "firstName": "Ahmad",
+    "lastName": "Ibrahim",
+    "bio": "Computer Science student passionate about web development",
+    "phone": "+60123456789",
+    "location": {
+      "city": "Kuala Lumpur",
+      "state": "Selangor",
+      "country": "Malaysia"
+    }
+  },
+  "internProfile": {
+    "university": "Universiti Malaya",
+    "major": "Computer Science",
+    "graduationYear": 2025,
+    "gpa": 3.8,
+    "skills": ["JavaScript", "React", "Node.js", "MongoDB"],
+    "linkedIn": "https://linkedin.com/in/ahmad-ibrahim",
+    "github": "https://github.com/ahmad-ibrahim"
+  }
+}</div>
+
+            <h4>Privacy Setting Update:</h4>
+            <div class="payload">{
+  "privacySetting": "restricted"
+}</div>
+
+            <div class="privacy-options">
+                <h4>🔒 Privacy Setting Options:</h4>
+                <div class="privacy-option">
+                    <strong>1. "full" (Default):</strong> Full access - can see everything except phone number
+                </div>
+                <div class="privacy-option">
+                    <strong>2. "restricted":</strong> Cannot see name, email, and contact number
+                </div>
+                <div class="privacy-option">
+                    <strong>3. "private":</strong> Cannot be searched/displayed when search through URL directly
+                </div>
+            </div>
+
+            <div class="success">
+                ✅ Status: IMPLEMENTED - Both profile updates and privacy settings are fully functional
+            </div>
+        </div>
+
+        <!-- Diagram 4: Company Admin Profile Update -->
+        <div class="diagram-section">
+            <h2>🏢 Diagram 4: Company Admin Profile Update Workflow</h2>
+
+            <h3>🔄 Flow Steps:</h3>
+            <div class="flow-step">1. Company admin clicks on the profile button</div>
+            <div class="flow-step">2. Company admin sees the existing company profile information</div>
+            <div class="flow-step">3. Company admin clicks on the update profile button</div>
+            <div class="flow-step">4. Company admin inputs the new value</div>
+            <div class="flow-step">5. The new company admin information will overwrite the current information</div>
+
+            <h3>🌐 API Endpoint:</h3>
+            <div class="api-endpoint">
+                PATCH /users/:id
+                Authorization: Bearer &lt;accessToken&gt;
+                Content-Type: application/json
+            </div>
+
+            <h3>📦 Payload Example:</h3>
+            <div class="payload">{
+  "companyProfile": {
+    "companyName": "Tech Solutions Sdn Bhd",
+    "industry": "Information Technology",
+    "companySize": "51-200 employees",
+    "website": "https://techsolutions.com.my",
+    "description": "Leading software development company specializing in web and mobile applications",
+    "logo": "https://storage.example.com/logos/techsolutions-logo.png",
+    "address": {
+      "street": "Level 15, Menara ABC",
+      "city": "Kuala Lumpur",
+      "state": "Federal Territory",
+      "country": "Malaysia",
+      "zipCode": "50450"
+    }
+  },
+  "profile": {
+    "firstName": "Sarah",
+    "lastName": "Tan",
+    "phone": "+60321234567"
+  }
+}</div>
+
+            <div class="success">
+                ✅ Status: IMPLEMENTED - Company profile updates are fully functional
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #7f8c8d;">
+            <p>📚 Job Finder API Documentation | Last Updated: <span id="lastUpdated"></span></p>
+            <p>🔗 Base URL: <code>http://localhost:3030</code></p>
+        </div>
+    </div>
+
+    <script>
+        // Set last updated date
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString();
+    </script>
+</body>
+</html>

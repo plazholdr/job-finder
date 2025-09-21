@@ -10,6 +10,8 @@ import favorites from './favorites/favorites.service.js';
 import threads from './threads/threads.service.js';
 import messages from './messages/messages.service.js';
 import emailVerification from './email-verification/email-verification.service.js';
+import jobListings from './job-listings/job-listings.service.js';
+import adminMonitoring from './admin-monitoring/admin-monitoring.service.js';
 
 export default function (app) {
   app.configure(users);
@@ -24,4 +26,6 @@ export default function (app) {
   app.configure(threads);
   app.configure(messages);
   app.configure(emailVerification);
+  app.configure(jobListings);
+  app.configure(adminMonitoring);
 };

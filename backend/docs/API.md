@@ -138,7 +138,7 @@ Endpoints
 ### Auth configuration
 - JWT access: `JWT_SECRET`, `JWT_EXPIRES_IN` (default 15m)
 - JWT refresh: `JWT_REFRESH_SECRET` optional, else fallback to `JWT_SECRET`; `JWT_REFRESH_EXPIRES_IN` default 7d
-- Redis: `REDIS_URI` (compose sets `redis://redis:6379` in container)
+- Redis: `REDIS_URI` (compose sets `redis://redis:6379` in container). For local dev without Redis set `REDIS_DISABLED=true`.
 
 ### Storage configuration
 - `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL`
@@ -179,6 +179,28 @@ Path: `/company-verifications`
 - PATCH /:id (admin): { action: 'approve' | 'reject', rejectionReason? }
   - Also updates related company.verifiedStatus
 
+
+## Job Listings
+Path: `/job-listings`
+- POST (company): create a job listing. Include `submitForApproval=true` to immediately set status to pending approval; otherwise it is saved as draft.
+- GET `/job-listings` (JWT): Students see ACTIVE listings; companies see their own; admins see all.
+- GET `/job-listings/:id` (JWT)
+- PATCH `/job-listings/:id`
+  - Company actions: normal field updates on draft/pending; `submitForApproval=true`; `close=true` when active
+  - Admin actions: `approve=true` (sets status=active and computes expiresAt=publishAt+30 days), `reject=true` (back to draft)
+
+Status enum (integer):
+- 0 = draft
+- 1 = pending_approval
+- 2 = active
+- 3 = closed
+
+Notifications:
+- On submit: notify admins (job_submitted)
+- On approve: notify company owner (job approved)
+- On reject: notify company owner (job rejected)
+- On close: notify company owner (job closed)
+
 ## Invites (Gated Access)
 Path: `/invites`
 - POST (verified company): { type:'profile_access'|'interview', userId, message? }
@@ -192,14 +214,32 @@ Gating logic
 Path: `/notifications`
 - FIND (recipient only; admin can access all)
 - PATCH /:id { isRead:true } (recipient or admin)
-- Created automatically by other services (e.g., invite_sent, invite_accepted, kyc_submitted, kyc_approved, message)
+- Created automatically by other services.
+  - Company KYC: kyc_submitted (admins), kyc_review_required (admins), kyc_approved / kyc_rejected (owner)
+  - Companies: company_submitted (admins), company_submission_received (owner), company_approved / company_rejected (owner)
+  - Jobs: job_submitted (admins), job approved/rejected/closed (owner)
+  - Invites/Messages: invite_sent, invite_accepted, message
 - Real-time: clients connected join `users/<userId>` channel and receive events
+
+## Admin Monitoring
+Path: `/admin/monitoring`
+- GET `/admin/monitoring/overview` (admin): returns aggregate counts and 10 most recent job listings
+- GET `/admin/monitoring?type=pending_jobs` (admin): pending job listings to review
+- GET `/admin/monitoring?type=pending_companies` (admin): companies awaiting verification
 
 ## Shortlists
 Path: `/shortlists` (company only)
 - POST { userId, note? }
 - FIND (company’s own)
 - DELETE /:id (owner)
+
+
+## Student Internship Profile
+- Update via `PATCH /users/:id` (self):
+  - `internProfile.preferences` supports `jobTypes`, `locations`, `industries`, `preferredDuration`, `salaryRange{min,max}`
+  - `internProfile.languages`: [string]
+  - `internProfile.courses`: [{ courseId, courseName, courseDescription }]
+  - `internProfile.assignments`: [{ title, natureOfAssignment, methodology, description }]
 
 ## Favorites
 Path: `/favorites` (student)

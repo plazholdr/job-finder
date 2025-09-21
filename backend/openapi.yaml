@@ -416,6 +416,141 @@ paths:
               schema:
                 $ref: '#/components/schemas/Company'
 
+
+  /job-listings:
+    get:
+      summary: Browse job listings (JWT)
+      description: Students see ACTIVE listings. Companies see their own. Admin sees all.
+      tags: [Jobs]
+      responses:
+        '200':
+          description: Paged job listings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedJobListings'
+    post:
+      summary: Create job listing (company)
+      tags: [Jobs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobListingCreate'
+      responses:
+        '201':
+          description: Created listing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobListing'
+
+  /job-listings/{id}:
+    get:
+      summary: Get job listing by id (JWT)
+      tags: [Jobs]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Job listing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobListing'
+    patch:
+      summary: Update job listing (company owner or admin)
+      description: |
+        Allowed actions:
+        - Company: normal field updates on draft/pending; `submitForApproval=true`; `close=true` when active
+        - Admin: `approve=true` (activates), `reject=true`
+      tags: [Jobs]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobListingPatch'
+      responses:
+        '200':
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobListing'
+
+
+  /admin/monitoring:
+    get:
+      summary: Admin monitoring list
+      description: Returns lists of items requiring admin attention based on `type`.
+      tags: [Admin]
+      parameters:
+        - in: query
+          name: type
+          schema: { type: string, enum: [pending_jobs, pending_companies] }
+          description: The type of pending items to list
+      responses:
+        '200':
+          description: List of pending items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /admin/monitoring/overview:
+    get:
+      summary: Admin overview dashboard
+      description: Aggregate counters and recent activity for admins.
+      tags: [Admin]
+      responses:
+        '200':
+          description: Overview stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobListings:
+                    type: object
+                    properties:
+                      counts:
+                        type: object
+                        properties:
+                          draft: { type: integer }
+                          pending: { type: integer }
+                          active: { type: integer }
+                          closed: { type: integer }
+                          total: { type: integer }
+                      recent:
+                        type: array
+                        items:
+                          type: object
+                  companies:
+                    type: object
+                    properties:
+                      counts:
+                        type: object
+                        properties:
+                          pending: { type: integer }
+                          approved: { type: integer }
+                          rejected: { type: integer }
+                          total: { type: integer }
+                  users:
+                    type: object
+                    properties:
+                      counts:
+                        type: object
+                        properties:
+                          students: { type: integer }
+                          companies: { type: integer }
+                          admins: { type: integer }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -549,6 +684,97 @@ components:
         description: { type: string }
         address: { $ref: '#/components/schemas/CompanyCreate/properties/address' }
         internships:
+          type: array
+          items: { $ref: '#/components/schemas/InternshipJob' }
+
+    JobListingCreate:
+      type: object
+      required: [title]
+      properties:
+        companyId: { type: string, description: Admin-only when creating for a company }
+        title: { type: string }
+        position: { type: string, example: intern }
+        description: { type: string }
+        quantityAvailable: { type: integer, default: 1 }
+        location:
+          type: object
+          properties:
+            city: { type: string }
+            state: { type: string }
+        salaryRange:
+          type: object
+          properties:
+            min: { type: number }
+            max: { type: number }
+        pic:
+          type: object
+          properties:
+            name: { type: string }
+            phone: { type: string }
+            email: { type: string }
+        project:
+          type: object
+          properties:
+            title: { type: string }
+            description: { type: string }
+            startDate: { type: string, format: date }
+            endDate: { type: string, format: date }
+            locations: { type: array, items: { type: string } }
+            roleDescription: { type: string }
+            areasOfInterest: { type: array, items: { type: string } }
+        onboardingMaterials:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              fileKey: { type: string }
+              label: { type: string }
+        submitForApproval: { type: boolean, description: If true, status will be pending_approval }
+
+    JobListingPatch:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        quantityAvailable: { type: integer }
+        location: { $ref: '#/components/schemas/JobListingCreate/properties/location' }
+        salaryRange: { $ref: '#/components/schemas/JobListingCreate/properties/salaryRange' }
+        pic: { $ref: '#/components/schemas/JobListingCreate/properties/pic' }
+        project: { $ref: '#/components/schemas/JobListingCreate/properties/project' }
+        onboardingMaterials: { $ref: '#/components/schemas/JobListingCreate/properties/onboardingMaterials' }
+        publishAt: { type: string, format: date-time }
+        submitForApproval: { type: boolean }
+        approve: { type: boolean }
+        reject: { type: boolean }
+        close: { type: boolean }
+
+    JobListing:
+      allOf:
+        - $ref: '#/components/schemas/JobListingCreate'
+        - type: object
+          properties:
+            _id: { type: string }
+            companyId: { type: string }
+            status: { type: integer, description: '0=draft,1=pending_approval,2=active,3=closed' }
+            publishAt: { type: string, format: date-time }
+            expiresAt: { type: string, format: date-time }
+            submittedAt: { type: string, format: date-time }
+            approvedAt: { type: string, format: date-time }
+            closedAt: { type: string, format: date-time }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+
+    PaginatedJobListings:
+      type: object
+      properties:
+        total: { type: integer }
+        limit: { type: integer }
+        skip: { type: integer }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/JobListing' }
+
           type: array
           items: { $ref: '#/components/schemas/InternshipJob' }
     Company:

@@ -60,6 +60,7 @@ const userSchema = new mongoose.Schema({
     graduationYear: Number,
     gpa: Number,
     skills: [String],
+    languages: [String],
     resume: String,
     portfolio: String,
     linkedIn: String,
@@ -123,10 +124,28 @@ const userSchema = new mongoose.Schema({
       }
     ],
 
+
+    // Courses (multiple)
+    courses: [
+      { courseId: String, courseName: String, courseDescription: String }
+    ],
+
+    // Assignments (multiple)
+    assignments: [
+      {
+        title: String,
+        natureOfAssignment: String,
+        methodology: String,
+        description: String
+      }
+    ],
+
+
     preferences: {
       jobTypes: [String],
       locations: [String],
       industries: [String],
+      preferredDuration: String, // e.g., '3 months', '6 months'
       salaryRange: {
         min: Number,
         max: Number

@@ -1,5 +1,5 @@
-const request = require('supertest');
-const app = require('../../src/app');
+import request from 'supertest';
+import app from '../../src/app.js';
 
 describe('Users Service', () => {
   let userToken;
@@ -9,7 +9,7 @@ describe('Users Service', () => {
     const userData = {
       email: 'test@example.com',
       password: 'password123',
-      role: 'intern',
+      role: 'student',
       profile: {
         firstName: 'John',
         lastName: 'Doe'
@@ -24,7 +24,7 @@ describe('Users Service', () => {
     expect(response.body.email).toBe(userData.email);
     expect(response.body.role).toBe(userData.role);
     expect(response.body.password).toBeUndefined();
-    
+
     userId = response.body._id;
   });
 
@@ -43,7 +43,7 @@ describe('Users Service', () => {
     expect(response.body.accessToken).toBeDefined();
     expect(response.body.refreshToken).toBeDefined();
     expect(response.body.user.email).toBe(loginData.email);
-    
+
     userToken = response.body.accessToken;
   });
 

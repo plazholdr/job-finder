@@ -34,11 +34,6 @@ export default (app) => ({
         }
         // Salary range filter (based on internships array)
         if (salaryMin != null || salaryMax != null) {
-          const r = {};
-          if (salaryMin != null) r.max = { $gte: salaryMin };
-          if (salaryMax != null) r.min = { ...(r.min || {}), $lte: salaryMax };
-          query.internships = { $elemMatch: { 'salaryRange.min': r.min?.$lte, 'salaryRange.max': r.max?.$gte } };
-          // Better filter using $elemMatch with predicates
           const elem = {};
           if (salaryMin != null) elem['salaryRange.max'] = { $gte: salaryMin };
           if (salaryMax != null) elem['salaryRange.min'] = { ...(elem['salaryRange.min'] || {}), $lte: salaryMax };
@@ -87,11 +82,12 @@ export default (app) => ({
     update: [ authenticate('jwt') ],
     patch: [
       authenticate('jwt'),
-      // Only owner or admin can patch
+      // Admin or owner can patch; capture previous for notifications
       async (context) => {
+        const prev = await app.service('companies').get(context.id);
+        context.params._before = { verifiedStatus: prev.verifiedStatus, ownerUserId: prev.ownerUserId };
         if (context.params.user.role === 'admin') return;
-        const company = await app.service('companies').get(context.id);
-        if (company.ownerUserId.toString() !== context.params.user._id.toString()) {
+        if (prev.ownerUserId.toString() !== context.params.user._id.toString()) {
           throw new Error('Not authorized');
         }
       }
@@ -118,7 +114,50 @@ export default (app) => ({
         return context;
       }
     ],
-    get: [], create: [], update: [], patch: [], remove: []
+    get: [],
+    create: [ async (context) => {
+      // Notify admins of a new company submission and receipt to owner
+      try {
+        const admins = await app.service('users').find({ paginate: false, query: { role: 'admin' } });
+        await Promise.all((admins||[]).map(a => app.service('notifications').create({
+          recipientUserId: a._id,
+          recipientRole: 'admin',
+          type: 'company_submitted',
+          title: 'New company submitted',
+          body: `${context.result?.name || 'Company'} is pending verification.`
+        }).catch(()=>{})));
+      } catch (_) {}
+      try {
+        await app.service('notifications').create({
+          recipientUserId: context.params.user._id,
+          recipientRole: 'company',
+          type: 'company_submission_received',
+          title: 'Company submitted',
+          body: 'Your company profile has been submitted for verification.'
+        }).catch(()=>{});
+      } catch (_) {}
+    } ],
+    update: [],
+    patch: [ async (context) => {
+      // If verification status changed (including direct admin patch), notify owner
+      try {
+        const before = context.params._before || {};
+        const after = context.result || {};
+        if (before.verifiedStatus !== undefined && after.verifiedStatus !== undefined && before.verifiedStatus !== after.verifiedStatus) {
+          const approved = after.verifiedStatus === VERIFICATION_STATUS.APPROVED;
+          const rejected = after.verifiedStatus === VERIFICATION_STATUS.REJECTED;
+          const title = approved ? 'Company approved' : rejected ? 'Company rejected' : 'Company status updated';
+          const body = approved ? 'Your company is verified.' : rejected ? (after.rejectionReason || 'Your company verification was rejected.') : 'Your company verification status changed.';
+          await app.service('notifications').create({
+            recipientUserId: before.ownerUserId || after.ownerUserId,
+            recipientRole: 'company',
+            type: approved ? 'company_approved' : rejected ? 'company_rejected' : 'company_status_changed',
+            title, body
+          }).catch(()=>{});
+        }
+      } catch (_) {}
+    } ],
+    remove: []
   },
   error: { all: [], find: [], get: [], create: [], update: [], patch: [], remove: [] }
 });

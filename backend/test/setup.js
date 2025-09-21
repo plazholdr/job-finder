@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 
 // Set test environment variables
 process.env.S3_BUCKET = 'test-bucket';
@@ -12,23 +12,18 @@ let mongoServer;
 
 // Setup test database before all tests
 beforeAll(async () => {
-  // Close any existing connections
   if (mongoose.connection.readyState !== 0) {
     await mongoose.connection.close();
   }
 
-  // Start in-memory MongoDB instance
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();
-
-  // Connect to the in-memory database
   await mongoose.connect(mongoUri);
 });
 
 // Clean up after each test
 afterEach(async () => {
-  const collections = mongoose.connection.collections;
-
+  const { collections } = mongoose.connection;
   for (const key in collections) {
     const collection = collections[key];
     await collection.deleteMany({});
@@ -42,5 +37,3 @@ afterAll(async () => {
   await mongoServer.stop();
 });
 
-// Increase timeout for database operations
-jest.setTimeout(30000);

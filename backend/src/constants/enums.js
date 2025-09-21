@@ -27,6 +27,21 @@ const InviteStatusLabel = Object.freeze({
   [InviteStatus.EXPIRED]: 'expired'
 });
 
+// Job listing status (integer enum)
+const JobListingStatus = Object.freeze({
+  DRAFT: 0,
+  PENDING_APPROVAL: 1,
+  ACTIVE: 2,
+  CLOSED: 3
+});
+
+const JobListingStatusLabel = Object.freeze({
+  [JobListingStatus.DRAFT]: 'draft',
+  [JobListingStatus.PENDING_APPROVAL]: 'pending_approval',
+  [JobListingStatus.ACTIVE]: 'active',
+  [JobListingStatus.CLOSED]: 'closed'
+});
+
 // Backwards-compat exports to avoid touching all imports now
 const VERIFICATION_STATUS = CompanyVerificationStatus;
 const VERIFICATION_STATUS_LABELS = CompanyVerificationStatusLabel;
@@ -39,6 +54,8 @@ export {
   CompanyVerificationStatusLabel,
   InviteStatus,
   InviteStatusLabel,
+  JobListingStatus,
+  JobListingStatusLabel,
   // Back-compat names (used in current code)
   VERIFICATION_STATUS,
   VERIFICATION_STATUS_LABELS,
