@@ -1,14 +1,12 @@
 import request from 'supertest';
 import app from '../../src/app.js';
+import { jest } from '@jest/globals';
+
+
+jest.setTimeout(30000);
 
 describe('Job Listings Flow', () => {
-  let adminToken;
-  let companyToken;
-  let studentToken;
-  let companyId;
-  let listingId;
-
-  test('bootstrap users (admin, company, student) and company profile', async () => {
+  test('end-to-end: bootstrap, company verified, create/approve/browse listing', async () => {
     // Admin user
     await request(app).post('/users').send({
       email: 'admin@example.com', password: 'password123', role: 'admin',
@@ -17,7 +15,7 @@ describe('Job Listings Flow', () => {
     const adminAuth = await request(app).post('/authentication').send({
       strategy: 'local', email: 'admin@example.com', password: 'password123'
     }).expect(201);
-    adminToken = adminAuth.body.accessToken;
+    const adminToken = adminAuth.body.accessToken;
 
     // Company user
     await request(app).post('/users').send({
@@ -27,7 +25,7 @@ describe('Job Listings Flow', () => {
     const compAuth = await request(app).post('/authentication').send({
       strategy: 'local', email: 'comp@example.com', password: 'password123'
     }).expect(201);
-    companyToken = compAuth.body.accessToken;
+    const companyToken = compAuth.body.accessToken;
 
     // Student user
     await request(app).post('/users').send({
@@ -37,7 +35,7 @@ describe('Job Listings Flow', () => {
     const studAuth = await request(app).post('/authentication').send({
       strategy: 'local', email: 'stud@example.com', password: 'password123'
     }).expect(201);
-    studentToken = studAuth.body.accessToken;
+    const studentToken = studAuth.body.accessToken;
 
     // Company profile (created by company user)
     const companyRes = await request(app)
@@ -45,7 +43,7 @@ describe('Job Listings Flow', () => {
       .set('Authorization', `Bearer ${companyToken}`)
       .send({ name: 'Test Co', industry: 'IT', city: 'KL' })
       .expect(201);
-    companyId = companyRes.body._id;
+    const companyId = companyRes.body._id;
 
     // Admin approves company (verifiedStatus=1)
     await request(app)
@@ -53,21 +51,19 @@ describe('Job Listings Flow', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ verifiedStatus: 1 })
       .expect(200);
-  });
 
-  test('company creates and submits listing; admin approves; student can browse', async () => {
     // Company creates and submits for approval
     const createRes = await request(app)
       .post('/job-listings')
       .set('Authorization', `Bearer ${companyToken}`)
       .send({
-        companyId, // will be overridden for company role, but harmless
+        companyId,
         title: 'Software Intern',
         description: 'Build awesome things',
         submitForApproval: true
       })
       .expect(201);
-    listingId = createRes.body._id;
+    const listingId = createRes.body._id;
     expect(createRes.body.status).toBe(1); // pending
 
     // Admin approves

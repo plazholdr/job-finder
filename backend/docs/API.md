@@ -186,8 +186,8 @@ Path: `/job-listings`
 - GET `/job-listings` (JWT): Students see ACTIVE listings; companies see their own; admins see all.
 - GET `/job-listings/:id` (JWT)
 - PATCH `/job-listings/:id`
-  - Company actions: normal field updates on draft/pending; `submitForApproval=true`; `close=true` when active
-  - Admin actions: `approve=true` (sets status=active and computes expiresAt=publishAt+30 days), `reject=true` (back to draft)
+  - Company actions: normal field updates on draft/pending; `submitForApproval=true`; `close=true` when active; `requestRenewal=true` when active (flags for admin approval)
+  - Admin actions: `approve=true` (sets status=active and computes expiresAt=publishAt+30 days), `reject=true` (back to draft), `approveRenewal=true` (extends `expiresAt` by 30 days)
 
 Status enum (integer):
 - 0 = draft
@@ -200,6 +200,7 @@ Notifications:
 - On approve: notify company owner (job approved)
 - On reject: notify company owner (job rejected)
 - On close: notify company owner (job closed)
+- On renewal: notify admins when requested (job_renewal_requested); notify company when approved (job_renewal_approved)
 
 ## Invites (Gated Access)
 Path: `/invites`
@@ -226,6 +227,7 @@ Path: `/admin/monitoring`
 - GET `/admin/monitoring/overview` (admin): returns aggregate counts and 10 most recent job listings
 - GET `/admin/monitoring?type=pending_jobs` (admin): pending job listings to review
 - GET `/admin/monitoring?type=pending_companies` (admin): companies awaiting verification
+- GET `/admin/monitoring?type=expiring_jobs` (admin): active job listings expiring within 7 days
 
 ## Shortlists
 Path: `/shortlists` (company only)
@@ -235,11 +237,13 @@ Path: `/shortlists` (company only)
 
 
 ## Student Internship Profile
-- Update via `PATCH /users/:id` (self):
-  - `internProfile.preferences` supports `jobTypes`, `locations`, `industries`, `preferredDuration`, `salaryRange{min,max}`
-  - `internProfile.languages`: [string]
-  - `internProfile.courses`: [{ courseId, courseName, courseDescription }]
-  - `internProfile.assignments`: [{ title, natureOfAssignment, methodology, description }]
+- Preferred endpoint: `GET /student/internship/me` and `PATCH /student/internship/me` (student only; JWT required)
+- Fields supported when patching:
+  - `skills`, `languages`
+  - `courses`: [{ courseId, courseName, courseDescription }]
+  - `assignments`: [{ title, natureOfAssignment, methodology, description }]
+  - `preferences`: { `jobTypes`[], `locations`[], `industries`[], `preferredDuration`, `preferredStartDate`, `preferredEndDate`, `salaryRange`{min,max} }
+- Backward compatible: You can still use `PATCH /users/:id` (self) with `{ internProfile: { ... } }`
 
 ## Favorites
 Path: `/favorites` (student)

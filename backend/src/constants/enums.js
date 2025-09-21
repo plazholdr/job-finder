@@ -42,6 +42,77 @@ const JobListingStatusLabel = Object.freeze({
   [JobListingStatus.CLOSED]: 'closed'
 });
 
+
+// Application lifecycle status (integer enum)
+const ApplicationStatus = Object.freeze({
+  NEW: 0,
+  SHORTLISTED: 1,
+  INTERVIEW_SCHEDULED: 2,
+  PENDING_ACCEPTANCE: 3,
+  ACCEPTED: 4,
+  REJECTED: 5,
+  WITHDRAWN: 6,
+  NOT_ATTENDING: 7
+});
+
+const ApplicationStatusLabel = Object.freeze({
+  [ApplicationStatus.NEW]: 'new',
+  [ApplicationStatus.SHORTLISTED]: 'shortlisted',
+  [ApplicationStatus.INTERVIEW_SCHEDULED]: 'interview_scheduled',
+  [ApplicationStatus.PENDING_ACCEPTANCE]: 'pending_acceptance',
+  [ApplicationStatus.ACCEPTED]: 'accepted',
+  [ApplicationStatus.REJECTED]: 'rejected',
+  [ApplicationStatus.WITHDRAWN]: 'withdrawn',
+  [ApplicationStatus.NOT_ATTENDING]: 'not_attending'
+});
+
+// Employment lifecycle
+const EmploymentStatus = Object.freeze({
+  UPCOMING: 0,
+  ONGOING: 1,
+  CLOSURE: 2,
+  COMPLETED: 3,
+  TERMINATED: 4
+});
+
+const EmploymentStatusLabel = Object.freeze({
+  [EmploymentStatus.UPCOMING]: 'upcoming',
+  [EmploymentStatus.ONGOING]: 'ongoing',
+  [EmploymentStatus.CLOSURE]: 'closure',
+  [EmploymentStatus.COMPLETED]: 'completed',
+  [EmploymentStatus.TERMINATED]: 'terminated'
+});
+
+// Timesheets
+const TimesheetStatus = Object.freeze({
+  DRAFT: 0,
+  SUBMITTED: 1,
+  APPROVED: 2,
+  REJECTED: 3
+});
+
+const TimesheetStatusLabel = Object.freeze({
+  [TimesheetStatus.DRAFT]: 'draft',
+  [TimesheetStatus.SUBMITTED]: 'submitted',
+  [TimesheetStatus.APPROVED]: 'approved',
+  [TimesheetStatus.REJECTED]: 'rejected'
+});
+
+// Generic request status (extensions/terminations)
+const RequestStatus = Object.freeze({
+  PENDING: 0,
+  APPROVED: 1,
+  REJECTED: 2,
+  CANCELLED: 3
+});
+
+const RequestStatusLabel = Object.freeze({
+  [RequestStatus.PENDING]: 'pending',
+  [RequestStatus.APPROVED]: 'approved',
+  [RequestStatus.REJECTED]: 'rejected',
+  [RequestStatus.CANCELLED]: 'cancelled'
+});
+
 // Backwards-compat exports to avoid touching all imports now
 const VERIFICATION_STATUS = CompanyVerificationStatus;
 const VERIFICATION_STATUS_LABELS = CompanyVerificationStatusLabel;
@@ -56,6 +127,14 @@ export {
   InviteStatusLabel,
   JobListingStatus,
   JobListingStatusLabel,
+  ApplicationStatus,
+  ApplicationStatusLabel,
+  EmploymentStatus,
+  EmploymentStatusLabel,
+  TimesheetStatus,
+  TimesheetStatusLabel,
+  RequestStatus,
+  RequestStatusLabel,
   // Back-compat names (used in current code)
   VERIFICATION_STATUS,
   VERIFICATION_STATUS_LABELS,

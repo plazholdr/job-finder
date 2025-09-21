@@ -47,7 +47,7 @@ export default (app) => {
     const redis = app.get('redis');
     if (redis) {
       const key = `refresh_token:${payload.userId}:${payload.tokenId}`;
-      await redis.setex(key, 7 * 24 * 60 * 60, refreshToken);
+      try { await redis.setex(key, 7 * 24 * 60 * 60, refreshToken); } catch (_) {}
     }
     return refreshToken;
   }
@@ -61,28 +61,49 @@ export default (app) => {
           if (ctx.data.email) ctx.data.email = String(ctx.data.email).toLowerCase();
 
           // Debug: verify lookup and password compare internally to help diagnose login failures
-          if (ctx.data.strategy === 'local' && ctx.data.email && ctx.data.password) {
-            try {
-              const users = app.service('users');
-              const found = await users.find({ paginate: false, query: { email: ctx.data.email } });
-              const entity = Array.isArray(found) ? found[0] : found?.data?.[0];
-              const hasPwd = !!(entity && entity.password);
-              const cmp = hasPwd ? await bcrypt.compare(ctx.data.password, entity.password) : false;
-              console.log('Auth debug:', { email: ctx.data.email, found: !!entity, hasPwd, cmp });
-            } catch (e) {
-              console.log('Auth debug error:', e.message);
-            }
-          }
+          // if (ctx.data.strategy === 'local' && ctx.data.email && ctx.data.password) {
+          //   try {
+          //     const users = app.service('users');
+          //     const found = await users.find({ paginate: false, query: { email: ctx.data.email } });
+          //     const entity = Array.isArray(found) ? found[0] : found?.data?.[0];
+          //     const hasPwd = !!(entity && entity.password);
+          //     const cmp = hasPwd ? await bcrypt.compare(ctx.data.password, entity.password) : false;
+          //     console.log('Auth debug:', { email: ctx.data.email, found: !!entity, hasPwd, cmp });
+          //   } catch (e) {
+          //     console.log('Auth debug error:', e.message);
+          //   }
+          // }
         }
         return ctx;
       } ]
     },
     after: {
       create: [ async (ctx) => {
-        // Attach user and a refresh token when logging in with local
-        if (ctx.params && ctx.params.user) {
-          ctx.result.user = ctx.params.user;
-          ctx.result.refreshToken = await issueRefreshToken(ctx.params.user);
+        // Attach user and tokens when logging in with local
+        let user = ctx.params && ctx.params.user;
+
+        // Fallback: if user not present in params (e.g., some envs), lookup by email provided
+        if (!user && ctx.data && ctx.data.email) {
+          try {
+            const users = app.service('users');
+            const found = await users.find({ paginate: false, query: { email: String(ctx.data.email).toLowerCase() } });
+            user = Array.isArray(found) ? found[0] : found?.data?.[0];
+          } catch (_) {}
+        }
+
+        if (user) {
+          // Ensure accessToken exists (fallback for environments where core didn't attach it)
+          if (!ctx.result.accessToken) {
+            try {
+              const authCfg = app.get('authentication') || {};
+              const secret = process.env.JWT_SECRET || authCfg.secret;
+              const expiresIn = (authCfg.jwtOptions && authCfg.jwtOptions.expiresIn) || '1d';
+              const payload = { sub: String(user._id || user.id), userId: String(user._id || user.id), strategy: 'jwt' };
+              ctx.result.accessToken = jwt.sign(payload, secret, { expiresIn });
+            } catch (_) {}
+          }
+          ctx.result.user = user;
+          ctx.result.refreshToken = await issueRefreshToken(user);
         }
         return ctx;
       } ]

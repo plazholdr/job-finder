@@ -26,8 +26,31 @@ export default (app) => ({
       if (ctx.params.user.role !== 'company') throw new Error('Only verified companies can create invites');
       const { ok, company } = await isCompanyVerified(app, ctx.params.user._id);
       if (!ok) throw new Error('Company not verified');
-      ctx.data.companyId = company._id;
-      ctx.data.status = INVITE_STATUS.PENDING;
+
+      const normalize = (item) => ({
+        type: item.type || 'profile_access',
+        userId: item.userId,
+        message: item.message,
+        companyId: company._id,
+        status: INVITE_STATUS.PENDING
+      });
+
+      const data = Array.isArray(ctx.data) ? ctx.data.map(normalize) : [ normalize(ctx.data) ];
+
+      // De-duplicate: skip if there is an existing PENDING invite for same company-user-type
+      const InviteModel = app.service('invites')?.Model;
+      const filtered = [];
+      for (const item of data) {
+        if (!item.userId) continue;
+        const exists = await InviteModel.findOne({ companyId: item.companyId, userId: item.userId, type: item.type, status: INVITE_STATUS.PENDING }).lean();
+        if (!exists) filtered.push(item);
+      }
+
+      ctx.data = Array.isArray(ctx.data) ? filtered : (filtered[0] || null);
+      if (!ctx.data) {
+        // no-op creation: avoid error, return 204-ish with message through result
+        ctx.result = Array.isArray(ctx.data) ? [] : null;
+      }
     } ],
     patch: [ async (ctx) => {
       const { status } = ctx.data;
@@ -54,15 +77,19 @@ export default (app) => ({
   after: {
     all: [],
     create: [ async (ctx) => {
-      // notify user
-      await app.service('notifications').create({
-        recipientUserId: ctx.result.userId,
+      const make = async (inv) => app.service('notifications').create({
+        recipientUserId: inv.userId,
         recipientRole: 'student',
         type: 'invite_sent',
-        title: 'New invite',
-        body: 'A company has invited you.',
-        data: { inviteId: ctx.result._id }
+        title: 'Invitation received',
+        body: 'A company has invited you to connect.',
+        data: { inviteId: inv._id }
       }).catch(()=>{});
+      if (Array.isArray(ctx.result)) {
+        await Promise.all(ctx.result.map(make));
+      } else if (ctx.result) {
+        await make(ctx.result);
+      }
     } ],
     patch: [ async (ctx) => {
       const updated = ctx.result;

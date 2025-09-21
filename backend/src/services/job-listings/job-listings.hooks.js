@@ -105,7 +105,13 @@ export default (app) => ({
             d.status = STATUS.CLOSED;
             d.closedAt = new Date();
           }
-          delete d.close; delete d.submitForApproval;
+          // Company requests renewal when listing is active
+          if (d.requestRenewal === true && current.status === STATUS.ACTIVE) {
+            d.renewal = true;
+            d.renewalRequestedAt = new Date();
+            ctx.params._requestedRenewal = true;
+          }
+          delete d.close; delete d.submitForApproval; delete d.requestRenewal;
         }
 
         // Admin actions
@@ -120,7 +126,16 @@ export default (app) => ({
           if (d.reject === true && current.status === STATUS.PENDING) {
             d.status = STATUS.DRAFT;
           }
-          delete d.approve; delete d.reject;
+          // Approve renewal if requested
+          if (d.approveRenewal === true && current.renewal === true && current.status === STATUS.ACTIVE) {
+            const base = current.expiresAt && new Date(current.expiresAt) > new Date() ? new Date(current.expiresAt) : new Date();
+            const newExp = new Date(base.getTime());
+            newExp.setDate(newExp.getDate() + 30);
+            d.expiresAt = newExp;
+            d.renewal = false;
+            ctx.params._approvedRenewal = true;
+          }
+          delete d.approve; delete d.reject; delete d.approveRenewal;
         }
 
         ctx.data = d;
@@ -149,14 +164,14 @@ export default (app) => ({
       // Transition-based notifications
       const prev = ctx.params._before || {};
       const next = ctx.result;
-      const notifyCompany = async (title, body) => {
+      const notifyCompany = async (title, body, type = 'job_update') => {
         try {
           const company = await app.service('companies').get(next.companyId);
           if (!company) return;
           await app.service('notifications').create({
             recipientUserId: company.ownerUserId,
             recipientRole: 'company',
-            type: 'job_update',
+            type,
             title, body
           });
         } catch (_) {}
@@ -169,6 +184,22 @@ export default (app) => ({
       }
       if (prev.status === STATUS.ACTIVE && next.status === STATUS.CLOSED) {
         await notifyCompany('Job closed', 'Your job listing has been closed.');
+      }
+      // Renewal events
+      if (ctx.params._requestedRenewal) {
+        try {
+          const admins = await app.service('users').find({ paginate: false, query: { role: 'admin' } });
+          await Promise.all((admins || []).map(a => app.service('notifications').create({
+            recipientUserId: a._id,
+            recipientRole: 'admin',
+            type: 'job_renewal_requested',
+            title: 'Job renewal requested',
+            body: `${next.title}`
+          })));
+        } catch (_) {}
+      }
+      if (ctx.params._approvedRenewal) {
+        await notifyCompany('Job renewal approved', 'Your job listing expiry has been extended by 30 days.', 'job_renewal_approved');
       }
     } ]
   },

@@ -122,7 +122,7 @@ export default (app) => ({
         await Promise.all((admins||[]).map(a => app.service('notifications').create({
           recipientUserId: a._id,
           recipientRole: 'admin',
-          type: 'company_submitted',
+          type: 'system',
           title: 'New company submitted',
           body: `${context.result?.name || 'Company'} is pending verification.`
         }).catch(()=>{})));
@@ -131,7 +131,7 @@ export default (app) => ({
         await app.service('notifications').create({
           recipientUserId: context.params.user._id,
           recipientRole: 'company',
-          type: 'company_submission_received',
+          type: 'system',
           title: 'Company submitted',
           body: 'Your company profile has been submitted for verification.'
         }).catch(()=>{});
@@ -151,7 +151,7 @@ export default (app) => ({
           await app.service('notifications').create({
             recipientUserId: before.ownerUserId || after.ownerUserId,
             recipientRole: 'company',
-            type: approved ? 'company_approved' : rejected ? 'company_rejected' : 'company_status_changed',
+            type: 'system',
             title, body
           }).catch(()=>{});
         }

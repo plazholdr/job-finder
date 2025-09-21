@@ -16,6 +16,7 @@ import authentication from './authentication.js';
 import mongoose from './mongoose.js';
 import redis from './redis.js';
 import logger from './logger.js';
+import configureScheduler from './scheduler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -54,6 +55,9 @@ app.configure(channels);
 
 // Configure hooks
 app.hooks(appHooks);
+
+// Configure lightweight scheduler (skips in test env)
+configureScheduler(app);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

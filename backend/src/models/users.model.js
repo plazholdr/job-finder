@@ -146,6 +146,8 @@ const userSchema = new mongoose.Schema({
       locations: [String],
       industries: [String],
       preferredDuration: String, // e.g., '3 months', '6 months'
+      preferredStartDate: Date,
+      preferredEndDate: Date,
       salaryRange: {
         min: Number,
         max: Number

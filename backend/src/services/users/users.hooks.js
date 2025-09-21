@@ -46,6 +46,10 @@ async function maskForCompanies(context) {
 async function requireVerifiedCompany(context) {
   const requester = context.params && context.params.user;
   if (requester && requester.role === 'company') {
+    // Allow a company to access its own user record (e.g., during authentication)
+    if (context.path === 'users' && context.method === 'get' && context.id && String(context.id) === String(requester._id)) {
+      return context;
+    }
     const { ok } = await isCompanyVerified(context.app, requester._id);
     if (!ok) {
       const err = new Error('Company verification required');

@@ -45,6 +45,7 @@ const jobListingSchema = new mongoose.Schema({
 
   publishAt: Date, // when to publish (if scheduled); defaults to approval date
   expiresAt: Date,  // system auto-set: publishAt + 30 days
+  lastExpiryReminderAt: Date,
 
   // Status enum stored as integer (see constants/enums)
   status: { type: Number, enum: [0,1,2,3], default: 0, index: true },

@@ -32,7 +32,7 @@ class RefreshTokenService {
     const redis = this.app.get('redis');
     if (redis) {
       const key = `refresh_token:${user._id}:${payload.tokenId}`;
-      await redis.setex(key, 7 * 24 * 60 * 60, token);
+      try { await redis.setex(key, 7 * 24 * 60 * 60, token); } catch (_) {}
     }
     return token;
   }
@@ -53,7 +53,8 @@ class RefreshTokenService {
 
       const redis = this.app.get('redis');
       const key = `refresh_token:${decoded.userId}:${decoded.tokenId}`;
-      const storedToken = redis ? await redis.get(key) : null;
+      let storedToken = null;
+      try { storedToken = redis ? await redis.get(key) : null; } catch (_) { storedToken = null; }
       if (!storedToken || storedToken !== refreshToken) {
         throw new NotAuthenticated('Invalid or expired refresh token');
       }
@@ -66,7 +67,7 @@ class RefreshTokenService {
       const accessToken = this.signAccessToken(user);
       const newRefreshToken = await this.signRefreshToken(user);
 
-      if (redis) await redis.del(key);
+      try { if (redis) await redis.del(key); } catch (_) {}
 
       return {
         accessToken,

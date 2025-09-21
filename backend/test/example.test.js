@@ -1,5 +1,3 @@
-const request = require('supertest');
-
 describe('Example Test', () => {
   test('should pass basic test', () => {
     expect(1 + 1).toBe(2);

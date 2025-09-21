@@ -87,6 +87,15 @@ class AdminMonitoringService {
       return items;
     }
 
+    if (type === 'expiring_jobs') {
+      const JobModel = this.app.service('job-listings').Model;
+      const now = new Date();
+      const threshold = new Date(now.getTime());
+      threshold.setDate(threshold.getDate() + 7);
+      const items = await JobModel.find({ status: 2, expiresAt: { $lte: threshold, $gte: now } }).sort({ expiresAt: 1 }).limit(50).lean();
+      return items;
+    }
+
     return [];
   }
 }

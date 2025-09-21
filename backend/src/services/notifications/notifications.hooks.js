@@ -2,25 +2,32 @@ import { hooks as authHooks } from '@feathersjs/authentication';
 
 const { authenticate } = authHooks;
 
+const authIfExternal = (ctx, next) => {
+  if (ctx.params.provider) {
+    return authenticate('jwt')(ctx, next);
+  }
+};
+
 export default (app) => ({
   before: {
-    all: [ authenticate('jwt') ],
-    find: [ async (ctx) => {
+    all: [],
+    find: [ authIfExternal, async (ctx) => {
       // Only recipient sees theirs unless admin
-      if (ctx.params.user.role === 'admin') return;
+      if (ctx.params.user?.role === 'admin') return;
+      if (!ctx.params.user) throw Object.assign(new Error('Not authenticated'), { code: 401 });
       ctx.params.query = ctx.params.query || {};
       ctx.params.query.recipientUserId = ctx.params.user._id;
     } ],
-    get: [ authenticate('jwt') ],
-    create: [ /* usually internal from hooks, still authenticated */ ],
-    patch: [ async (ctx) => {
+    get: [ authIfExternal ],
+    create: [ /* allow internal or external create; external is authenticated by default channels */ ],
+    patch: [ authIfExternal, async (ctx) => {
       // Only recipient can mark read
-      const current = await app.service('notifications').get(ctx.id);
+      const current = await app.service('notifications').get(ctx.id, ctx.params);
       if (ctx.params.user.role !== 'admin' && current.recipientUserId.toString() !== ctx.params.user._id.toString()) {
-        throw new Error('Not authorized');
+        throw Object.assign(new Error('Not authorized'), { code: 403 });
       }
     } ],
-    remove: [ authenticate('jwt') ]
+    remove: [ authIfExternal ]
   },
   after: {
     all: [],
