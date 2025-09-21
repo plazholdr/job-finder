@@ -1,6 +1,10 @@
-const { authenticate } = require('@feathersjs/authentication').hooks;
+import { hooks as authHooks } from '@feathersjs/authentication';
+import Threads from '../../models/threads.model.js';
+import Companies from '../../models/companies.model.js';
 
-module.exports = (app) => ({
+const { authenticate } = authHooks;
+
+export default (app) => ({
   before: {
     all: [ authenticate('jwt') ],
     find: [ async (ctx) => {
@@ -19,7 +23,6 @@ module.exports = (app) => ({
     all: [],
     create: [ async (ctx) => {
       // bump thread lastMessageAt and notify other participant
-      const Threads = require('../../models/threads.model');
       await Threads.findByIdAndUpdate(ctx.result.threadId, { $set: { lastMessageAt: new Date() } });
       // TODO: create notification per participant if needed
       await app.service('notifications').create({
@@ -35,10 +38,8 @@ module.exports = (app) => ({
 });
 
 async function ensureParticipant(app, userId, threadId) {
-  const Threads = require('../../models/threads.model');
   const t = await Threads.findById(threadId);
   if (!t) throw new Error('Thread not found');
-  const Companies = require('../../models/companies.model');
   const c = await Companies.findOne({ ownerUserId: userId });
   const isParticipant = t.participants.some(p => (p.userId && p.userId.toString() === userId.toString()) || (c && p.companyId && p.companyId.toString() === c._id.toString()));
   if (!isParticipant) throw new Error('Not authorized');

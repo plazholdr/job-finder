@@ -1,5 +1,8 @@
-const { upload, storageUtils } = require('../../utils/storage');
-const { BadRequest } = require('@feathersjs/errors');
+import { upload, storageUtils } from '../../utils/storage.js';
+import { BadRequest } from '@feathersjs/errors';
+import { hooks as authHooks } from '@feathersjs/authentication';
+
+const { authenticate } = authHooks;
 
 class UploadService {
   constructor(options, app) {
@@ -80,7 +83,7 @@ class UploadService {
   }
 }
 
-module.exports = function (app) {
+export default function (app) {
   const options = {
     paginate: app.get('paginate')
   };
@@ -98,12 +101,12 @@ module.exports = function (app) {
       get: [],
       create: [
         // Authenticate user before upload
-        require('@feathersjs/authentication').hooks.authenticate('jwt')
+        authenticate('jwt')
       ],
       update: [],
       patch: [],
       remove: [
-        require('@feathersjs/authentication').hooks.authenticate('jwt')
+        authenticate('jwt')
       ]
     },
     after: {

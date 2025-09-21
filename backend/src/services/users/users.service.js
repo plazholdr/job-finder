@@ -1,10 +1,11 @@
-const { Service } = require('feathers-mongoose');
-const createModel = require('../../models/users.model');
-const hooks = require('./users.hooks');
+import feathersMongoose from 'feathers-mongoose';
+const { Service } = feathersMongoose;
+import Users from '../../models/users.model.js';
+import hooks from './users.hooks.js';
 
-module.exports = function (app) {
+export default function (app) {
   const options = {
-    Model: createModel,
+    Model: Users,
     paginate: app.get('paginate')
   };
 
@@ -15,4 +16,4 @@ module.exports = function (app) {
   const service = app.service('users');
 
   service.hooks(hooks);
-};
+}

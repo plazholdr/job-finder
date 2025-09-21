@@ -1,19 +1,22 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+import { VERIFICATION_STATUS, INVITE_STATUS } from '../constants/enums.js';
+import Companies from '../models/companies.model.js';
+import Invites from '../models/invites.model.js';
 
 async function getCompanyForUser(app, userId) {
-  const Companies = require('../models/companies.model');
   return Companies.findOne({ ownerUserId: new mongoose.Types.ObjectId(userId) });
 }
 
 async function isCompanyVerified(app, userId) {
   const company = await getCompanyForUser(app, userId);
   if (!company) return { ok: false, company: null };
-  return { ok: company.verifiedStatus === 'approved', company };
+  const s = company.verifiedStatus;
+  const ok = (typeof s === 'number' && s === VERIFICATION_STATUS.APPROVED) || (typeof s === 'string' && s === 'approved');
+  return { ok, company };
 }
 
 async function hasAcceptedInvite(app, companyId, userId) {
-  const Invites = require('../models/invites.model');
-  const invite = await Invites.findOne({ companyId, userId, status: 'accepted' });
+  const invite = await Invites.findOne({ companyId, userId, status: { $in: [INVITE_STATUS.ACCEPTED, 'accepted'] } });
   return !!invite;
 }
 
@@ -52,5 +55,5 @@ function maskStudent(record) {
   return r;
 }
 
-module.exports = { getCompanyForUser, isCompanyVerified, hasAcceptedInvite, maskStudent };
+export { getCompanyForUser, isCompanyVerified, hasAcceptedInvite, maskStudent };
 

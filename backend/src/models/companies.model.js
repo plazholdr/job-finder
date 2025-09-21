@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const internshipJobSchema = new mongoose.Schema({
   title: String,
@@ -32,12 +32,12 @@ const companySchema = new mongoose.Schema({
     fullAddress: String
   },
   internships: [internshipJobSchema],
-  verifiedStatus: { type: String, enum: ['pending','approved','rejected'], default: 'pending', index: true },
+  verifiedStatus: { type: Number, enum: [0,1,2], default: 0, index: true },
   rejectionReason: String,
   submittedAt: Date,
   reviewedAt: Date,
   reviewerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Company', companySchema);
+export default mongoose.model('Company', companySchema);
 

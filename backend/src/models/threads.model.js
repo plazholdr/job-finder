@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const participantSchema = new mongoose.Schema({
   role: { type: String, enum: ['company','student'], required: true },
@@ -11,5 +11,5 @@ const threadSchema = new mongoose.Schema({
   lastMessageAt: { type: Date, index: true }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Thread', threadSchema);
+export default mongoose.model('Thread', threadSchema);
 

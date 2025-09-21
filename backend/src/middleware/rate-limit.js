@@ -1,9 +1,9 @@
-const { RateLimiterRedis } = require('rate-limiter-flexible');
-const { Forbidden } = require('@feathersjs/errors');
+import { RateLimiterRedis } from 'rate-limiter-flexible';
+import { Forbidden } from '@feathersjs/errors';
 
-module.exports = function (app) {
+export default function (app) {
   const redis = app.get('redis');
-  
+
   if (!redis) {
     console.warn('Redis not configured, skipping rate limiting');
     return;

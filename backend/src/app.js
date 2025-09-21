@@ -1,21 +1,23 @@
-const feathers = require('@feathersjs/feathers');
-const express = require('@feathersjs/express');
-const socketio = require('@feathersjs/socketio');
-const configuration = require('@feathersjs/configuration');
-const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
+import feathers from '@feathersjs/feathers';
+import express from '@feathersjs/express';
+import socketio from '@feathersjs/socketio';
+import configuration from '@feathersjs/configuration';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const path = require('path');
+import middleware from './middleware/index.js';
+import services from './services/index.js';
+import appHooks from './app.hooks.js';
+import channels from './channels.js';
+import authentication from './authentication.js';
+import mongoose from './mongoose.js';
+import redis from './redis.js';
+import logger from './logger.js';
 
-const middleware = require('./middleware');
-const services = require('./services');
-const appHooks = require('./app.hooks');
-const channels = require('./channels');
-const authentication = require('./authentication');
-const mongoose = require('./mongoose');
-const redis = require('./redis');
-const logger = require('./logger');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Create Express app
 const app = express(feathers());
@@ -24,9 +26,7 @@ const app = express(feathers());
 app.configure(configuration());
 
 // Enable security, CORS, compression and body parsing
-app.use(helmet({
-  contentSecurityPolicy: false
-}));
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
@@ -39,7 +39,6 @@ app.configure(socketio());
 // Configure database
 app.configure(mongoose);
 app.configure(redis);
-
 
 // Configure authentication
 app.configure(authentication);
@@ -81,9 +80,8 @@ app.get('/docs', (req, res) => {
 </html>`);
 });
 
-
 // Configure error handling
 app.use(express.notFound());
 app.use(express.errorHandler({ logger }));
 
-module.exports = app;
+export default app;

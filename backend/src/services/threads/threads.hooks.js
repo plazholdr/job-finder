@@ -1,6 +1,9 @@
-const { authenticate } = require('@feathersjs/authentication').hooks;
+import { hooks as authHooks } from '@feathersjs/authentication';
+import Companies from '../../models/companies.model.js';
 
-module.exports = (app) => ({
+const { authenticate } = authHooks;
+
+export default (app) => ({
   before: {
     all: [ authenticate('jwt') ],
     find: [ async (ctx) => {
@@ -31,7 +34,6 @@ module.exports = (app) => ({
 });
 
 async function getCompanyIdIfCompany(app, userId) {
-  const Companies = require('../../models/companies.model');
   const c = await Companies.findOne({ ownerUserId: userId });
   return c ? c._id : null;
 }

@@ -1,10 +1,10 @@
-const rateLimit = require('./rate-limit');
-const errorHandler = require('./error-handler');
+import rateLimit from './rate-limit.js';
+import errorHandler from './error-handler.js';
 
-module.exports = function (app) {
+export default function (app) {
   // Configure rate limiting
   app.configure(rateLimit);
-  
+
   // Configure error handling
   app.configure(errorHandler);
 };

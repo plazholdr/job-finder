@@ -19,5 +19,5 @@ function verifyEmailTemplate({ brandName = 'JobFinder', code, verifyLink }) {
 </html>`;
 }
 
-module.exports = { verifyEmailTemplate };
+export { verifyEmailTemplate };
 

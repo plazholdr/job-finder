@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
-const { BadRequest, NotAuthenticated } = require('@feathersjs/errors');
-const crypto = require('crypto');
+import jwt from 'jsonwebtoken';
+import { BadRequest, NotAuthenticated } from '@feathersjs/errors';
+import crypto from 'crypto';
 
 class RefreshTokenService {
   constructor(options, app) {
@@ -82,7 +82,7 @@ class RefreshTokenService {
   }
 }
 
-module.exports = function (app) {
+export default function (app) {
   const options = { paginate: app.get('paginate') };
   app.use('/refresh-token', new RefreshTokenService(options, app));
   const service = app.service('refresh-token');

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const shortlistSchema = new mongoose.Schema({
   companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', index: true, required: true },
@@ -6,5 +6,5 @@ const shortlistSchema = new mongoose.Schema({
   note: String
 }, { timestamps: true });
 
-module.exports = mongoose.model('Shortlist', shortlistSchema);
+export default mongoose.model('Shortlist', shortlistSchema);
 

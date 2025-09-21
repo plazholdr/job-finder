@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema({
   recipientUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true, required: true },
@@ -10,5 +10,5 @@ const notificationSchema = new mongoose.Schema({
   isRead: { type: Boolean, default: false }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Notification', notificationSchema);
+export default mongoose.model('Notification', notificationSchema);
 

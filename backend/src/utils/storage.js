@@ -1,9 +1,9 @@
-const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const multer = require('multer');
-const multerS3 = require('multer-s3');
-const crypto = require('crypto');
-const path = require('path');
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import multer from 'multer';
+import multerS3 from 'multer-s3';
+import crypto from 'crypto';
+import path from 'path';
 
 // Debug environment variables
 console.log('S3 Environment Variables:');
@@ -131,7 +131,7 @@ const storageUtils = {
   }
 };
 
-module.exports = {
+export {
   s3Client,
   upload,
   storageUtils

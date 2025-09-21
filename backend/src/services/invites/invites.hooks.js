@@ -1,8 +1,12 @@
-const { authenticate } = require('@feathersjs/authentication').hooks;
-const mongoose = require('mongoose');
-const { isCompanyVerified } = require('../../utils/access');
+import { hooks as authHooks } from '@feathersjs/authentication';
+import mongoose from 'mongoose';
+import Companies from '../../models/companies.model.js';
+import { isCompanyVerified } from '../../utils/access.js';
+import { INVITE_STATUS } from '../../constants/enums.js';
 
-module.exports = (app) => ({
+const { authenticate } = authHooks;
+
+export default (app) => ({
   before: {
     all: [ authenticate('jwt') ],
     find: [ async (ctx) => {
@@ -10,7 +14,6 @@ module.exports = (app) => ({
       if (ctx.params.user.role === 'admin') return;
       ctx.params.query = ctx.params.query || {};
       if (ctx.params.user.role === 'company') {
-        const Companies = require('../../models/companies.model');
         const company = await Companies.findOne({ ownerUserId: ctx.params.user._id });
         if (!company) throw new Error('Company profile not found');
         ctx.params.query.companyId = company._id;
@@ -24,15 +27,27 @@ module.exports = (app) => ({
       const { ok, company } = await isCompanyVerified(app, ctx.params.user._id);
       if (!ok) throw new Error('Company not verified');
       ctx.data.companyId = company._id;
-      ctx.data.status = 'pending';
+      ctx.data.status = INVITE_STATUS.PENDING;
     } ],
     patch: [ async (ctx) => {
       const { status } = ctx.data;
-      if (!['accepted','declined'].includes(status)) throw new Error('Only accept/decline allowed');
+      let newStatus;
+      if (typeof status === 'number') {
+        if (![INVITE_STATUS.ACCEPTED, INVITE_STATUS.DECLINED].includes(status)) {
+          throw new Error('Only accept/decline allowed');
+        }
+        newStatus = status;
+      } else if (typeof status === 'string') {
+        if (status === 'accepted') newStatus = INVITE_STATUS.ACCEPTED;
+        else if (status === 'declined') newStatus = INVITE_STATUS.DECLINED;
+        else throw new Error('Only accept/decline allowed');
+      } else {
+        throw new Error('Invalid status');
+      }
       const invite = await app.service('invites').get(ctx.id);
       // Only the target user can respond
       if (invite.userId.toString() !== ctx.params.user._id.toString()) throw new Error('Not authorized');
-      ctx.data = { status, respondedAt: new Date() };
+      ctx.data = { status: newStatus, respondedAt: new Date() };
     } ],
     remove: []
   },
@@ -52,15 +67,15 @@ module.exports = (app) => ({
     patch: [ async (ctx) => {
       const updated = ctx.result;
       const invite = await app.service('invites').get(updated._id);
-      const type = updated.status === 'accepted' ? 'invite_accepted' : 'invite_declined';
-      const company = await require('../../models/companies.model').findById(invite.companyId);
+      const type = updated.status === INVITE_STATUS.ACCEPTED ? 'invite_accepted' : 'invite_declined';
+      const company = await Companies.findById(invite.companyId);
       if (company) {
         await app.service('notifications').create({
           recipientUserId: company.ownerUserId,
           recipientRole: 'company',
           type,
-          title: updated.status === 'accepted' ? 'Invite accepted' : 'Invite declined',
-          body: 'Your invite has been ' + updated.status + '.',
+          title: updated.status === INVITE_STATUS.ACCEPTED ? 'Invite accepted' : 'Invite declined',
+          body: 'Your invite has been ' + (updated.status === INVITE_STATUS.ACCEPTED ? 'accepted' : 'declined') + '.',
           data: { inviteId: updated._id, userId: invite.userId }
         }).catch(()=>{});
       }

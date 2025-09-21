@@ -1,7 +1,7 @@
-const mongoose = require('mongoose');
-const logger = require('./logger');
+import mongoose from 'mongoose';
+import logger from './logger.js';
 
-module.exports = function (app) {
+export default function (app) {
   const mongoUrl = process.env.MONGODB_URI || app.get('mongodb');
 
   mongoose.connect(mongoUrl).then(() => {

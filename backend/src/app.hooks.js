@@ -1,7 +1,7 @@
 // Application hooks that run for every service
-const logger = require('./logger');
+import logger from './logger.js';
 
-module.exports = {
+export default {
   before: {
     all: [
       // Log all requests

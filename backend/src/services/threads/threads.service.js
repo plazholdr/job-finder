@@ -1,11 +1,12 @@
-const { Service } = require('feathers-mongoose');
-const Threads = require('../../models/threads.model');
-const hooks = require('./threads.hooks');
+import feathersMongoose from 'feathers-mongoose';
+const { Service } = feathersMongoose;
+import Threads from '../../models/threads.model.js';
+import hooks from './threads.hooks.js';
 
-module.exports = function (app) {
+export default function (app) {
   const options = { Model: Threads, paginate: app.get('paginate') };
   app.use('/threads', new Service(options));
   const service = app.service('threads');
   service.hooks(hooks(app));
-};
+}
 

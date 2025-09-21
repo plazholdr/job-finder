@@ -1,8 +1,7 @@
-// Load environment variables first
-require('dotenv').config();
-
-const logger = require('./logger');
-const app = require('./app');
+// ESM entrypoint
+import 'dotenv/config';
+import logger from './logger.js';
+import app from './app.js';
 
 const port = app.get('port');
 const started = app.listen(port);

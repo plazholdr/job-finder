@@ -1,17 +1,17 @@
-const users = require('./users/users.service.js');
-const refreshToken = require('./refresh-token/refresh-token.service.js');
-const upload = require('./upload/upload.service.js');
-const companies = require('./companies/companies.service.js');
-const companyVerifications = require('./company-verifications/company-verifications.service.js');
-const invites = require('./invites/invites.service.js');
-const notifications = require('./notifications/notifications.service.js');
-const shortlists = require('./shortlists/shortlists.service.js');
-const favorites = require('./favorites/favorites.service.js');
-const threads = require('./threads/threads.service.js');
-const messages = require('./messages/messages.service.js');
-const emailVerification = require('./email-verification/email-verification.service.js');
+import users from './users/users.service.js';
+import refreshToken from './refresh-token/refresh-token.service.js';
+import upload from './upload/upload.service.js';
+import companies from './companies/companies.service.js';
+import companyVerifications from './company-verifications/company-verifications.service.js';
+import invites from './invites/invites.service.js';
+import notifications from './notifications/notifications.service.js';
+import shortlists from './shortlists/shortlists.service.js';
+import favorites from './favorites/favorites.service.js';
+import threads from './threads/threads.service.js';
+import messages from './messages/messages.service.js';
+import emailVerification from './email-verification/email-verification.service.js';
 
-module.exports = function (app) {
+export default function (app) {
   app.configure(users);
   app.configure(refreshToken);
   app.configure(upload);

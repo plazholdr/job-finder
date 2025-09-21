@@ -1,7 +1,7 @@
-const Redis = require('ioredis');
-const logger = require('./logger');
+import Redis from 'ioredis';
+import logger from './logger.js';
 
-module.exports = function (app) {
+export default function (app) {
   const redisUrl = process.env.REDIS_URI || app.get('redis');
 
   const redis = new Redis(redisUrl, {

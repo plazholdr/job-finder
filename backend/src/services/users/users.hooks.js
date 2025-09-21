@@ -1,8 +1,11 @@
-const { authenticate } = require('@feathersjs/authentication').hooks;
-const { hashPassword, protect } = require('@feathersjs/authentication-local').hooks;
-const { disallow, iff, isProvider } = require('feathers-hooks-common');
-const mongoose = require('mongoose');
-const { getCompanyForUser, hasAcceptedInvite, maskStudent, isCompanyVerified } = require('../../utils/access');
+import { hooks as authHooks } from '@feathersjs/authentication';
+import { hooks as localHooks } from '@feathersjs/authentication-local';
+import { disallow, iff, isProvider } from 'feathers-hooks-common';
+import mongoose from 'mongoose';
+import { getCompanyForUser, hasAcceptedInvite, maskStudent, isCompanyVerified } from '../../utils/access.js';
+
+const { authenticate } = authHooks;
+const { hashPassword, protect } = localHooks;
 
 async function maskForCompanies(context) {
   // Only apply when requester is a company and viewing other users
@@ -91,7 +94,7 @@ async function mapStudentFilters(context) {
   return context;
 }
 
-module.exports = {
+export default {
   before: {
     all: [],
     find: [

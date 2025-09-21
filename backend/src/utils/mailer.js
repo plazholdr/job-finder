@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 let cachedTransporter = null;
 
@@ -34,5 +34,5 @@ async function sendMail({ to, subject, text, html }) {
   return info;
 }
 
-module.exports = { getTransporter, sendMail };
+export { getTransporter, sendMail };
 

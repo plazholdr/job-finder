@@ -245,15 +245,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
 
-  /companies:
-    get:
-      summary: List companies (JWT)
-      description: |
-        Supports search, filters, sorting, and recommendations.
-        Query params:
-        - q/keyword: search by company name
-        - industry/nature: business nature filter
-        - city/location: location filter (address.city or fullAddress)
   /company-verifications:
     get:
       summary: List company verifications
@@ -323,6 +314,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/CompanyVerification'
 
+  /companies:
+    get:
+      summary: Search and filter companies
+      description: |
+        Search companies with various filters:
         - salaryMin, salaryMax: filter by internships' salary range
         - latest=true or sort=latest
         - sortBy=name|salary
@@ -564,8 +560,8 @@ components:
             ownerUserId: { type: string }
             logoKey: { type: string }
             verifiedStatus:
-              type: string
-              enum: [pending, approved, rejected]
+              type: integer
+              description: "0=pending, 1=approved, 2=rejected"
             internshipListingCount: { type: integer }
             internshipTopTitles:
               type: array
@@ -604,7 +600,7 @@ components:
           properties:
             _id: { type: string }
             submittedBy: { type: string }
-            status: { type: string, enum: [pending, approved, rejected] }
+            status: { type: integer, description: "0=pending, 1=approved, 2=rejected" }
             rejectionReason: { type: string }
             submittedAt: { type: string, format: date-time }
             reviewedAt: { type: string, format: date-time }

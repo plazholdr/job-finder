@@ -1,15 +1,12 @@
-const { AuthenticationService, JWTStrategy } = require('@feathersjs/authentication');
-const { LocalStrategy } = require('@feathersjs/authentication-local');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+import { AuthenticationService, JWTStrategy } from '@feathersjs/authentication';
+import { LocalStrategy } from '@feathersjs/authentication-local';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
-module.exports = app => {
-  // Use native Feathers AuthenticationService
-  const authentication = new AuthenticationService(app);
-
+export default (app) => {
   // Ensure strategies are allowed; prefer config but fall back to explicit
   const baseConfig = app.get('authentication') || {};
-  authentication.configuration = {
+  const mergedConfig = {
     ...baseConfig,
     authStrategies: Array.isArray(baseConfig.authStrategies) && baseConfig.authStrategies.length
       ? baseConfig.authStrategies
@@ -20,6 +17,10 @@ module.exports = app => {
       ...(baseConfig.local || {})
     }
   };
+  app.set('authentication', mergedConfig);
+
+  // Use native Feathers AuthenticationService
+  const authentication = new AuthenticationService(app);
 
   // Register stock strategies
   authentication.register('jwt', new JWTStrategy());

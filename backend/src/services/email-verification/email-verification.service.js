@@ -1,7 +1,9 @@
-const crypto = require('crypto');
-const { sendMail } = require('../../utils/mailer');
-const { verifyEmailTemplate } = require('../../utils/email-templates');
-const { authenticate } = require('@feathersjs/authentication').hooks;
+import crypto from 'crypto';
+import { sendMail } from '../../utils/mailer.js';
+import { verifyEmailTemplate } from '../../utils/email-templates.js';
+import { hooks as authHooks } from '@feathersjs/authentication';
+
+const { authenticate } = authHooks;
 
 class EmailVerificationService {
   constructor(options, app) {
@@ -105,7 +107,7 @@ class EmailVerificationService {
   }
 }
 
-module.exports = function (app) {
+export default function (app) {
   const options = { paginate: app.get('paginate') };
   const svc = new EmailVerificationService(options, app);
   app.use('/email-verification', svc);

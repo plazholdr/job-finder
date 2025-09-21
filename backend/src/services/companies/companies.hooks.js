@@ -1,7 +1,10 @@
-const { authenticate } = require('@feathersjs/authentication').hooks;
-const { iff, isProvider } = require('feathers-hooks-common');
+import { hooks as authHooks } from '@feathersjs/authentication';
+import { iff, isProvider } from 'feathers-hooks-common';
+import { VERIFICATION_STATUS } from '../../constants/enums.js';
 
-module.exports = (app) => ({
+const { authenticate } = authHooks;
+
+export default (app) => ({
   before: {
     all: [],
     find: [
@@ -77,7 +80,7 @@ module.exports = (app) => ({
       async (context) => {
         // owner is the authenticated user
         context.data.ownerUserId = context.params.user._id;
-        context.data.verifiedStatus = 'pending';
+        context.data.verifiedStatus = VERIFICATION_STATUS.PENDING;
         context.data.submittedAt = new Date();
       }
     ],
