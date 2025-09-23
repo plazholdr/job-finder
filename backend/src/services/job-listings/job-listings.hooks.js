@@ -27,7 +27,7 @@ function computeExpiry(publishAt) {
 
 export default (app) => ({
   before: {
-    all: [ iff(isProvider('external'), authenticate('jwt')) ],
+    all: [],
     find: [ async (ctx) => {
       const user = ctx.params?.user;
       ctx.params.query = ctx.params.query || {};
@@ -40,8 +40,18 @@ export default (app) => ({
         ctx.params.query.companyId = company._id;
       }
     } ],
-    get: [],
+    get: [ async (ctx) => {
+      const user = ctx.params?.user;
+      if (!user || user.role === 'student') {
+        // Only allow getting ACTIVE listings publicly
+        const current = await app.service('job-listings').Model.findById(ctx.id).lean();
+        if (!current || current.status !== STATUS.ACTIVE) {
+          const e = new Error('Not found'); e.code = 404; throw e;
+        }
+      }
+    } ],
     create: [
+      authenticate('jwt'),
       onlyRoles('company','admin'),
       async (ctx) => {
         const user = ctx.params.user;
@@ -77,9 +87,10 @@ export default (app) => ({
     ],
     update: [ () => { throw new Error('Method not allowed'); } ],
     patch: [
+      authenticate('jwt'),
       async (ctx) => {
         const user = ctx.params?.user;
-        const current = await app.service('job-listings').get(ctx.id);
+        const current = await app.service('job-listings').get(ctx.id, ctx.params);
         // capture snapshot for after hooks
         ctx.params._before = { status: current.status };
 
@@ -141,7 +152,7 @@ export default (app) => ({
         ctx.data = d;
       }
     ],
-    remove: [ onlyRoles('admin') ]
+    remove: [ authenticate('jwt'), onlyRoles('admin') ]
   },
   after: {
     all: [],

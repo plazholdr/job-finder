@@ -8,7 +8,6 @@ export default (app) => ({
   before: {
     all: [],
     find: [
-      authenticate('jwt'),
       async (context) => {
         const q = { ...(context.params.query || {}) };
 
@@ -21,6 +20,13 @@ export default (app) => ({
         const latest = q.latest === 'true' || q.sort === 'latest';
         const sortBy = q.sortBy || q.sort;
         const recommended = q.recommended === 'true';
+
+        // Public (unauthenticated) and student users only see approved companies
+        const isExternal = !!context.params.provider;
+        const role = context.params.user?.role;
+        if (isExternal && role !== 'admin') {
+          q.verifiedStatus = VERIFICATION_STATUS.APPROVED;
+        }
 
         // Build Mongo query
         const query = {};
@@ -61,6 +67,7 @@ export default (app) => ({
 
         context.params.query = {
           ...query,
+          ...(q.verifiedStatus !== undefined ? { verifiedStatus: q.verifiedStatus } : {}),
           $sort: Object.keys($sort).length ? $sort : undefined
         };
 
@@ -69,7 +76,17 @@ export default (app) => ({
           .forEach(k => delete context.params.query[k]);
       }
     ],
-    get: [ authenticate('jwt') ],
+    get: [ async (context) => {
+      // Public or student can only view approved companies
+      const isExternal = !!context.params.provider;
+      const role = context.params.user?.role;
+      if (isExternal && role !== 'admin') {
+        const doc = await app.service('companies').Model.findById(context.id).lean();
+        if (!doc || doc.verifiedStatus !== VERIFICATION_STATUS.APPROVED) {
+          const e = new Error('Not found'); e.code = 404; throw e;
+        }
+      }
+    } ],
     create: [
       authenticate('jwt'),
       async (context) => {
