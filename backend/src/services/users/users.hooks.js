@@ -108,7 +108,14 @@ export default {
     ],
     get: [
       iff(isProvider('external'), authenticate('jwt')),
-      iff(isProvider('external'), requireVerifiedCompany)
+      // Skip company verification check for /users/me endpoint
+      iff(
+        isProvider('external'),
+        iff(
+          (context) => context.id !== 'me',
+          requireVerifiedCompany
+        )
+      )
     ],
     create: [
       hashPassword('password'),

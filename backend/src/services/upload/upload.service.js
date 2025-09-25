@@ -12,6 +12,15 @@ class UploadService {
 
   async create(data, params) {
     return new Promise((resolve, reject) => {
+      // Check if req and res are available
+      if (!params.req || !params.res) {
+        console.log('❌ Upload service: req/res not available in params');
+        console.log('Available params keys:', Object.keys(params));
+        return reject(new BadRequest('Upload service requires HTTP request context. Make sure to use multipart/form-data and proper HTTP request.'));
+      }
+
+      console.log('✅ Upload service: req/res available, processing upload...');
+
       // Use multer middleware
       const uploadMiddleware = upload.fields([
         { name: 'resume', maxCount: 1 },
@@ -23,10 +32,13 @@ class UploadService {
 
       uploadMiddleware(params.req, params.res, async (err) => {
         if (err) {
+          console.log('❌ Multer error:', err.message);
           return reject(new BadRequest(err.message));
         }
 
         const files = params.req.files;
+        console.log('📁 Files received:', files ? Object.keys(files) : 'none');
+
         if (!files || Object.keys(files).length === 0) {
           return reject(new BadRequest('No files uploaded'));
         }
@@ -37,6 +49,7 @@ class UploadService {
         for (const [fieldName, fileArray] of Object.entries(files)) {
           const processedFiles = [];
           for (const file of fileArray) {
+            console.log(`📄 Processing file: ${file.originalname} -> ${file.key}`);
             const signedUrl = await storageUtils.getSignedUrl(file.key);
             processedFiles.push({
               key: file.key,
@@ -50,6 +63,7 @@ class UploadService {
           uploadedFiles[fieldName] = processedFiles;
         }
 
+        console.log('✅ Upload successful:', Object.keys(uploadedFiles));
         resolve({
           message: 'Files uploaded successfully',
           files: uploadedFiles

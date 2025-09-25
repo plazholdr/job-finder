@@ -6,7 +6,7 @@ import Footer from "./Footer";
 import Hero from "./Hero";
 import JobCard from "./JobCard";
 import CompanyCard from "./CompanyCard";
-import { Layout, Row, Col, Typography, Skeleton, Empty, Input, Space, Select, Slider, Button, message } from "antd";
+import { Layout, Row, Col, Typography, Skeleton, Empty, Input, Space, Select, InputNumber, Button, message, Segmented } from "antd";
 import { API_BASE_URL } from "../config";
 import { apiAuth, getToken } from "../lib/api";
 
@@ -40,12 +40,17 @@ export default function HomeContent({ jobs = [], companies = [] }) {
   const [location, setLocation] = useState("");
   const [nature, setNature] = useState();
   const [companyCity, setCompanyCity] = useState("");
-  const [salary, setSalary] = useState([0, 2000]);
+  const [salaryMin, setSalaryMin] = useState(0);
+  const [salaryMax, setSalaryMax] = useState(5000);
   const [sort, setSort] = useState('latest');
   const [prefApplied, setPrefApplied] = useState(false);
 
-  const jobsUrl = useMemo(() => buildQuery("/job-listings", { q, location, salaryMin: salary[0], salaryMax: salary[1] }), [q, location, salary]);
-  const companiesUrl = useMemo(() => buildQuery("/companies", { q, nature, city: companyCity, salaryMin: salary[0], salaryMax: salary[1], sort }), [q, nature, companyCity, salary, sort]);
+  // View modes
+  const [jobsView, setJobsView] = useState('list');
+  const [companiesView, setCompaniesView] = useState('list');
+
+  const jobsUrl = useMemo(() => buildQuery("/job-listings", { q, location, salaryMin, salaryMax }), [q, location, salaryMin, salaryMax]);
+  const companiesUrl = useMemo(() => buildQuery("/companies", { q, nature, city: companyCity, salaryMin, salaryMax, sort }), [q, nature, companyCity, salaryMin, salaryMax, sort]);
 
   const jobsQuery = useQuery({
     queryKey: ["home-jobs", jobsUrl],
@@ -105,10 +110,8 @@ export default function HomeContent({ jobs = [], companies = [] }) {
       if (prefs.industries?.length) setNature(prefs.industries[0]);
       if (prefs.locations?.length) setCompanyCity(prefs.locations[0]);
       if (prefs.salaryRange && (prefs.salaryRange.min != null || prefs.salaryRange.max != null)) {
-        setSalary([
-          prefs.salaryRange.min ?? 0,
-          prefs.salaryRange.max ?? 2000,
-        ]);
+        setSalaryMin(prefs.salaryRange.min ?? 0);
+        setSalaryMax(prefs.salaryRange.max ?? 5000);
       }
       setPrefApplied(true);
     }
@@ -123,7 +126,7 @@ export default function HomeContent({ jobs = [], companies = [] }) {
           preferences: {
             industries: nature ? [nature] : [],
             locations: companyCity ? [companyCity] : [],
-            salaryRange: { min: salary[0], max: salary[1] }
+            salaryRange: { min: salaryMin, max: salaryMax }
           }
         }
       });
@@ -138,30 +141,106 @@ export default function HomeContent({ jobs = [], companies = [] }) {
   return (
     <Layout>
       <Navbar />
-      <Hero onSearch={({ q: qq = "", nature: nat, city }) => { setQ(qq); setNature(nat); setCompanyCity(city || ""); }} industryOptions={industriesQuery.data || []} />
+      <Hero onSearch={({ q: qq = "" }) => { setQ(qq); }} industryOptions={industriesQuery.data || []} />
       <Layout.Content style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
         <Space direction="vertical" style={{ width: '100%', marginBottom: 24 }} size="middle">
-          <Space wrap>
-            <div style={{ width: 280 }}>
-              <Typography.Text>Salary range (RM)</Typography.Text>
-              <Slider range min={0} max={5000} step={100} value={salary} onChange={setSalary} />
-            </div>
-            <Select value={sort} onChange={setSort} style={{ width: 200 }} options={[
-              { value: 'latest', label: 'Sort: Latest' },
-              { value: 'name', label: 'Sort: Alphabetical (A→Z)' },
-              { value: 'salary', label: 'Sort: Salary (High→Low)' },
-            ]} />
-            <Button onClick={handleSaveSearchProfile}>Save search profile</Button>
-          </Space>
+          <Row gutter={[16, 16]} align="middle">
+            <Col xs={24} sm={12} md={6}>
+              <Typography.Text strong>Nature of business</Typography.Text>
+              <Select
+                placeholder="Select industry"
+                value={nature}
+                onChange={setNature}
+                style={{ width: '100%', marginTop: 4 }}
+                allowClear
+                options={industriesQuery.data?.map(industry => ({
+                  value: industry,
+                  label: industry
+                })) || []}
+              />
+            </Col>
+            <Col xs={12} sm={6} md={3}>
+              <Typography.Text strong>Salary Min (RM)</Typography.Text>
+              <InputNumber
+                placeholder="Min"
+                value={salaryMin}
+                onChange={setSalaryMin}
+                style={{ width: '100%', marginTop: 4 }}
+                min={0}
+                max={50000}
+                step={500}
+                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={value => value.replace(/\$\s?|(,*)/g, '')}
+              />
+            </Col>
+            <Col xs={12} sm={6} md={3}>
+              <Typography.Text strong>Salary Max (RM)</Typography.Text>
+              <InputNumber
+                placeholder="Max"
+                value={salaryMax}
+                onChange={setSalaryMax}
+                style={{ width: '100%', marginTop: 4 }}
+                min={0}
+                max={50000}
+                step={500}
+                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={value => value.replace(/\$\s?|(,*)/g, '')}
+              />
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Typography.Text strong>Location</Typography.Text>
+              <Select
+                placeholder="Select location"
+                value={companyCity}
+                onChange={setCompanyCity}
+                style={{ width: '100%', marginTop: 4 }}
+                allowClear
+                options={[
+                  { value: 'Kuala Lumpur', label: 'Kuala Lumpur' },
+                  { value: 'Selangor', label: 'Selangor' },
+                  { value: 'Penang', label: 'Penang' },
+                  { value: 'Johor', label: 'Johor' },
+                  { value: 'Perak', label: 'Perak' },
+                  { value: 'Sabah', label: 'Sabah' },
+                  { value: 'Sarawak', label: 'Sarawak' },
+                ]}
+              />
+            </Col>
+            <Col xs={24} sm={12} md={4}>
+              <Typography.Text strong>Sort by</Typography.Text>
+              <Select
+                value={sort}
+                onChange={setSort}
+                style={{ width: '100%', marginTop: 4 }}
+                options={[
+                  { value: 'latest', label: 'Latest' },
+                  { value: 'name', label: 'A→Z' },
+                  { value: 'salary', label: 'Salary ↓' },
+                ]}
+              />
+            </Col>
+            <Col xs={24} sm={12} md={2}>
+              <Button
+                type="primary"
+                onClick={handleSaveSearchProfile}
+                style={{ width: '100%', marginTop: 20 }}
+              >
+                Save Profile
+              </Button>
+            </Col>
+          </Row>
         </Space>
         <section id="jobs" style={{ marginBottom: 32 }}>
-          <Typography.Title level={3} style={{ marginBottom: 16 }}>Latest Jobs</Typography.Title>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Typography.Title level={3} style={{ margin: 0 }}>Latest Jobs</Typography.Title>
+            <Segmented value={jobsView} onChange={setJobsView} options={[{label:'List',value:'list'},{label:'Grid',value:'grid'}]} />
+          </div>
           {jobsQuery.isLoading ? (
             <Skeleton active />
           ) : jobsQuery.data?.length ? (
             <Row gutter={[16, 16]}>
               {jobsQuery.data.map((j) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={j._id}>
+                <Col xs={24} sm={jobsView==='grid'?12:24} md={jobsView==='grid'?8:24} lg={jobsView==='grid'?6:24} key={j._id}>
                   <JobCard job={j} />
                 </Col>
               ))}
@@ -171,13 +250,16 @@ export default function HomeContent({ jobs = [], companies = [] }) {
           )}
         </section>
         <section id="companies" style={{ marginBottom: 32 }}>
-          <Typography.Title level={3} style={{ marginBottom: 16 }}>Featured Companies</Typography.Title>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Typography.Title level={3} style={{ margin: 0 }}>Featured Companies</Typography.Title>
+            <Segmented value={companiesView} onChange={setCompaniesView} options={[{label:'List',value:'list'},{label:'Grid',value:'grid'}]} />
+          </div>
           {companiesQuery.isLoading ? (
             <Skeleton active />
           ) : companiesQuery.data?.length ? (
             <Row gutter={[16, 16]}>
               {companiesQuery.data.map((c) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={c._id}>
+                <Col xs={24} sm={companiesView==='grid'?12:24} md={companiesView==='grid'?8:24} lg={companiesView==='grid'?6:24} key={c._id}>
                   <CompanyCard company={c} />
                 </Col>
               ))}

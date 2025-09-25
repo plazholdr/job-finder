@@ -1,19 +1,24 @@
 "use client";
 import { useState, useEffect, createContext, useContext } from 'react';
-import { ConfigProvider, theme as antdTheme } from 'antd';
+import { ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 export const ThemeContext = createContext({ theme: 'light', toggle: () => {} });
 export function useTheme() { return useContext(ThemeContext); }
 
-function getInitialTheme() {
-  if (typeof window === 'undefined') return 'light';
-  return localStorage.getItem('jf_theme') || 'light';
-}
-
 export default function Providers({ children }) {
   const [client] = useState(() => new QueryClient());
-  const [theme, setTheme] = useState(getInitialTheme);
+  // Start with a stable default to avoid SSR/CSR mismatch; hydrate actual value on mount
+  const [theme, setTheme] = useState('light');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('jf_theme');
+      if (stored && (stored === 'dark' || stored === 'light')) {
+        setTheme(stored);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -29,11 +34,13 @@ export default function Providers({ children }) {
 
   return (
     <ConfigProvider theme={{ algorithm, token: tokens }}>
-      <QueryClientProvider client={client}>
-        <ThemeContext.Provider value={{ theme, toggle: () => setTheme(t => t === 'dark' ? 'light' : 'dark') }}>
-          {children}
-        </ThemeContext.Provider>
-      </QueryClientProvider>
+      <AntdApp>
+        <QueryClientProvider client={client}>
+          <ThemeContext.Provider value={{ theme, toggle: () => setTheme(t => t === 'dark' ? 'light' : 'dark') }}>
+            {children}
+          </ThemeContext.Provider>
+        </QueryClientProvider>
+      </AntdApp>
     </ConfigProvider>
   );
 }

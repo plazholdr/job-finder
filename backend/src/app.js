@@ -50,6 +50,63 @@ app.configure(middleware);
 // Configure services
 app.configure(services);
 
+// Add Express route for file upload (needed for multer compatibility)
+import { upload, storageUtils } from './utils/storage.js';
+import { hooks as authHooks } from '@feathersjs/authentication';
+
+const { authenticate } = authHooks;
+
+app.post('/upload',
+  // Use multer middleware
+  upload.fields([
+    { name: 'resume', maxCount: 1 },
+    { name: 'avatar', maxCount: 1 },
+    { name: 'logo', maxCount: 1 },
+    { name: 'portfolio', maxCount: 5 },
+    { name: 'document', maxCount: 10 }
+  ]),
+  async (req, res) => {
+    // Simple JWT authentication check
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    try {
+      const files = req.files;
+      if (!files || Object.keys(files).length === 0) {
+        return res.status(400).json({ error: 'No files uploaded' });
+      }
+
+      const uploadedFiles = {};
+
+      // Process uploaded files
+      for (const [fieldName, fileArray] of Object.entries(files)) {
+        const processedFiles = [];
+        for (const file of fileArray) {
+          const signedUrl = await storageUtils.getSignedUrl(file.key);
+          processedFiles.push({
+            key: file.key,
+            originalName: file.originalname,
+            size: file.size,
+            mimetype: file.mimetype,
+            url: storageUtils.getFileUrl(file.key),
+            signedUrl: signedUrl
+          });
+        }
+        uploadedFiles[fieldName] = processedFiles;
+      }
+
+      res.json({
+        message: 'Files uploaded successfully',
+        files: uploadedFiles
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
 // Configure channels
 app.configure(channels);
 

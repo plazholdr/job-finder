@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { sendMail } from '../../utils/mailer.js';
-import { verifyEmailTemplate } from '../../utils/email-templates.js';
+import { verifyEmailTemplate, companyVerifyEmailTemplate } from '../../utils/email-templates.js';
 import { hooks as authHooks } from '@feathersjs/authentication';
 
 const { authenticate } = authHooks;
@@ -41,10 +41,21 @@ class EmailVerificationService {
     });
 
     // Send email via nodemailer
-    const verifyLink = `${process.env.PUBLIC_WEB_URL || ''}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`;
-    const subject = 'Verify your email';
-    const text = `Your verification code is ${code}. It expires in 10 minutes.\n\nOr click the link: ${verifyLink}`;
-    const html = verifyEmailTemplate({ brandName: 'JobFinder', code, verifyLink });
+    const isCompany = String(user.role || '') === 'company';
+    const forCompany = isCompany ? '&forCompany=1' : '';
+    const verifyLink = `${process.env.PUBLIC_WEB_URL || ''}/verify-email?email=${encodeURIComponent(user.email)}${forCompany}`;
+
+    let subject, text, html;
+    if (isCompany) {
+      subject = 'Welcome to JobFinder - Verify Your Company Account';
+      text = `Welcome to JobFinder! Click to verify your email and setup your company: ${verifyLink}\n\n(This link expires in 10 minutes.)`;
+      html = companyVerifyEmailTemplate({ brandName: 'JobFinder', verifyLink });
+    } else {
+      subject = 'Verify your email';
+      text = `Click to verify: ${verifyLink}\n\n(This link expires in 10 minutes.)`;
+      html = verifyEmailTemplate({ brandName: 'JobFinder', code, verifyLink });
+    }
+
     try { await sendMail({ to: user.email, subject, text, html }); } catch (_) {}
 
     // Also notify in-app
@@ -62,35 +73,27 @@ class EmailVerificationService {
   }
 
   async patch(id, data = {}) {
-    // Confirm verification with token or code
-    const { token, code, email } = data;
-    if (!token && !code) {
-      const err = new Error('token or code is required');
+    // Simplified verification - just verify by email for company users
+    const { email } = data;
+    if (!email) {
+      const err = new Error('email is required');
       err.code = 400;
       throw err;
     }
 
     const users = this.app.service('users');
 
-    // Build query to match either exact token or contains code
-    const query = {};
-    if (token) query.emailVerificationToken = { $regex: `^${token}` };
-    if (code) query.emailVerificationToken = { $regex: `${code}$` };
-    if (email) query.email = String(email).toLowerCase();
-
-    const found = await users.find({ paginate: false, query });
+    // Find user by email
+    const found = await users.find({ paginate: false, query: { email: String(email).toLowerCase() } });
     const user = Array.isArray(found) ? found[0] : found;
+
     if (!user) {
-      const err = new Error('Invalid token/code');
-      err.code = 400;
-      throw err;
-    }
-    if (user.emailVerificationExpires && new Date(user.emailVerificationExpires) < new Date()) {
-      const err = new Error('Code expired');
-      err.code = 400;
+      const err = new Error('User not found');
+      err.code = 404;
       throw err;
     }
 
+    // Mark as verified
     await users.patch(user._id, { isEmailVerified: true, emailVerificationToken: null, emailVerificationExpires: null });
 
     try {
@@ -103,7 +106,7 @@ class EmailVerificationService {
       });
     } catch (_) {}
 
-    return { ok: true };
+    return { ok: true, user };
   }
 }
 

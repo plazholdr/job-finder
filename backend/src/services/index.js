@@ -1,6 +1,6 @@
 import users from './users/users.service.js';
 import refreshToken from './refresh-token/refresh-token.service.js';
-import upload from './upload/upload.service.js';
+// import upload from './upload/upload.service.js'; // Now using Express route in app.js
 import companies from './companies/companies.service.js';
 import companyVerifications from './company-verifications/company-verifications.service.js';
 import invites from './invites/invites.service.js';
@@ -10,6 +10,7 @@ import favorites from './favorites/favorites.service.js';
 import threads from './threads/threads.service.js';
 import messages from './messages/messages.service.js';
 import emailVerification from './email-verification/email-verification.service.js';
+import passwordReset from './password-reset/password-reset.service.js';
 import jobListings from './job-listings/job-listings.service.js';
 import savedJobs from './saved-jobs/saved-jobs.service.js';
 import likedJobs from './liked-jobs/liked-jobs.service.js';
@@ -34,7 +35,7 @@ import shares from './shares/shares.service.js';
 export default function (app) {
   app.configure(users);
   app.configure(refreshToken);
-  app.configure(upload);
+  // app.configure(upload); // Now using Express route in app.js
   app.configure(companies);
   app.configure(companyVerifications);
   app.configure(invites);
@@ -49,6 +50,7 @@ export default function (app) {
   app.configure(threads);
   app.configure(messages);
   app.configure(emailVerification);
+  app.configure(passwordReset);
   app.configure(adminMonitoring);
   app.configure(studentInternship);
   app.configure(studentDashboard);

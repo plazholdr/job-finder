@@ -92,6 +92,31 @@ export default (app) => {
         }
 
         if (user) {
+          // Check if company user is approved before allowing login
+          if (user.role === 'company') {
+            try {
+              const { isCompanyVerified } = await import('./utils/access.js');
+              const { ok, company } = await isCompanyVerified(app, user._id);
+
+              if (!company) {
+                // No company profile yet - allow login to complete setup
+                console.log('Company user has no company profile yet, allowing login for setup');
+              } else if (!ok) {
+                // Company exists but not approved - deny login
+                const err = new Error('Your company is pending approval. Please wait for admin approval before signing in.');
+                err.code = 403;
+                err.className = 'forbidden';
+                err.name = 'Forbidden';
+                throw err;
+              }
+            } catch (importErr) {
+              if (importErr.name === 'COMPANY_PENDING_APPROVAL') {
+                throw importErr;
+              }
+              console.error('Error checking company verification:', importErr);
+            }
+          }
+
           // Ensure accessToken exists (fallback for environments where core didn't attach it)
           if (!ctx.result.accessToken) {
             try {

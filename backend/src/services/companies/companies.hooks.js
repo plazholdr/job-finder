@@ -1,5 +1,6 @@
 import { hooks as authHooks } from '@feathersjs/authentication';
 import { iff, isProvider } from 'feathers-hooks-common';
+import mongoose from 'mongoose';
 import { VERIFICATION_STATUS } from '../../constants/enums.js';
 
 const { authenticate } = authHooks;
@@ -22,9 +23,18 @@ export default (app) => ({
         const recommended = q.recommended === 'true';
 
         // Public (unauthenticated) and student users only see approved companies
+        // Exceptions:
+        // 1. company users can search by registrationNumber for uniqueness check
+        // 2. company users can query their own companies by ownerUserId
         const isExternal = !!context.params.provider;
         const role = context.params.user?.role;
-        if (isExternal && role !== 'admin') {
+        const isUniquenessCheck = q.registrationNumber && context.params.query?.$limit === 1;
+        const isOwnCompanyCheck = role === 'company' && q.ownerUserId &&
+                                  String(q.ownerUserId) === String(context.params.user._id);
+
+        if (isExternal && role !== 'admin' &&
+            !(role === 'company' && isUniquenessCheck) &&
+            !isOwnCompanyCheck) {
           q.verifiedStatus = VERIFICATION_STATUS.APPROVED;
         }
 
@@ -37,6 +47,14 @@ export default (app) => ({
             { 'address.city': { $regex: String(city), $options: 'i' } },
             { 'address.fullAddress': { $regex: String(city), $options: 'i' } }
           ];
+        }
+        // Handle registrationNumber query for uniqueness checks
+        if (q.registrationNumber) {
+          query.registrationNumber = q.registrationNumber;
+        }
+        // Handle ownerUserId query for finding user's companies
+        if (q.ownerUserId) {
+          query.ownerUserId = new mongoose.Types.ObjectId(q.ownerUserId);
         }
         // Salary range filter (based on internships array)
         if (salaryMin != null || salaryMax != null) {
@@ -65,10 +83,12 @@ export default (app) => ({
         else if (latest) $sort.createdAt = -1;
         else if (q.$sort) Object.assign($sort, q.$sort);
 
+        // Build final query; only include $sort when it has fields to avoid
+        // `Invalid query parameter $sort` from the adapter
         context.params.query = {
           ...query,
           ...(q.verifiedStatus !== undefined ? { verifiedStatus: q.verifiedStatus } : {}),
-          $sort: Object.keys($sort).length ? $sort : undefined
+          ...(Object.keys($sort).length ? { $sort } : {})
         };
 
         // Remove custom params so they don't leak to the adapter
@@ -94,6 +114,28 @@ export default (app) => ({
         context.data.ownerUserId = context.params.user._id;
         context.data.verifiedStatus = VERIFICATION_STATUS.PENDING;
         context.data.submittedAt = new Date();
+
+        // Optional: enforce unique registration number if provided
+        const reg = (context.data.registrationNumber || '').toString().trim();
+        if (reg) {
+          try {
+            const existing = await app.service('companies').Model.findOne({ registrationNumber: reg }).lean();
+            if (existing) {
+              const e = new Error(`Company with registration number ${reg} already exists: ${existing.name}`);
+              e.code = 409; // conflict
+              e.data = {
+                companyId: existing._id,
+                companyName: existing.name,
+                registrationNumber: existing.registrationNumber
+              };
+              throw e;
+            }
+          } catch (err) {
+            if (err && err.code === 409) throw err;
+            // swallow find errors to avoid blocking create for transient db issues
+          }
+          context.data.registrationNumber = reg;
+        }
       }
     ],
     update: [ authenticate('jwt') ],

@@ -17,6 +17,7 @@
           "request": {
             "method": "GET",
             "header": [],
+            "auth": { "type": "noauth" },
             "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
           }
         }
@@ -57,6 +58,42 @@
               }
             }
           ]
+        },
+        {
+          "name": "POST /password-reset (request reset email)",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/password-reset", "host": ["{{baseUrl}}"], "path": ["password-reset"] }
+          }
+        },
+        {
+          "name": "PATCH /password-reset (reset with token)",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{newPassword}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/password-reset", "host": ["{{baseUrl}}"], "path": ["password-reset"] }
+          }
+        },
+        {
+          "name": "POST /email-verification (request verification)",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/email-verification", "host": ["{{baseUrl}}"], "path": ["email-verification"] }
+          }
+        },
+        {
+          "name": "PATCH /email-verification (verify with token)",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{verificationToken}}\",\n  \"email\": \"{{email}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/email-verification", "host": ["{{baseUrl}}"], "path": ["email-verification"] }
+          }
         },
         {
           "name": "POST /refresh-token",
@@ -150,8 +187,52 @@
           "request": {
             "method": "POST",
             "header": [ { "key":"Content-Type","value":"application/json" } ],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Acme Sdn Bhd\",\n  \"registrationNumber\": \"202401234567\",\n  \"industry\": \"IT\",\n  \"size\": \"51-200\",\n  \"website\": \"https://acme.my\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Acme Sdn Bhd\",\n  \"registrationNumber\": \"202401234567\",\n  \"phone\": \"+603-1234 5678\",\n  \"industry\": \"IT\",\n  \"size\": \"51-200\",\n  \"website\": \"https://acme.my\"\n}" },
             "url": { "raw": "{{baseUrl}}/companies", "host": ["{{baseUrl}}"], "path": ["companies"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json._id) pm.environment.set('companyId', json._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /companies (search)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/companies?$limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["companies"],
+              "query": [ {"key":"$limit","value":"10"} ]
+            }
+          }
+        },
+        {
+          "name": "GET /companies/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/companies/{{companyId}}", "host": ["{{baseUrl}}"], "path": ["companies","{{companyId}}"] }
+          }
+        },
+        {
+          "name": "PATCH /companies/:id (update)",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"Updated company description\"\n}" },
+            "url": { "raw": "{{baseUrl}}/companies/{{companyId}}", "host": ["{{baseUrl}}"], "path": ["companies","{{companyId}}"] }
           }
         }
       ]
@@ -166,6 +247,36 @@
             "header": [ { "key":"Content-Type","value":"application/json" } ],
             "body": { "mode": "raw", "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"documents\": [ { \"type\": \"SSM_SUPERFORM\", \"fileKey\": \"uploads/ssm.pdf\" } ]\n}" },
             "url": { "raw": "{{baseUrl}}/company-verifications", "host": ["{{baseUrl}}"], "path": ["company-verifications"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json._id) pm.environment.set('verificationId', json._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /company-verifications (mine)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/company-verifications", "host": ["{{baseUrl}}"], "path": ["company-verifications"] }
+          }
+        },
+        {
+          "name": "GET /company-verifications/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/company-verifications/{{verificationId}}", "host": ["{{baseUrl}}"], "path": ["company-verifications","{{verificationId}}"] }
           }
         },
         {
@@ -174,6 +285,15 @@
             "method": "PATCH",
             "header": [ { "key":"Content-Type","value":"application/json" } ],
             "body": { "mode": "raw", "raw": "{\n  \"action\": \"approve\"\n}" },
+            "url": { "raw": "{{baseUrl}}/company-verifications/{{verificationId}}", "host": ["{{baseUrl}}"], "path": ["company-verifications","{{verificationId}}"] }
+          }
+        },
+        {
+          "name": "PATCH /company-verifications/:id (admin reject)",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"reject\",\n  \"rejectionReason\": \"Missing required documents\"\n}" },
             "url": { "raw": "{{baseUrl}}/company-verifications/{{verificationId}}", "host": ["{{baseUrl}}"], "path": ["company-verifications","{{verificationId}}"] }
           }
         }
@@ -300,6 +420,126 @@
           }
         }
       ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-refresh access token if expired",
+          "const accessToken = pm.environment.get('accessToken');",
+          "const tokenExpiresAt = pm.environment.get('tokenExpiresAt');",
+          "",
+          "if (accessToken && tokenExpiresAt) {",
+          "  const now = Date.now();",
+          "  const expiresAt = parseInt(tokenExpiresAt);",
+          "  ",
+          "  // Refresh if token expires within 1 minute",
+          "  if (now >= (expiresAt - 60000)) {",
+          "    console.log('Access token expired or expiring soon, refreshing...');",
+          "    ",
+          "    const refreshToken = pm.environment.get('refreshToken');",
+          "    if (refreshToken) {",
+          "      const refreshRequest = {",
+          "        url: pm.environment.get('baseUrl') + '/refresh-token',",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/json' },",
+          "        body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+          "      };",
+          "      ",
+          "      pm.sendRequest(refreshRequest, (err, res) => {",
+          "        if (err) {",
+          "          console.log('Token refresh failed:', err);",
+          "          return;",
+          "        }",
+          "        ",
+          "        if (res.code === 201 || res.code === 200) {",
+          "          const json = res.json();",
+          "          if (json.accessToken) {",
+          "            pm.environment.set('accessToken', json.accessToken);",
+          "            console.log('Access token refreshed successfully');",
+          "            ",
+          "            // Decode and set expiration",
+          "            try {",
+          "              const parts = json.accessToken.split('.');",
+          "              const payload = JSON.parse(atob(parts[1]));",
+          "              if (payload.exp) {",
+          "                pm.environment.set('tokenExpiresAt', payload.exp * 1000);",
+          "              }",
+          "            } catch (e) {",
+          "              console.log('Could not decode token expiration:', e);",
+          "            }",
+          "          }",
+          "          if (json.refreshToken) {",
+          "            pm.environment.set('refreshToken', json.refreshToken);",
+          "          }",
+          "        } else {",
+          "          console.log('Token refresh failed with status:', res.code);",
+          "        }",
+          "      });",
+          "    }",
+          "  }",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Handle 401 responses by refreshing token and retrying",
+          "if (pm.response.code === 401) {",
+          "  console.log('Received 401, attempting token refresh...');",
+          "  ",
+          "  const refreshToken = pm.environment.get('refreshToken');",
+          "  if (refreshToken) {",
+          "    const refreshRequest = {",
+          "      url: pm.environment.get('baseUrl') + '/refresh-token',",
+          "      method: 'POST',",
+          "      header: { 'Content-Type': 'application/json' },",
+          "      body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+          "    };",
+          "    ",
+          "    pm.sendRequest(refreshRequest, (err, res) => {",
+          "      if (err) {",
+          "        console.log('Token refresh failed:', err);",
+          "        return;",
+          "      }",
+          "      ",
+          "      if (res.code === 201 || res.code === 200) {",
+          "        const json = res.json();",
+          "        if (json.accessToken) {",
+          "          pm.environment.set('accessToken', json.accessToken);",
+          "          console.log('Token refreshed, please retry the request');",
+          "          ",
+          "          // Decode and set expiration",
+          "          try {",
+          "            const parts = json.accessToken.split('.');",
+          "            const payload = JSON.parse(atob(parts[1]));",
+          "            if (payload.exp) {",
+          "              pm.environment.set('tokenExpiresAt', payload.exp * 1000);",
+          "            }",
+          "          } catch (e) {",
+          "            console.log('Could not decode token expiration:', e);",
+          "          }",
+          "        }",
+          "        if (json.refreshToken) {",
+          "          pm.environment.set('refreshToken', json.refreshToken);",
+          "        }",
+          "      } else {",
+          "        console.log('Token refresh failed with status:', res.code);",
+          "        console.log('Please login again');",
+          "      }",
+          "    });",
+          "  } else {",
+          "    console.log('No refresh token available, please login again');",
+          "  }",
+          "}"
+        ]
+      }
     }
   ]
 }

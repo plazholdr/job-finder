@@ -40,3 +40,138 @@ a {
     color-scheme: dark;
   }
 }
+
+/* Modal optimization styles */
+
+/* Prevent page scroll when modal is open */
+body.ant-scrolling-effect {
+  overflow: hidden !important;
+  width: 100% !important;
+}
+
+/* Smooth modal animations */
+.ant-modal {
+  transition: all 0.2s ease-in-out;
+}
+
+.ant-modal-mask {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Optimize modal backdrop */
+.ant-modal-wrap {
+  overflow: auto;
+  outline: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure consistent button spacing in modals */
+.ant-result .ant-result-extra {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ant-result .ant-result-extra .ant-btn {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* Responsive modal adjustments */
+@media (max-width: 768px) {
+  .ant-modal {
+    width: 90% !important;
+    margin: 0 auto;
+    top: 20vh !important;
+  }
+
+  .ant-modal-body {
+    padding: 12px 16px 8px !important;
+  }
+
+  .ant-result-title {
+    font-size: 16px !important;
+  }
+
+  .ant-result-subtitle {
+    font-size: 13px !important;
+  }
+
+  .ant-result .ant-result-extra {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ant-result .ant-result-extra .ant-btn {
+    width: 140px;
+    height: 36px;
+    margin: 0;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Company page styling */
+.company-header-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0;
+}
+
+.company-header-card .ant-card-body {
+  padding: 24px;
+}
+
+/* Company contact info styling */
+.ant-descriptions-item-label {
+  font-weight: 600 !important;
+  color: #262626 !important;
+}
+
+.ant-descriptions-item-content {
+  color: #595959 !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  line-height: 1.6;
+}
+
+/* Make Descriptions layout stable and avoid ultra-narrow content cells */
+.ant-descriptions-view table {
+  table-layout: fixed;
+  width: 100%;
+}
+.ant-descriptions-row > th,
+.ant-descriptions-row > td {
+  vertical-align: top;
+}
+
+
+/* Company Information card: custom grid layout */
+.company-info-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 992px) { /* lg */
+  .company-info-grid { grid-template-columns: 1fr 1fr; }
+  .company-info-span2 { grid-column: 1 / -1; }
+}
+.company-info-item { display: grid; grid-template-columns: 180px 1fr; align-items: start; column-gap: 12px; }
+@media (max-width: 575px) {
+  .company-info-item { grid-template-columns: 140px 1fr; }
+}
+.company-info-label { display: inline-flex; gap: 8px; align-items: center; font-weight: 600; color: #262626; white-space: nowrap; }
+.company-info-value { color: #595959; min-width: 0; white-space: normal; word-break: break-word; line-height: 1.6; }
+.company-info-link { color: #1677ff; }
+
+/* Internship list styling */
+.ant-list-item {
+  border-bottom: none !important;
+}
+
+/* Company page mobile responsive */
+@media (max-width: 768px) {
+  .company-header-card .ant-card-body {
+    padding: 16px;
+  }
+}

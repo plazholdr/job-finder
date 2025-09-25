@@ -5,7 +5,8 @@ const notificationSchema = new mongoose.Schema({
   recipientRole: { type: String, enum: ['student','company','admin'], required: true },
   type: { type: String, enum: [
     'invite_sent','invite_accepted','invite_declined',
-    'kyc_submitted','kyc_approved','kyc_rejected',
+    'kyc_submitted','kyc_approved','kyc_rejected','kyc_review_required',
+    'email_verification','email_verified',
     'job_submitted','job_update','job_expiring','job_renewal_requested','job_renewal_approved',
     // Applications lifecycle
     'application_created','application_shortlisted','interview_scheduled','interview_cancelled','interview_declined','interview_noshow',

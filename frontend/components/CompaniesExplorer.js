@@ -2,7 +2,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Row, Col, Input, Select, Slider, Space, Typography, Pagination, Card, Skeleton, Empty } from "antd";
+import { Row, Col, Input, Select, Slider, Space, Typography, Pagination, Card, Skeleton, Empty, Segmented } from "antd";
 import CompanyCard from "./CompanyCard";
 import { API_BASE_URL } from "../config";
 
@@ -58,6 +58,8 @@ export default function CompaniesExplorer() {
   }, [location, salary, sort]);
 
   // Primary data query
+  const [view, setView] = useState('list');
+
   const companiesQuery = useQuery({
     queryKey: ["companies-explorer", { q, industry, page, sort, salary, location }],
     queryFn: async () => {
@@ -71,9 +73,14 @@ export default function CompaniesExplorer() {
       }
       // Step 1: get matching job-listings to derive company ids and salary stats
       const params = new URLSearchParams({ "$limit": "500" });
-      if (location) { params.set("locations[$elemMatch][$regex]", location); params.set("locations[$elemMatch][$options]", "i"); }
-      if (salary?.[0] != null) params.set("salaryMin[$gte]", String(salary[0]));
-      if (salary?.[1] != null) params.set("salaryMax[$lte]", String(salary[1]));
+      if (location) {
+        params.set("$or[0][location.city][$regex]", location);
+        params.set("$or[0][location.city][$options]", "i");
+        params.set("$or[1][location.state][$regex]", location);
+        params.set("$or[1][location.state][$options]", "i");
+      }
+      if (salary?.[0] != null) params.set("salaryRange.min[$gte]", String(salary[0]));
+      if (salary?.[1] != null) params.set("salaryRange.max[$lte]", String(salary[1]));
       const jobsRes = await fetch(`${API_BASE_URL}/job-listings?${params.toString()}`);
       const jobsJson = await jobsRes.json();
       const jobs = Array.isArray(jobsJson) ? jobsJson : (jobsJson?.data || []);
@@ -82,7 +89,7 @@ export default function CompaniesExplorer() {
         const cid = j.companyId || j.company || j.company_id; // tolerate different shapes
         if (!cid) continue;
         const prev = byCompany.get(cid) || { count: 0, maxSalary: 0 };
-        byCompany.set(cid, { count: prev.count + 1, maxSalary: Math.max(prev.maxSalary, Number(j.salaryMax) || 0) });
+        byCompany.set(cid, { count: prev.count + 1, maxSalary: Math.max(prev.maxSalary, Number(j?.salaryRange?.max) || 0) });
       }
       const ids = Array.from(byCompany.keys());
       if (!ids.length) return { items: [], total: 0 };
@@ -126,19 +133,22 @@ export default function CompaniesExplorer() {
     <>
       <Card style={{ marginBottom: 16 }}>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Space wrap>
-            <Input placeholder="Search company name" value={q} onChange={(e)=>{ setPage(1); setQ(e.target.value); }} style={{ width: 280 }} allowClear />
-            <Select
-              placeholder="Industry"
-              value={industry || undefined}
-              onChange={(v)=>{ setPage(1); setIndustry(v || ""); }}
-              allowClear
-              loading={industriesQuery.isLoading}
-              style={{ minWidth: 220 }}
-              options={(industriesQuery.data||[]).map(i=>({ label: i, value: i }))}
-            />
-            <Input placeholder="Location (jobs)" value={location} onChange={(e)=>{ setPage(1); setLocation(e.target.value); }} allowClear style={{ width: 220 }} />
-            <Select value={sort} onChange={(v)=>{ setPage(1); setSort(v); }} options={SORT_OPTIONS} style={{ width: 200 }} />
+          <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
+            <Space wrap>
+              <Input placeholder="Search company name" value={q} onChange={(e)=>{ setPage(1); setQ(e.target.value); }} style={{ width: 280 }} allowClear />
+              <Select
+                placeholder="Industry"
+                value={industry || undefined}
+                onChange={(v)=>{ setPage(1); setIndustry(v || ""); }}
+                allowClear
+                loading={industriesQuery.isLoading}
+                style={{ minWidth: 220 }}
+                options={(industriesQuery.data||[]).map(i=>({ label: i, value: i }))}
+              />
+              <Input placeholder="Location (jobs)" value={location} onChange={(e)=>{ setPage(1); setLocation(e.target.value); }} allowClear style={{ width: 220 }} />
+              <Select value={sort} onChange={(v)=>{ setPage(1); setSort(v); }} options={SORT_OPTIONS} style={{ width: 200 }} />
+            </Space>
+            <Segmented value={view} onChange={setView} options={[{label:'List',value:'list'},{label:'Grid',value:'grid'}]} />
           </Space>
           <div>
             <Typography.Text type="secondary">Salary range (jobs): </Typography.Text>
@@ -155,7 +165,7 @@ export default function CompaniesExplorer() {
         <>
           <Row gutter={[16,16]}>
             {data.items.map(c => (
-              <Col xs={24} sm={12} md={8} lg={6} key={c._id}>
+              <Col xs={24} sm={view==='grid'?12:24} md={view==='grid'?8:24} lg={view==='grid'?6:24} key={c._id}>
                 <CompanyCard company={c} />
               </Col>
             ))}

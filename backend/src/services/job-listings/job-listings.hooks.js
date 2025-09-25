@@ -155,7 +155,33 @@ export default (app) => ({
     remove: [ authenticate('jwt'), onlyRoles('admin') ]
   },
   after: {
-    all: [],
+    all: [
+      // Populate company information
+      async (ctx) => {
+        const populateCompany = async (job) => {
+          if (job && job.companyId) {
+            try {
+              const company = await app.service('companies').get(job.companyId);
+              return { ...job, company: { _id: company._id, name: company.name, industry: company.industry } };
+            } catch (err) {
+              return job; // Return original job if company not found
+            }
+          }
+          return job;
+        };
+
+        if (Array.isArray(ctx.result?.data)) {
+          // Handle paginated results
+          ctx.result.data = await Promise.all(ctx.result.data.map(populateCompany));
+        } else if (Array.isArray(ctx.result)) {
+          // Handle non-paginated array results
+          ctx.result = await Promise.all(ctx.result.map(populateCompany));
+        } else if (ctx.result) {
+          // Handle single result
+          ctx.result = await populateCompany(ctx.result);
+        }
+      }
+    ],
     create: [ async (ctx) => {
       // Notify admins when a listing is submitted for approval
       try {
