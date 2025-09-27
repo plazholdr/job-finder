@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { Modal, message } from 'antd';
+import { Modal, message, App } from 'antd';
 import { usePathname } from 'next/navigation';
 import { API_BASE_URL } from '../config';
 
@@ -12,9 +12,10 @@ function parseJwt(token) {
 const NAG_KEY = 'companyProfileNagLastShown';
 const NAG_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
-export default function CompanyStatusGate() {
+function CompanyStatusGateInner() {
   const pathname = usePathname();
   const [checked, setChecked] = useState(false);
+  const { modal } = App.useApp();
 
   useEffect(() => {
     // Avoid running on auth/register-like pages to prevent loops
@@ -114,7 +115,7 @@ export default function CompanyStatusGate() {
             const latest = ver[0];
             const status = latest?.status; // 0=pending,1=approved,2=rejected
             if (status !== 1) {
-              Modal.info({
+              modal.info({
                 title: 'Company Verification In Progress',
                 content: 'Your documents are undergoing verification. You may continue browsing candidates and features available to approved companies.',
                 okText: 'Got it'
@@ -140,7 +141,7 @@ export default function CompanyStatusGate() {
         const shouldNag = needs.length > 0 && (now - lastNag > NAG_INTERVAL_MS);
 
         if (shouldNag) {
-          Modal.confirm({
+          modal.confirm({
             title: 'Complete your company profile',
             content: `To unlock the best experience, please complete these fields: \n• ${needs.join('\n• ')}`,
             okText: 'Go to profile',
@@ -159,5 +160,13 @@ export default function CompanyStatusGate() {
   }, [pathname]);
 
   return null; // no UI
+}
+
+export default function CompanyStatusGate() {
+  return (
+    <App>
+      <CompanyStatusGateInner />
+    </App>
+  );
 }
 

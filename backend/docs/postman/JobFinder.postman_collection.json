@@ -27,11 +27,11 @@
       "name": "Auth",
       "item": [
         {
-          "name": "POST /authentication (login)",
+          "name": "Login as Student",
           "request": {
             "method": "POST",
             "header": [ {"key":"Content-Type","value":"application/json"} ],
-            "body": { "mode": "raw", "raw": "{\n  \"strategy\": \"local\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"strategy\": \"local\",\n  \"email\": \"student1@example.com\",\n  \"password\": \"Password123!\"\n}" },
             "url": { "raw": "{{baseUrl}}/authentication", "host": ["{{baseUrl}}"], "path": ["authentication"] }
           },
           "event": [
@@ -51,8 +51,77 @@
                   "    const payload = JSON.parse(atob(parts[1]));",
                   "    if (payload.exp) pm.environment.set('tokenExpiresAt', (payload.exp*1000).toString());",
                   "  } catch (e) { /* ignore */ }",
+                  "  console.log('✅ Logged in as Student');",
                   "} else {",
-                  "  console.warn('Login failed:', pm.response.code);",
+                  "  console.warn('❌ Student login failed:', pm.response.code);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as Company",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"strategy\": \"local\",\n  \"email\": \"comp1.owner@example.com\",\n  \"password\": \"Password123!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/authentication", "host": ["{{baseUrl}}"], "path": ["authentication"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.accessToken) pm.environment.set('accessToken', json.accessToken);",
+                  "  if (json.refreshToken) pm.environment.set('refreshToken', json.refreshToken);",
+                  "  if (json.user && json.user._id) pm.environment.set('userId', json.user._id);",
+                  "  if (json.user && json.user.role) pm.environment.set('role', json.user.role);",
+                  "  try {",
+                  "    const parts = json.accessToken.split('.')",
+                  "    const payload = JSON.parse(atob(parts[1]));",
+                  "    if (payload.exp) pm.environment.set('tokenExpiresAt', (payload.exp*1000).toString());",
+                  "  } catch (e) { /* ignore */ }",
+                  "  console.log('✅ Logged in as Company');",
+                  "} else {",
+                  "  console.warn('❌ Company login failed:', pm.response.code);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as Admin",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"strategy\": \"local\",\n  \"email\": \"admin.seed@example.com\",\n  \"password\": \"Password123!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/authentication", "host": ["{{baseUrl}}"], "path": ["authentication"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.accessToken) pm.environment.set('accessToken', json.accessToken);",
+                  "  if (json.refreshToken) pm.environment.set('refreshToken', json.refreshToken);",
+                  "  if (json.user && json.user._id) pm.environment.set('userId', json.user._id);",
+                  "  if (json.user && json.user.role) pm.environment.set('role', json.user.role);",
+                  "  try {",
+                  "    const parts = json.accessToken.split('.')",
+                  "    const payload = JSON.parse(atob(parts[1]));",
+                  "    if (payload.exp) pm.environment.set('tokenExpiresAt', (payload.exp*1000).toString());",
+                  "  } catch (e) { /* ignore */ }",
+                  "  console.log('✅ Logged in as Admin');",
+                  "} else {",
+                  "  console.warn('❌ Admin login failed:', pm.response.code);",
                   "}"
                 ]
               }
@@ -134,6 +203,7 @@
           "request": {
             "method": "POST",
             "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "auth": { "type": "noauth" },
             "body": { "mode": "raw", "raw": "{\n  \"email\": \"student1@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"role\": \"student\",\n  \"profile\": { \"firstName\": \"Ali\", \"lastName\": \"Bin Abu\" }\n}" },
             "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
           }
@@ -143,12 +213,31 @@
           "request": {
             "method": "POST",
             "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "auth": { "type": "noauth" },
             "body": { "mode": "raw", "raw": "{\n  \"email\": \"company1@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"role\": \"company\",\n  \"companyProfile\": { \"companyName\": \"Acme Sdn Bhd\" }\n}" },
             "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
           }
         },
         {
-          "name": "GET /users/:id (me)",
+          "name": "POST /users (register admin)",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "auth": { "type": "noauth" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin123!\",\n  \"role\": \"admin\",\n  \"profile\": { \"firstName\": \"System\", \"lastName\": \"Administrator\" }\n}" },
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "GET /users/me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/users/me", "host": ["{{baseUrl}}"], "path": ["users","me"] }
+          }
+        },
+        {
+          "name": "GET /users/:id",
           "request": {
             "method": "GET",
             "header": [],
@@ -169,12 +258,12 @@
           }
         },
         {
-          "name": "PATCH /users/:id (update self)",
+          "name": "PATCH /users/me (update profile)",
           "request": {
             "method": "PATCH",
             "header": [ {"key":"Content-Type","value":"application/json"} ],
-            "body": { "mode": "raw", "raw": "{\n  \"profile\": { \"bio\": \"Hello world\" }\n}" },
-            "url": { "raw": "{{baseUrl}}/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["users","{{userId}}"] }
+            "body": { "mode": "raw", "raw": "{\n  \"profile.firstName\": \"Updated\",\n  \"profile.lastName\": \"Name\",\n  \"profile.phone\": \"+60123456789\",\n  \"privacySetting\": \"full\"\n}" },
+            "url": { "raw": "{{baseUrl}}/users/me", "host": ["{{baseUrl}}"], "path": ["users","me"] }
           }
         }
       ]
@@ -403,6 +492,58 @@
       ]
     },
     {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "GET /admin-dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/admin-dashboard", "host": ["{{baseUrl}}"], "path": ["admin-dashboard"] }
+          }
+        },
+        {
+          "name": "GET /admin-monitoring",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/admin-monitoring", "host": ["{{baseUrl}}"], "path": ["admin-monitoring"] }
+          }
+        },
+        {
+          "name": "GET /company-verifications (admin view all)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/company-verifications?$limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["company-verifications"],
+              "query": [ {"key":"$limit","value":"50"} ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /company-verifications/:id (approve)",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"approve\",\n  \"adminNotes\": \"All documents verified\"\n}" },
+            "url": { "raw": "{{baseUrl}}/company-verifications/{{verificationId}}", "host": ["{{baseUrl}}"], "path": ["company-verifications","{{verificationId}}"] }
+          }
+        },
+        {
+          "name": "PATCH /company-verifications/:id (reject)",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key":"Content-Type","value":"application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"reject\",\n  \"rejectionReason\": \"Missing required documents\",\n  \"adminNotes\": \"SSM certificate not provided\"\n}" },
+            "url": { "raw": "{{baseUrl}}/company-verifications/{{verificationId}}", "host": ["{{baseUrl}}"], "path": ["company-verifications","{{verificationId}}"] }
+          }
+        }
+      ]
+    },
+    {
       "name": "Upload",
       "item": [
         {
@@ -414,6 +555,34 @@
               "mode": "formdata",
               "formdata": [
                 { "key": "resume", "type": "file", "src": "{{resumePath}}" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/upload", "host": ["{{baseUrl}}"], "path": ["upload"] }
+          }
+        },
+        {
+          "name": "POST /upload (avatar)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "avatar", "type": "file", "src": "{{avatarPath}}" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/upload", "host": ["{{baseUrl}}"], "path": ["upload"] }
+          }
+        },
+        {
+          "name": "POST /upload (company logo)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "logo", "type": "file", "src": "{{logoPath}}" }
               ]
             },
             "url": { "raw": "{{baseUrl}}/upload", "host": ["{{baseUrl}}"], "path": ["upload"] }
