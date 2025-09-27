@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { apiAuth, getToken } from '../lib/api';
 import AuthPromptModal from './AuthPromptModal';
 
-export default function JobCard({ job }) {
+export default function JobCard({ job, companyView = false }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const { message } = App.useApp();
   const [saved, setSaved] = useState(false);
@@ -16,6 +16,24 @@ export default function JobCard({ job }) {
   const [authModalConfig, setAuthModalConfig] = useState({});
   const router = useRouter();
   const companyName = job.company?.name || job.companyName || 'Company';
+
+  const statusLabel = (s) => {
+    switch (s) {
+      case 0: return 'Draft';
+      case 1: return 'Pending';
+      case 2: return 'Active';
+      case 3: return 'Past';
+      default: return '';
+    }
+  };
+
+  const daysLeft = (() => {
+    if (!job?.expiresAt) return null;
+    const now = new Date();
+    const exp = new Date(job.expiresAt);
+    const diff = Math.ceil((exp.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+    return diff;
+  })();
 
   function handleCardClick() {
     router.push(`/jobs/${job._id}`);
@@ -114,6 +132,19 @@ export default function JobCard({ job }) {
     }
   }
 
+  async function requestRenewal(e) {
+    e?.preventDefault?.(); e?.stopPropagation?.();
+    try {
+      if (!getToken()) { message.error('Sign in required'); return; }
+      await apiAuth(`/job-listings/${job._id}`, { method: 'PATCH', body: { requestRenewal: true } });
+      message.success('Renewal requested. Awaiting operator approval.');
+      // naive refresh of the page/route to fetch updated job data
+      if (typeof window !== 'undefined') window.location.reload();
+    } catch (err) {
+      message.error('Failed to request renewal');
+    }
+  }
+
   return (
     <Card
       hoverable
@@ -122,6 +153,25 @@ export default function JobCard({ job }) {
       onClick={handleCardClick}
       style={{ cursor: 'pointer' }}
     >
+      {/* Status/expiry notice for company view */}
+      {companyView && (
+        <div style={{ marginBottom: 8 }}>
+          {job.status === 3 && (<Tag>{statusLabel(job.status)}</Tag>)}
+          {job.status === 2 && daysLeft != null && daysLeft <= 7 && (
+            <div style={{ padding: '8px 12px', border: '1px dashed #d9d9d9', borderRadius: 6, background: '#fafafa' }}>
+              <Space wrap>
+                <Tag color="orange">Expiring in {Math.max(daysLeft, 0)} day{Math.max(daysLeft,0)===1?'':'s'}</Tag>
+                {job.renewal ? (
+                  <Tag color="blue">Renewal pending approval</Tag>
+                ) : (
+                  <Button size="small" type="primary" onClick={requestRenewal}>Request renewal</Button>
+                )}
+              </Space>
+            </div>
+          )}
+        </div>
+      )}
+
       <Typography.Paragraph ellipsis={{ rows: 2 }}>{job.description}</Typography.Paragraph>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         {job.location?.city || job.location?.state ? (

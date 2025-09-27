@@ -359,28 +359,43 @@ export default function CompanyProfilePage() {
               {jobsLoading ? (
                 <Skeleton active />
               ) : jobs.length ? (
-                <>
-                  {jobsView === "grid" ? (
-                    <Row gutter={[16,16]}>
-                      {jobs.map(j => (
-                        <Col xs={24} sm={12} md={8} lg={6} key={j._id}>
-                          <JobCard job={j} />
-                        </Col>
-                      ))}
-                    </Row>
-                  ) : (
-                    <Row gutter={[16,16]}>
-                      {jobs.map(j => (
-                        <Col xs={24} key={j._id}>
-                          <JobCard job={j} />
-                        </Col>
-                      ))}
-                    </Row>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-                    <Pagination current={page} pageSize={pageSize} total={total} showSizeChanger={false} onChange={(p)=> setPage(p)} />
-                  </div>
-                </>
+                (() => {
+                  const activeJobs = jobs.filter(j => j.status === 2);
+                  const pastJobs = jobs.filter(j => j.status === 3);
+                  const renderJobs = (list) => (
+                    jobsView === "grid" ? (
+                      <Row gutter={[16,16]}>
+                        {list.map(j => (
+                          <Col xs={24} sm={12} md={8} lg={6} key={j._id}>
+                            <JobCard job={j} companyView />
+                          </Col>
+                        ))}
+                      </Row>
+                    ) : (
+                      <Row gutter={[16,16]}>
+                        {list.map(j => (
+                          <Col xs={24} key={j._id}>
+                            <JobCard job={j} companyView />
+                          </Col>
+                        ))}
+                      </Row>
+                    )
+                  );
+                  return (
+                    <>
+                      <Tabs
+                        defaultActiveKey="active"
+                        items={[
+                          { key: 'active', label: 'Active', children: renderJobs(activeJobs) },
+                          { key: 'past', label: 'Past', children: renderJobs(pastJobs) },
+                        ]}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+                        <Pagination current={page} pageSize={pageSize} total={total} showSizeChanger={false} onChange={(p)=> setPage(p)} />
+                      </div>
+                    </>
+                  );
+                })()
               ) : (
                 <Empty description="No jobs yet" />
               )}

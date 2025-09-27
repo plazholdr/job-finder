@@ -80,7 +80,15 @@ export default function Navbar() {
           setAvatarUrl(data?.profile?.avatar || '');
           setRole('student');
         } else {
-          setRole('company');
+          // If not a student, detect admin; otherwise default to company
+          try {
+            const ar = await fetch(`${API_BASE_URL}/admin-dashboard/overview`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (ar.ok) {
+              setRole('admin');
+            } else {
+              setRole('company');
+            }
+          } catch (_) { setRole('company'); }
         }
       } catch (_) {}
       // fetch notifications for dropdown (latest 10)
@@ -101,7 +109,11 @@ export default function Navbar() {
   ];
 
   const userMenu = {
-    items: role === 'company' ? [
+    items: role === 'admin' ? [
+      { key: 'admin-companies', label: <Link href="/admin/companies">Companies</Link> },
+      { key: 'admin-renewals', label: <Link href="/admin/renewals">Renewal Requests</Link> },
+      { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
+    ] : role === 'company' ? [
       { key: 'profile', label: <Link href="/company/profile">Profile</Link> },
       { key: 'create-job', label: <Link href="/company/jobs/new">Create Job</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },

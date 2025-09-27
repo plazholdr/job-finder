@@ -59,6 +59,29 @@ export default function configureScheduler(app) {
           // Continue with next job
         }
       }
+
+      // Auto-close expired ACTIVE listings and notify company owners
+      try {
+        const now2 = new Date();
+        const expired = await JobListings.find({ status: 2, expiresAt: { $lte: now2 } }).limit(200).lean();
+        for (const job of expired) {
+          try {
+            await JobListings.updateOne({ _id: job._id }, { $set: { status: 3, closedAt: now2 } });
+            const company = await Companies.findById(job.companyId).lean();
+            const ownerUserId = company?.ownerUserId;
+            if (ownerUserId && app.service) {
+              await app.service('notifications').create({
+                recipientUserId: ownerUserId,
+                recipientRole: 'company',
+                type: 'job_expired',
+                title: 'Job listing expired',
+                body: `Your job "${job.title}" has expired.`,
+                data: { jobId: job._id, expiredAt: job.expiresAt }
+              }, { provider: 'scheduler' });
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
     } catch (err) {
       // Silent catch to avoid crashing the app due to scheduler
     }
