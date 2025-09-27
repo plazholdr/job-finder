@@ -159,10 +159,13 @@ export default {
         if (!context.params.provider) return context; // internal call, allow system-managed fields
         const allowedRoots = ['profile','internProfile','privacySetting','password'];
         const data = context.data || {};
-        Object.keys(data).forEach(k => {
-          if (!allowedRoots.includes(k)) delete data[k];
-        });
-        context.data = data;
+        const filtered = {};
+        for (const [k, v] of Object.entries(data)) {
+          if (allowedRoots.includes(k) || k.startsWith('profile.') || k.startsWith('internProfile.')) {
+            filtered[k] = v;
+          }
+        }
+        context.data = filtered;
       },
       hashPassword('password')
     ],

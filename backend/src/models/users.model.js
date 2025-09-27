@@ -45,6 +45,7 @@ const userSchema = new mongoose.Schema({
     middleName: String,
     lastName: String,
     phone: String,
+    hidePhoneForCompanies: { type: Boolean, default: false },
     avatar: String, // photo
     bio: String,
     icPassportNumber: String, // national ID / IC / passport

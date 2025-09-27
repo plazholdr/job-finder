@@ -46,7 +46,7 @@ function VerifyInner() {
       }
     }
     run();
-  }, [email, next, forCompany]);
+  }, [email, next, forCompany, token]);
 
   return (
     <Layout>

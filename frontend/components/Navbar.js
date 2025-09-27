@@ -47,6 +47,7 @@ export default function Navbar() {
       { key: 'profile', label: <Link href="/company/profile">Profile</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
     ] : [
+      { key: 'profile', label: <Link href="/profile">Profile</Link> },
       { key: 'saved', label: <Link href="/saved-jobs">Saved Jobs</Link> },
       { key: 'liked', label: <Link href="/liked-jobs">Liked Jobs</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },

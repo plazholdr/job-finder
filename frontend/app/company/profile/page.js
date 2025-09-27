@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Layout, Card, Typography, Button, Space, Tag, Descriptions, message, Modal, Form, Input, Select, Upload } from 'antd';
 import { EditOutlined, UploadOutlined, GlobalOutlined, EnvironmentOutlined, PlusOutlined, MailOutlined, PhoneOutlined } from '@ant-design/icons';
 import Image from 'next/image';
@@ -21,12 +21,7 @@ export default function CompanyProfilePage() {
   const [form] = Form.useForm();
   const [completionForm] = Form.useForm();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    loadCompanyProfile();
-  }, []);
-
-  async function loadCompanyProfile() {
+  const loadCompanyProfile = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('jf_token');
@@ -86,7 +81,11 @@ export default function CompanyProfilePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadCompanyProfile();
+  }, [loadCompanyProfile]);
 
   // Check if company profile is incomplete
   function isCompanyProfileIncomplete(company) {

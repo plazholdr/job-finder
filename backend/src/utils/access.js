@@ -44,11 +44,12 @@ function maskStudent(record) {
     if (r.profile) {
       delete r.profile.phone;
       delete r.profile.firstName;
+      delete r.profile.middleName;
       delete r.profile.lastName;
     }
   } else {
-    // full: still hide phone only
-    if (r.profile) {
+    // full: show everything, unless user opted to hide phone from companies
+    if (r.profile && r.profile.hidePhoneForCompanies) {
       delete r.profile.phone;
     }
   }
