@@ -23,6 +23,10 @@ const companySchema = new mongoose.Schema({
   description: String,
   email: String,
   phone: String,
+  // Person-in-charge info for post-verification completeness
+  picName: String,
+  picEmail: String,
+  picPhone: String,
   address: {
     street: String,
     city: { type: String, index: true },

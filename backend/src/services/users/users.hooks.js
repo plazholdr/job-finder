@@ -153,8 +153,9 @@ export default {
           }
         }
       ),
-      // Whitelist fields for patch (profile/internProfile/privacySetting/password)
+      // Whitelist fields for patch when called externally. Internal calls (from services) may update system fields.
       (context) => {
+        if (!context.params.provider) return context; // internal call, allow system-managed fields
         const allowedRoots = ['profile','internProfile','privacySetting','password'];
         const data = context.data || {};
         Object.keys(data).forEach(k => {

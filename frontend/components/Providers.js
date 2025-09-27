@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, createContext, useContext } from 'react';
 import { ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
+import dynamic from 'next/dynamic';
+const CompanyStatusGate = dynamic(() => import('./CompanyStatusGate'), { ssr: false });
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 export const ThemeContext = createContext({ theme: 'light', toggle: () => {} });
@@ -37,6 +39,10 @@ export default function Providers({ children }) {
       <AntdApp>
         <QueryClientProvider client={client}>
           <ThemeContext.Provider value={{ theme, toggle: () => setTheme(t => t === 'dark' ? 'light' : 'dark') }}>
+            {/* Global company status guard to enforce flow for company users */}
+            <div suppressHydrationWarning>
+              <CompanyStatusGate />
+            </div>
             {children}
           </ThemeContext.Provider>
         </QueryClientProvider>

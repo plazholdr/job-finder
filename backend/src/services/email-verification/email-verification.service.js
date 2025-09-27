@@ -32,7 +32,7 @@ class EmailVerificationService {
     // Generate a 6-digit OTP code and a fallback token (link)
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const token = crypto.randomBytes(24).toString('hex');
-    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     await users.patch(user._id, {
       emailVerificationToken: token + ':' + code,
@@ -43,16 +43,16 @@ class EmailVerificationService {
     // Send email via nodemailer
     const isCompany = String(user.role || '') === 'company';
     const forCompany = isCompany ? '&forCompany=1' : '';
-    const verifyLink = `${process.env.PUBLIC_WEB_URL || ''}/verify-email?email=${encodeURIComponent(user.email)}${forCompany}`;
+    const verifyLink = `${process.env.PUBLIC_WEB_URL || ''}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}${forCompany}`;
 
     let subject, text, html;
     if (isCompany) {
       subject = 'Welcome to JobFinder - Verify Your Company Account';
-      text = `Welcome to JobFinder! Click to verify your email and setup your company: ${verifyLink}\n\n(This link expires in 10 minutes.)`;
+      text = `Welcome to JobFinder! Click to verify your email and setup your company: ${verifyLink}\n\n(This link expires in 24 hours.)`;
       html = companyVerifyEmailTemplate({ brandName: 'JobFinder', verifyLink });
     } else {
       subject = 'Verify your email';
-      text = `Click to verify: ${verifyLink}\n\n(This link expires in 10 minutes.)`;
+      text = `Click to verify: ${verifyLink}\n\n(This link expires in 24 hours.)`;
       html = verifyEmailTemplate({ brandName: 'JobFinder', code, verifyLink });
     }
 
@@ -65,7 +65,7 @@ class EmailVerificationService {
         recipientRole: user.role,
         type: 'email_verification',
         title: 'Verify your email',
-        body: 'We sent a verification code to your email. It expires in 10 minutes.'
+        body: 'We sent a verification link to your email. It expires in 24 hours.'
       });
     } catch (_) {}
 
@@ -73,10 +73,10 @@ class EmailVerificationService {
   }
 
   async patch(id, data = {}) {
-    // Simplified verification - just verify by email for company users
-    const { email } = data;
-    if (!email) {
-      const err = new Error('email is required');
+    // Verify by token + email and enforce expiry (24h)
+    const { token, email } = data;
+    if (!email || !token) {
+      const err = new Error('token and email are required');
       err.code = 400;
       throw err;
     }
@@ -91,6 +91,18 @@ class EmailVerificationService {
       const err = new Error('User not found');
       err.code = 404;
       throw err;
+    }
+
+    // Validate token and expiration
+    const stored = user.emailVerificationToken || '';
+    const exp = user.emailVerificationExpires ? new Date(user.emailVerificationExpires) : null;
+    if (!stored || !stored.includes(String(token))) {
+      const err = new Error('Invalid verification link');
+      err.code = 400; throw err;
+    }
+    if (!exp || exp < new Date()) {
+      const err = new Error('Verification link expired');
+      err.code = 400; throw err;
     }
 
     // Mark as verified

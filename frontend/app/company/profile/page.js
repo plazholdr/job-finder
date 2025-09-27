@@ -21,6 +21,7 @@ export default function CompanyProfilePage() {
   const [form] = Form.useForm();
   const [completionForm] = Form.useForm();
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadCompanyProfile();
   }, []);

@@ -7,7 +7,7 @@ function verifyEmailTemplate({ brandName = 'JobFinder', code, verifyLink }) {
   <body style="${styles}">
     <div style="max-width:560px;margin:0 auto;padding:24px">
       <h2 style="margin:0 0 8px 0;">Verify your email</h2>
-      <p>Hi, thanks for signing up for ${brandName}. Use the code below to verify your email. It expires in 10 minutes.</p>
+      <p>Hi, thanks for signing up for ${brandName}. Use the code below to verify your email. It expires in 24 hours.</p>
       <div style="font-size:28px;letter-spacing:4px;font-weight:bold;margin:16px 0;">${code}</div>
       <p>Or click the button below:</p>
       <p>
@@ -45,7 +45,7 @@ function companyVerifyEmailTemplate({ brandName = 'JobFinder', verifyLink }) {
       </ul>
 
       <hr style="margin:24px 0;border:none;border-top:1px solid #eee" />
-      <p style="color:#666;font-size:12px;">This verification link expires in 10 minutes for security. If you did not create this account, you can safely ignore this email.</p>
+      <p style="color:#666;font-size:12px;">This verification link expires in 24 hours for security. If you did not create this account, you can safely ignore this email.</p>
     </div>
   </body>
 </html>`;

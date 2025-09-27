@@ -2,7 +2,7 @@ import { AuthenticationService, JWTStrategy } from '@feathersjs/authentication';
 import { LocalStrategy } from '@feathersjs/authentication-local';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
+import CompanyVerifications from './models/company-verifications.model.js';
 
 export default (app) => {
   // Ensure strategies are allowed; prefer config but fall back to explicit
@@ -99,7 +99,19 @@ export default (app) => {
               const { ok, company } = await isCompanyVerified(app, user._id);
 
               if (!company) {
-                // No company profile yet - allow login to complete setup
+                // If no company found, but there is a pending verification submission by this user,
+                // treat as pending approval and deny login to match the desired flow.
+                try {
+                  const pending = await CompanyVerifications.findOne({ submittedBy: user._id, status: 0 }).lean();
+                  if (pending) {
+                    const err = new Error('Your company is pending approval. Please wait for admin approval before signing in.');
+                    err.code = 403;
+                    err.className = 'forbidden';
+                    err.name = 'Forbidden';
+                    throw err;
+                  }
+                } catch (_) {}
+                // No company and no pending submission: allow login to complete setup
                 console.log('Company user has no company profile yet, allowing login for setup');
               } else if (!ok) {
                 // Company exists but not approved - deny login
@@ -110,7 +122,14 @@ export default (app) => {
                 throw err;
               }
             } catch (importErr) {
-              if (importErr.name === 'COMPANY_PENDING_APPROVAL') {
+              // Re-throw any explicit pending-approval errors from above, not just a custom name
+              const msg = String(importErr?.message || '').toLowerCase();
+              if (
+                importErr?.name === 'COMPANY_PENDING_APPROVAL' ||
+                importErr?.code === 403 ||
+                importErr?.className === 'forbidden' ||
+                msg.includes('pending approval')
+              ) {
                 throw importErr;
               }
               console.error('Error checking company verification:', importErr);

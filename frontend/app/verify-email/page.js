@@ -23,11 +23,12 @@ function VerifyInner() {
       if (!email) return;
 
       if (forCompany) {
-        // For company users, verify email and redirect to setup
+        // For company users, verify email with token and redirect to setup
         try {
+          if (!token) throw new Error('Invalid or missing verification token');
           const res = await fetch(`${API_BASE_URL}/email-verification`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email, token })
           });
           const data = await res.json().catch(()=>({}));
           if (!res.ok) throw new Error(data?.message || 'Verification failed');
@@ -81,8 +82,21 @@ function VerifyInner() {
         {status === 'error' && (
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             <Alert type="error" showIcon message="Verification failed" description={error} />
-            <Typography.Paragraph>If the link expired, request a new one from your account.</Typography.Paragraph>
-            <Link href="/login"><Button>Back to sign in</Button></Link>
+            <Typography.Paragraph>If the link expired, you can request a new verification email below.</Typography.Paragraph>
+            <Space>
+              <Button onClick={async ()=>{
+                try {
+                  if (!email) throw new Error('No email found');
+                  const r = await fetch(`${API_BASE_URL}/email-verification`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+                  const j = await r.json().catch(()=>({}));
+                  if (!r.ok) throw new Error(j?.message || 'Failed to send');
+                  message.success('Verification email sent. Please check your inbox.');
+                } catch (e) {
+                  message.error(e.message || 'Failed to send verification email');
+                }
+              }}>Resend verification email</Button>
+              <Link href="/login"><Button>Back to sign in</Button></Link>
+            </Space>
           </Space>
         )}
       </Layout.Content>

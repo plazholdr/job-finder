@@ -14,6 +14,9 @@ function LoginInner() {
   async function onFinish(values) {
     try {
       setLoading(true);
+      // Always clear any existing token before attempting a new login to avoid stale session artifacts
+      try { localStorage.removeItem('jf_token'); } catch {}
+
       const res = await fetch(`${API_BASE_URL}/authentication`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -22,27 +25,21 @@ function LoginInner() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
+        // Ensure no token remains on failure
+        try { localStorage.removeItem('jf_token'); } catch {}
 
         // Handle company pending approval specifically (can be 403 or 500)
-        if (errorData.message?.includes('pending approval')) {
-          // Show modal with the exact message from server
+        if ((errorData.message || '').toLowerCase().includes('pending approval')) {
           Modal.warning({
             title: 'Company Pending Approval',
             content: errorData.message,
             maskClosable: false,
             closable: false,
-            onOk: () => {
-              window.location.href = '/company/pending-approval';
-            },
-            onCancel: () => {
-              window.location.href = '/company/pending-approval';
-            },
+            onOk: () => { window.location.href = '/company/pending-approval'; },
+            onCancel: () => { window.location.href = '/company/pending-approval'; },
             okText: 'Go to Pending Page'
           });
-          // Fallback redirect in case modal is somehow dismissed
-          setTimeout(() => {
-            window.location.href = '/company/pending-approval';
-          }, 2500);
+          setTimeout(() => { window.location.href = '/company/pending-approval'; }, 2500);
           return;
         }
 
@@ -57,6 +54,8 @@ function LoginInner() {
       const dest = next || '/';
       window.location.href = dest;
     } catch (e) {
+      // Ensure token is cleared on any error
+      try { localStorage.removeItem('jf_token'); } catch {}
       message.error(e.message);
     } finally {
       setLoading(false);
