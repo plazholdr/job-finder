@@ -16,7 +16,7 @@ export default function AdminRenewalsPage() {
   const [viewing, setViewing] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [query, expFilter]);
 
   async function load() {
     try {
@@ -24,14 +24,17 @@ export default function AdminRenewalsPage() {
       const token = localStorage.getItem('jf_token');
       if (!token) { message.error('Please sign in as admin'); window.location.href = '/login'; return; }
 
-      // Find ACTIVE listings with renewal flag
-      const res = await fetch(`${API_BASE_URL}/job-listings?status=2&renewal=true&$limit=100&$sort[renewalRequestedAt]=-1`, {
+      const params = new URLSearchParams({ type: 'renewal_requests' });
+      const q = (query || '').trim();
+      if (q) params.set('q', q);
+      if (expFilter !== 'all') params.set('maxDays', String(Number(expFilter)));
+
+      const res = await fetch(`${API_BASE_URL}/admin/monitoring?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Failed to load renewal requests');
-      const json = await res.json();
-      const data = Array.isArray(json) ? json : (json?.data || []);
-      setItems(data);
+      const data = await res.json();
+      setItems(Array.isArray(data) ? data : (data?.data || []));
     } catch (e) {
       message.error(e.message || 'Failed to load');
       setItems([]);
@@ -70,16 +73,7 @@ export default function AdminRenewalsPage() {
     )}
   ];
 
-  const filtered = items.filter(it => {
-    const q = query.trim().toLowerCase();
-    const matchQ = !q || it.title?.toLowerCase().includes(q) || it.company?.name?.toLowerCase().includes(q) || it.companyName?.toLowerCase().includes(q);
-    if (!matchQ) return false;
-    if (expFilter === 'all') return true;
-    const days = Number(expFilter);
-    if (!it.expiresAt) return false;
-    const dLeft = Math.ceil((new Date(it.expiresAt) - new Date()) / 86400000);
-    return dLeft <= days;
-  });
+  // Items are server-filtered via /admin/monitoring?type=renewal_requests
 
   return (
     <Layout>
@@ -95,7 +89,7 @@ export default function AdminRenewalsPage() {
             </Space>
           </Card>
           <Card>
-            <Table rowKey="_id" columns={columns} dataSource={filtered} loading={loading} pagination={{ pageSize: 10 }} />
+            <Table rowKey="_id" columns={columns} dataSource={items} loading={loading} pagination={{ pageSize: 10 }} />
           </Card>
         </div>
         <Drawer title="Job details" open={drawerOpen} onClose={() => setDrawerOpen(false)} width={560}>

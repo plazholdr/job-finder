@@ -87,6 +87,32 @@ class AdminMonitoringService {
       return items;
     }
 
+    if (type === 'renewal_requests') {
+      const JobModel = this.app.service('job-listings').Model;
+      const CompanyModel = this.app.service('companies').Model;
+      const now = new Date();
+
+      const q = String(query.q || '').trim();
+      const maxDays = Number(query.maxDays || 0);
+
+      const criteria = { status: 2, renewal: true };
+      if (maxDays > 0) {
+        const max = new Date(now.getTime());
+        max.setDate(max.getDate() + maxDays);
+        criteria.expiresAt = { $lte: max, $gte: now };
+      }
+
+      if (q) {
+        const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        const companies = await CompanyModel.find({ name: rx }, { _id: 1 }).lean();
+        const companyIds = companies.map(c => c._id);
+        criteria.$or = [ { title: rx }, { companyId: { $in: companyIds } } ];
+      }
+
+      const items = await JobModel.find(criteria).sort({ renewalRequestedAt: -1 }).limit(200).lean();
+      return items;
+    }
+
     if (type === 'expiring_jobs') {
       const JobModel = this.app.service('job-listings').Model;
       const now = new Date();

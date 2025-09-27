@@ -110,6 +110,7 @@ export default function Navbar() {
 
   const userMenu = {
     items: role === 'admin' ? [
+      { key: 'admin-dashboard', label: <Link href="/admin/dashboard">Dashboard</Link> },
       { key: 'admin-companies', label: <Link href="/admin/companies">Companies</Link> },
       { key: 'admin-renewals', label: <Link href="/admin/renewals">Renewal Requests</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
