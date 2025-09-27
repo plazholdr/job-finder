@@ -344,9 +344,14 @@ export default function CompanyProfilePage() {
                     onChange={(val) => setJobsView(val)}
                   />
                   {company?._id && (
-                    <Link href={`/companies/${company._id}`}>
-                      <Button type="link" size="small">View all</Button>
-                    </Link>
+                    <>
+                      <Link href={`/companies/${company._id}`}>
+                        <Button type="link" size="small">View all</Button>
+                      </Link>
+                      <Link href="/company/jobs/new">
+                        <Button type="primary" size="small">Create job listing</Button>
+                      </Link>
+                    </>
                   )}
                 </Space>
               }
