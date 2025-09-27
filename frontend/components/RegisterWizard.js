@@ -6,13 +6,6 @@ import { API_BASE_URL } from '../config';
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
 
-function splitName(full) {
-  const s = String(full || '').trim();
-  if (!s) return { firstName: '', lastName: '' };
-  const parts = s.split(' ');
-  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
-  return { firstName: parts.slice(0, -1).join(' '), lastName: parts.slice(-1)[0] };
-}
 
 const EDU_LEVELS = ['Diploma', 'Degree', 'Master', 'PhD', 'Certificate', 'Other'];
 const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Freelance'];
@@ -36,7 +29,7 @@ export default function RegisterWizard() {
 
   async function handleSubmitAll(values) {
     // Compose payload matching backend schema
-    const { username, password, email: emailInput, fullName, phone, icPassportNumber } = values;
+    const { username, password, email: emailInput, firstName, middleName, lastName, phone, icPassportNumber } = values;
 
     // Determine email/username relationship
     const usernameStr = String(username || '').trim().toLowerCase();
@@ -44,8 +37,6 @@ export default function RegisterWizard() {
     const isUsernameEmail = /@/.test(usernameStr);
     const email = isUsernameEmail ? usernameStr : emailStr;
     if (!email) { setCurrent(0); message.error('Email is required'); await form.validateFields(['email']); return; }
-
-    const { firstName, lastName } = splitName(fullName);
 
     const educations = (values.educations || []).map((e) => ({
       level: e?.level || undefined,
@@ -97,6 +88,7 @@ export default function RegisterWizard() {
       password,
       profile: {
         firstName,
+        middleName: middleName || undefined,
         lastName,
         phone: phone || undefined,
         avatar: undefined,
@@ -155,7 +147,7 @@ export default function RegisterWizard() {
                 await fetch(`${API_BASE_URL}/users/${created?._id || 'me'}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                  body: JSON.stringify({ profile: { avatar: url } })
+                  body: JSON.stringify({ 'profile.avatar': url })
                 });
               }
             }
@@ -182,7 +174,7 @@ export default function RegisterWizard() {
       let fields = [];
       switch (stepKey) {
         case 'account': fields = ['username','password','email']; break;
-        case 'profile': fields = ['fullName','phone','icPassportNumber']; break;
+        case 'profile': fields = ['firstName','lastName','phone','icPassportNumber']; break;
         default: fields = []; break;
       }
       console.log('Validating fields:', fields);
@@ -235,7 +227,13 @@ export default function RegisterWizard() {
         {current === 1 && (
           <>
             <Title level={5}>2. Profile information</Title>
-            <Form.Item name="fullName" label="Full name" rules={[{ required: true }]}>
+            <Form.Item name="firstName" label="First name" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="middleName" label="Middle name (optional)">
+              <Input />
+            </Form.Item>
+            <Form.Item name="lastName" label="Last name" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
             <Form.Item name="icPassportNumber" label="IC / Passport number">

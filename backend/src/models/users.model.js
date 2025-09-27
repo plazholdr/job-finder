@@ -42,6 +42,7 @@ const userSchema = new mongoose.Schema({
   },
   profile: {
     firstName: String,
+    middleName: String,
     lastName: String,
     phone: String,
     avatar: String, // photo

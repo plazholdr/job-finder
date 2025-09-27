@@ -69,6 +69,7 @@ async function mapStudentFilters(context) {
   if (q.keyword) {
     m.$or = [
       { 'profile.firstName': { $regex: String(q.keyword), $options: 'i' } },
+      { 'profile.middleName': { $regex: String(q.keyword), $options: 'i' } },
       { 'profile.lastName': { $regex: String(q.keyword), $options: 'i' } },
       { 'internProfile.skills': { $regex: String(q.keyword), $options: 'i' } }
     ];
