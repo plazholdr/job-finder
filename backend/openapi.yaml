@@ -774,9 +774,6 @@ components:
         data:
           type: array
           items: { $ref: '#/components/schemas/JobListing' }
-
-          type: array
-          items: { $ref: '#/components/schemas/InternshipJob' }
     Company:
       allOf:
         - $ref: '#/components/schemas/CompanyCreate'
