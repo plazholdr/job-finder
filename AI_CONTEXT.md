@@ -277,20 +277,19 @@ Testing Recommendations
 - Test token refresh automation in Postman collection
 
 Email Verification Flow Fixes (Latest)
-- Fixed "Invalid token/code" errors in email verification:
-  • Enhanced backend token matching to handle token:code format variations
-  • More robust regex matching for verification tokens
-  • Improved error messages for expired verification links
-- Company registration verification flow:
-  • Email verification links include forCompany=1 parameter for proper routing
-  • After clicking verification link: auto-verify → redirect to /login?next=/company/setup
-  • Post-login routing: company users automatically directed to /company/setup
-  • No OTP codes needed - verification works purely via email links
-- Frontend improvements:
-  • Fixed React Hook dependency warnings in useEffect
-  • Fixed ESLint unescaped entity errors (&apos; for apostrophes)
-  • Added proper Suspense boundaries for useSearchParams in Next.js 15
-  • Replaced static Modal.info() with Modal.useModal() to eliminate context warnings
+- 24-hour tokenized verification links:
+  • Backend generates a token stored on the user with an expiry 24h from issuance
+  • Email link now includes token+email: /verify-email?token=...&email=...&forCompany=1
+  • PATCH /email-verification requires { email, token } and enforces expiry/validity
+  • Email templates updated to say “expires in 24 hours”
+- Frontend verification page:
+  • Reads token/email from URL, calls PATCH, then redirects to /login?next=/company/setup (company flow)
+  • Provides a “Resend verification email” action on error
+- Service hooks:
+  • users.hooks.js allows internal service patches to persist system fields (token/expiry) while still restricting external patches
+- Additional frontend cleanups:
+  • Fixed React Hook dependency warnings; escaped apostrophes; ensured proper Suspense boundaries for useSearchParams
+  • Replaced static Modal.info where appropriate to avoid context warnings
 
 Build and Deployment Readiness
 - All ESLint errors resolved for production builds
@@ -298,11 +297,15 @@ Build and Deployment Readiness
 - Modal context warnings eliminated using Ant Design's useModal hook
 - Frontend builds successfully with Turbopack and passes all linting checks
 
-Current Company Registration Flow (Working)
-1. User visits /register-company → creates account with email/password
-2. Redirected to /verify-email?email=...&forCompany=1 → shows "check email" message
-3. User clicks verification link in email → auto-verifies and redirects to /login?next=/company/setup
-4. User signs in → automatically routed to /company/setup
-5. User fills company details (name, registration number, phone, SSM Superform PDF)
-6. If registration number exists → shows "Company already exists" modal with login prompt
-7. If unique → submission sent for admin approval via existing workflow
+Current Company Registration and Approval Flow (Working)
+1. /register-company → create account with email/password (role=company)
+2. Verification email sent with a 24h link: /verify-email?token=...&email=...&forCompany=1
+3. Click link → email verified → redirect to /login?next=/company/setup
+4. Sign in:
+   • If no submission yet → forced to /company/setup to complete company details and upload SSM Superform
+   • After submitting (pending admin approval) → login is blocked with a modal and redirect to /company/pending-approval
+5. After admin approves → login succeeds; CompanyStatusGate continues to nag for missing profile fields (logo, description, industry, address, PIC name/email/phone, website) until completed
+6. Global enforcement via CompanyStatusGate:
+   • No company and no pending submission → force /company/setup
+   • Pending submission or unapproved company → force /company/pending-approval
+   • Approved → allow normal navigation; show occasional “Complete your company profile” modal if required fields are missing
