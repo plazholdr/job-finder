@@ -1,19 +1,23 @@
 "use client";
 import { useState, Suspense } from "react";
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import Footer from "../../components/Footer";
-import { Layout, Typography, Form, Input, Button, message, Modal } from "antd";
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { Layout, Typography, Form, Input, Button, message, Modal, Alert, Card, Row, Col } from "antd";
 import Link from 'next/link';
 import { API_BASE_URL } from "../../config";
 
 function LoginInner() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const search = useSearchParams();
   const next = search?.get('next') || '';
 
   async function onFinish(values) {
     try {
       setLoading(true);
+      setError(null); // Clear any previous errors
       // Always clear any existing token before attempting a new login to avoid stale session artifacts
       try { localStorage.removeItem('jf_token'); } catch {}
 
@@ -56,35 +60,166 @@ function LoginInner() {
     } catch (e) {
       // Ensure token is cleared on any error
       try { localStorage.removeItem('jf_token'); } catch {}
-      message.error(e.message);
+      setError(e.message || 'An unexpected error occurred during login');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Layout>
-      <Layout.Content style={{ padding: 24, maxWidth: 420, margin: '0 auto' }}>
-        <Typography.Title level={3}>Sign in</Typography.Title>
-        <Form layout="vertical" onFinish={onFinish}>
-          <Form.Item name="email" label="Email" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="password" label="Password" rules={[{ required: true }]}>
-            <Input.Password />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block>Sign in</Button>
-          </Form.Item>
-        </Form>
-        <Typography.Paragraph style={{ textAlign: 'center' }}>
-          <Link href="/forgot-password">Forgot your password?</Link>
-        </Typography.Paragraph>
-        <Typography.Paragraph style={{ textAlign: 'center' }}>
-          <Link href="/register-company">Register as a company</Link>
-        </Typography.Paragraph>
+    <Layout style={{ minHeight: '100vh' }}>
+      <Layout.Content style={{ padding: 0 }}>
+        <Row style={{ minHeight: '100vh' }}>
+          {/* Left side - Image */}
+          <Col xs={0} md={12} lg={12} xl={12}>
+            <div
+              style={{
+                height: '100vh',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative'
+              }}
+            >
+              {/* Replace with your actual image path */}
+              <Image
+                src="/images/login-image.png"
+                alt="Login illustration"
+                width={800}
+                height={800}
+                priority={true}
+                style={{
+                  maxWidth: '90%',
+                  height: 'auto',
+                  opacity: 0.9,
+                  borderRadius: '8px'
+                }}
+                onError={(e) => {
+                  // Fallback if image doesn't exist
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling.style.display = 'block';
+                }}
+              />
+              {/* Fallback illustration if image doesn't exist */}
+              <div
+                style={{
+                  display: 'none',
+                  color: 'white',
+                  textAlign: 'center',
+                  fontSize: '48px'
+                }}
+              >
+                🚀
+              </div>
+            </div>
+          </Col>
+
+          {/* Right side - Login Form */}
+          <Col xs={24} md={12} lg={12} xl={12}>
+            <div
+              style={{
+                height: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px',
+                backgroundColor: '#f5f5f5'
+              }}
+            >
+              <Card
+                style={{
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                  borderRadius: '8px',
+                  border: '1px solid #f0f0f0',
+                  width: '100%',
+                  maxWidth: '400px',
+                  textAlign: 'center'
+                }}
+              >
+                <Image
+                src="/images/logo-image.png"
+                alt="Login illustration"
+                width={200}
+                height={200}
+                priority={true}
+                style={{
+                  maxWidth: '90%',
+                  height: 'auto',
+                  opacity: 0.9,
+                  borderRadius: '8px',
+                  marginBottom: '30px'
+                }}
+                onError={(e) => {
+                  // Fallback if image doesn't exist
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling.style.display = 'block';
+                }}
+              />
+                <Typography.Title level={4} style={{ textAlign: 'center', marginBottom: 10 }}>
+                  Welcome Back!
+                </Typography.Title>
+                <Typography.Paragraph style={{ textAlign: 'center', color: '#8c8c8c', marginBottom: 32 }}>
+                  If you haven't created an account yet, please register first!
+                </Typography.Paragraph>
+                {error && (
+                  <Alert message="Invalid Login" type="error" showIcon closable style={{
+                    marginBottom: 16,
+                    fontSize: '12px',
+                    padding: '8px 12px'
+                  }}
+                  />
+                )}
+                <Form
+                  name="login"
+                  initialValues={{ remember: true }}
+                  onFinish={onFinish}
+                >
+                  <Form.Item
+                    name="email"
+                    rules={[{ required: true, message: 'Please input your Email!' }]}
+                  >
+                    <Input prefix={<UserOutlined />} placeholder="Email" size="large" />
+                  </Form.Item>
+                  <Form.Item
+                    name="password"
+                    rules={[{ required: true, message: 'Please input your Password!' }]}
+                  >
+                    <Input prefix={<LockOutlined />} type="password" placeholder="Password" size="large" />
+                  </Form.Item>
+                  <Form.Item style={{ marginBottom: 16 }}>
+                    <Typography.Text style={{ float: 'right' }}>
+                      <Link href="/forgot-password">Forgot Password?</Link>
+                    </Typography.Text>
+                  </Form.Item>
+                  <Form.Item>
+                    <Button
+                      block
+                      type="primary"
+                      htmlType="submit"
+                      loading={loading}
+                      size="large"
+                      style={{
+                        background: "linear-gradient(to right, #7d69ff, #917fff)",
+                        borderColor: '#1890ff',
+                        borderRadius: '6px',
+                        height: '48px',
+                        fontSize: '16px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      Login
+                    </Button>
+                  </Form.Item>
+                </Form>
+                <Typography.Paragraph style={{ textAlign: 'center', marginTop: 24 }}>
+                  <Link href="/register-company">Register as a company</Link>
+                </Typography.Paragraph>
+              </Card>
+            </div>
+          </Col>
+        </Row>
       </Layout.Content>
-      <Footer />
     </Layout>
   );
 }

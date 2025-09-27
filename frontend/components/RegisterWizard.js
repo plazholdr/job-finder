@@ -154,7 +154,8 @@ export default function RegisterWizard() {
           }
         }
       }
-    } catch {}
+    } catch {
+    }
 
     // Send verification email (best-effort)
     try {
