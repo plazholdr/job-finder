@@ -1,6 +1,6 @@
 "use client";
 import { useState } from 'react';
-import { Typography, Input, Button, Space, Select, theme as antdTheme } from 'antd';
+import { Typography, Input, Button, Space, Select, theme as antdTheme, Col, Row } from 'antd';
 
 import { useTheme } from './Providers';
 
@@ -15,13 +15,29 @@ export default function Hero({ onSearch, industryOptions = [] }) {
   }
 
   return (
-    <div style={{ padding: '56px 24px', background: bg, textAlign: 'center' }}>
-      <Typography.Title level={2} style={{ marginBottom: 8 }}>Find internships and hire talent</Typography.Title>
-      <Typography.Text>Browse active jobs and approved companies</Typography.Text>
+    <div style={{ padding: '56px 24px', background: bg }}>
+      <Row style={{ width: '100%'}}>
+        <Col xs={24} md={12} lg={12} xl={12} style={{ paddingLeft: 150}}>
+        <Typography.Title level={1} style={{ marginBottom: 8, marginTop: 100, fontWeight: 700 }}>Find Internships And Hire Talents!</Typography.Title>
+        <Typography.Text style={{ fontSize: '1.5rem', fontWeight: 400, color: '#666', marginTop: 20 }}>Browse active jobs and approved companies</Typography.Text>
+        </Col>
+        <Col xs={24} md={12} lg={12} xl={12}>
+          <div 
+            style={{
+              minHeight: '100vh',
+              backgroundImage: 'url(/images/company-registration.png)',
+              backgroundSize: '60vh',
+              backgroundPosition: 'top',
+              backgroundRepeat: 'no-repeat'
+            }}
+          />
+         
+        </Col>
+      </Row>
       <div style={{ maxWidth: 900, margin: '24px auto 0' }}>
-        <Space.Compact style={{ width: '100%' }}>
-          <Input placeholder="Search skills, company or job title" value={q} onChange={(e)=>setQ(e.target.value)} />
-          <Button type="primary" onClick={handleSubmit}>Search</Button>
+        <Space.Compact style={{ width: '100%', marginTop: 80 }}>
+          <Input placeholder="Search skills, company or job title" value={q} onChange={(e)=>setQ(e.target.value)} style={{ borderRadius: 20, padding: 10, boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)" }}/>
+          <Button type="primary" onClick={handleSubmit} style={{borderRadius: 20, background: 'linear-gradient(to right, #7d69ff, #917fff)', marginLeft: 8, padding: 20, boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)" }}>Search</Button>
         </Space.Compact>
       </div>
     </div>

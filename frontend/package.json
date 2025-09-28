@@ -28,6 +28,7 @@
     "@cypress/react": "^9.0.1",
     "@cypress/webpack-dev-server": "^5.1.2",
     "@eslint/eslintrc": "^3",
+    "@next/bundle-analyzer": "^15.5.4",
     "cypress": "^15.3.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.3"
