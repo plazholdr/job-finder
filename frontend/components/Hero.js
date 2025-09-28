@@ -22,16 +22,17 @@ export default function Hero({ onSearch, industryOptions = [] }) {
         <Typography.Text style={{ fontSize: '1.5rem', fontWeight: 400, color: '#666', marginTop: 20 }}>Browse active jobs and approved companies</Typography.Text>
         </Col>
         <Col xs={24} md={12} lg={12} xl={12}>
-          <div 
+          <div
             style={{
-              minHeight: '100vh',
+              height: 'clamp(260px, 45vh, 520px)',
+              width: '100%',
               backgroundImage: 'url(/images/company-registration.png)',
-              backgroundSize: '60vh',
-              backgroundPosition: 'top',
+              backgroundSize: 'contain',
+              backgroundPosition: 'right top',
               backgroundRepeat: 'no-repeat'
             }}
           />
-         
+
         </Col>
       </Row>
       <div style={{ maxWidth: 900, margin: '24px auto 0' }}>

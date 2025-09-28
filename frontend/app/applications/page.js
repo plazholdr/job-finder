@@ -1,22 +1,12 @@
 "use client";
 import { useEffect, useMemo, useState } from 'react';
-import { Layout, Card, Table, Space, Typography, Button, Tag, message, Tabs, Modal, Form, InputNumber, Input, Tabs, Modal, Form, InputNumber, Input } from 'antd';
+import { Layout, Card, Table, Space, Typography, Button, Tag, message, Tabs, Modal, Form, InputNumber, Input } from 'antd';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { API_BASE_URL } from '../../config';
 
 const { Title } = Typography;
 
-const statusText = (s) => ({0:'Applied',1:'Shortlisted',2:'Interview',3:'Active offer',4:'Hired',5:'Rejected',6:'Withdrawn',7:'Not Attending'}[s] || String(s));
-
-const tabs = [
-  { key: 'applied', label: 'Applied', statuses: [0] },
-  { key: 'shortlisted', label: 'Short-listed', statuses: [1,2] },
-  { key: 'offer', label: 'Active offer', statuses: [3] },
-  { key: 'hired', label: 'Hired', statuses: [4] },
-  { key: 'withdrawn', label: 'Withdraw', statuses: [6] },
-  { key: 'rejected', label: 'Rejected', statuses: [5] }
-];
 const statusText = (s) => ({0:'Applied',1:'Shortlisted',2:'Interview',3:'Active offer',4:'Hired',5:'Rejected',6:'Withdrawn',7:'Not Attending'}[s] || String(s));
 
 const tabs = [
