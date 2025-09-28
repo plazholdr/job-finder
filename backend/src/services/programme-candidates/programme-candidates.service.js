@@ -7,42 +7,164 @@ class ProgrammeCandidatesService {
   constructor(app) { this.app = app; }
   async find(params) {
     const q = params.query || {};
-    const { university, programme, faculty, level } = q;
+
+    // Extract filter parameters based on actual data structure
+    const {
+      programme,
+      faculty,
+      level
+    } = q;
+
+    // Handle fieldOfStudy specially to ensure it's treated as array when multiple values
+    let fieldOfStudy = q.fieldOfStudy;
+    if (fieldOfStudy && !Array.isArray(fieldOfStudy)) {
+      fieldOfStudy = [fieldOfStudy];
+    }
+
+    // Also handle other array parameters
+    let educationLevel = q.educationLevel;
+    if (educationLevel && !Array.isArray(educationLevel)) {
+      educationLevel = [educationLevel];
+    }
+
+    let university = q.university;
+    if (university && !Array.isArray(university)) {
+      university = [university];
+    }
+
+    let workIndustry = q.workIndustry;
+    if (workIndustry && !Array.isArray(workIndustry)) {
+      workIndustry = [workIndustry];
+    }
+
+    let skills = q.skills;
+    if (skills && !Array.isArray(skills)) {
+      skills = [skills];
+    }
+
+    let preferredLocation = q.preferredLocation;
+    if (preferredLocation && !Array.isArray(preferredLocation)) {
+      preferredLocation = [preferredLocation];
+    }
+
+    // Debug logging
+    console.log('🔍 Programme Candidates Query:', {
+      originalQuery: q,
+      normalizedParams: {
+        fieldOfStudy,
+        educationLevel,
+        university,
+        workIndustry,
+        skills,
+        preferredLocation
+      }
+    });
+
     const startDate = q.startDate ? new Date(q.startDate) : null;
     const endDate = q.endDate ? new Date(q.endDate) : null;
-    const locations = q.locations ? (Array.isArray(q.locations) ? q.locations : [q.locations]) : [];
     const salaryMin = q.salaryMin ? Number(q.salaryMin) : null;
     const salaryMax = q.salaryMax ? Number(q.salaryMax) : null;
 
     const match = { role: 'student' };
-
     const and = [];
-    if (university) {
-      and.push({ $or: [ { 'internProfile.university': university }, { 'internProfile.educations.institutionName': university } ] });
+
+    // Education-based filters (using actual data structure)
+    if (university && university.length > 0) {
+      and.push({ 'educations.institutionName': { $in: university } });
+      console.log('🏫 Added university filter:', { 'educations.institutionName': { $in: university } });
     }
-    if (programme) and.push({ 'internProfile.educations.qualification': programme });
-    if (faculty) and.push({ 'internProfile.educations.fieldOfStudy': faculty });
-    if (level) and.push({ 'internProfile.educations.level': level });
 
-    if (startDate) and.push({ 'internProfile.preferences.preferredStartDate': { $gte: startDate } });
-    if (endDate) and.push({ 'internProfile.preferences.preferredEndDate': { $lte: endDate } });
+    if (programme) {
+      and.push({ 'educations.qualification': programme });
+      console.log('🎓 Added programme filter:', { 'educations.qualification': programme });
+    }
 
-    if (locations.length) and.push({ 'internProfile.preferences.locations': { $in: locations } });
+    if (faculty || (fieldOfStudy && fieldOfStudy.length > 0)) {
+      const fieldValue = fieldOfStudy || [faculty];
+      console.log('🎓 Field of Study filter input:', fieldValue);
 
+      if (fieldValue && fieldValue.length > 0) {
+        and.push({ 'educations.fieldOfStudy': { $in: fieldValue } });
+        console.log('📚 Added field of study filter:', { 'educations.fieldOfStudy': { $in: fieldValue } });
+      }
+    }
+
+    if (level || (educationLevel && educationLevel.length > 0)) {
+      const levelValue = educationLevel || [level];
+      if (levelValue && levelValue.length > 0) {
+        and.push({ 'educations.level': { $in: levelValue } });
+        console.log('📜 Added education level filter:', { 'educations.level': { $in: levelValue } });
+      }
+    }
+
+    // Work experience filters
+    if (workIndustry && workIndustry.length > 0) {
+      and.push({ 'workExperiences.industry': { $in: workIndustry } });
+      console.log('💼 Added work industry filter:', { 'workExperiences.industry': { $in: workIndustry } });
+    }
+
+    // Skills filters
+    if (skills && skills.length > 0) {
+      and.push({ 'skills.name': { $in: skills } });
+      console.log('🛠️ Added skills filter:', { 'skills.name': { $in: skills } });
+    }
+
+    // Preferences filters
+    if (preferredLocation && preferredLocation.length > 0) {
+      and.push({ 'preferences.locations': { $in: preferredLocation } });
+      console.log('📍 Added preferred location filter:', { 'preferences.locations': { $in: preferredLocation } });
+    }
+
+    // Date filters (using internProfile for backward compatibility)
+    if (startDate) {
+      and.push({
+        $or: [
+          { 'internProfile.preferences.preferredStartDate': { $gte: startDate } },
+          { 'preferences.preferredStartDate': { $gte: startDate } }
+        ]
+      });
+    }
+
+    if (endDate) {
+      and.push({
+        $or: [
+          { 'internProfile.preferences.preferredEndDate': { $lte: endDate } },
+          { 'preferences.preferredEndDate': { $lte: endDate } }
+        ]
+      });
+    }
+
+    // Salary filters
     if (salaryMin != null || salaryMax != null) {
       const cond = {};
       if (salaryMin != null) cond.$gte = salaryMin;
       if (salaryMax != null) cond.$lte = salaryMax;
-      and.push({ 'internProfile.preferences.salaryRange.min': cond });
+      and.push({
+        $or: [
+          { 'internProfile.preferences.salaryRange.min': cond },
+          { 'preferences.salaryRange.min': cond }
+        ]
+      });
     }
 
     if (and.length) match.$and = and;
+
+    console.log('🔍 Final MongoDB query:', JSON.stringify(match, null, 2));
+    console.log('📊 Query conditions count:', and.length);
 
     const projection = {
       email: 1,
       role: 1,
       'profile.firstName': 1,
       'profile.lastName': 1,
+      'profile.phone': 1,
+      educations: 1,
+      workExperiences: 1,
+      skills: 1,
+      preferences: 1,
+      certifications: 1,
+      interests: 1,
+      // Keep internProfile for backward compatibility
       'internProfile.university': 1,
       'internProfile.educations': 1,
       'internProfile.preferences': 1

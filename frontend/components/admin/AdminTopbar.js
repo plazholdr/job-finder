@@ -91,7 +91,7 @@ export default function AdminTopbar() {
         <Typography.Text strong>Admin</Typography.Text>
         <Space>
           <Dropdown
-            dropdownRender={() => (
+            popupRender={() => (
               notifOpen ? (
                 <NotificationsDropdownContent
                   notifs={adminNotifs}

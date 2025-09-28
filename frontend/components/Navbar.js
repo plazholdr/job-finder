@@ -91,7 +91,10 @@ export default function Navbar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const logoSrc = theme === 'dark' ? '/logo_rect_dark.svg' : '/logo_rect_light.svg';
 
-  const menuItems = [
+  // Dynamic menu items based on user role
+  const menuItems = role === 'company' ? [
+    { key: 'candidates', label: <Link href="/" prefetch={false}>Candidates</Link> },
+  ] : [
     { key: 'jobs', label: <Link href="/jobs" prefetch={false}>Jobs</Link> },
     { key: 'companies', label: <Link href="/companies" prefetch={false}>Companies</Link> },
   ];
@@ -132,7 +135,7 @@ export default function Navbar() {
           <Switch checked={theme === 'dark'} onChange={toggle} />
           {authed && (
             <Dropdown
-              dropdownRender={() => (
+              popupRender={() => (
                 notifOpen ? (
                   <NotificationsDropdownContent
                     notifs={notifs}
@@ -173,8 +176,9 @@ export default function Navbar() {
             </Dropdown>
           ) : (
             <>
-              <Link href="/login"><Button>Sign in</Button></Link>
-              <Link href="/register"><Button type="primary">Sign up</Button></Link>
+              <Link href="/login"><Button>Sign In</Button></Link>
+              <Link href="/register"><Button>Register</Button></Link>
+              <Link href="/register-company"><Button type="primary">Employer Register</Button></Link>
             </>
           )}
         </Space>
