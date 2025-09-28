@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { Layout, Table, Button, Space, Tag, Typography, Card, message, Input, Segmented, Drawer, Descriptions } from 'antd';
+import { Table, Button, Space, Tag, Typography, Card, message, Input, Segmented, Drawer } from 'antd';
+import { recordToCSV } from '../../../utils/csv';
 import { CheckOutlined, ReloadOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
-import Navbar from '../../../components/Navbar';
-import Footer from '../../../components/Footer';
+
 import { API_BASE_URL } from '../../../config';
+import dynamic from 'next/dynamic';
+const AdminRenewalDetails = dynamic(() => import('../../../components/admin/AdminRenewalDetails'), { ssr: false });
 
 const { Title } = Typography;
 
@@ -76,39 +78,42 @@ export default function AdminRenewalsPage() {
   // Items are server-filtered via /admin/monitoring?type=renewal_requests
 
   return (
-    <Layout>
-      <Navbar />
-      <Layout.Content style={{ padding: 24, minHeight: '80vh' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Title level={2}>Renewal Requests</Title>
-          <Card style={{ marginBottom: 16 }}>
-            <Space wrap>
-              <Input allowClear prefix={<SearchOutlined />} placeholder="Search title or company" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: 320 }} />
-              <Segmented options={[{label:'All',value:'all'},{label:'≤ 7 days',value:'7'},{label:'≤ 14 days',value:'14'},{label:'≤ 30 days',value:'30'}]} value={expFilter} onChange={setExpFilter} />
-              <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+    <div>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <Title level={2}>Renewal Requests</Title>
+        <Card style={{ marginBottom: 16 }}>
+          <Space wrap>
+            <Input allowClear prefix={<SearchOutlined />} placeholder="Search title or company" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: 320 }} />
+            <Segmented options={[{label:'All',value:'all'},{label:'≤ 7 days',value:'7'},{label:'≤ 14 days',value:'14'},{label:'≤ 30 days',value:'30'}]} value={expFilter} onChange={setExpFilter} />
+            <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          </Space>
+        </Card>
+        <Card>
+          <Table rowKey="_id" columns={columns} dataSource={items} loading={loading} pagination={{ pageSize: 10 }} />
+        </Card>
+      </div>
+      <Drawer title="Job details" open={drawerOpen} onClose={() => setDrawerOpen(false)} width={560}>
+        {viewing ? (
+          <>
+            <Space style={{ marginBottom: 12 }}>
+              <Button onClick={() => {
+                try {
+                  const csv = recordToCSV(viewing);
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `renewal-${viewing._id || 'record'}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch (e) { message.error('Export failed'); }
+              }}>Export CSV</Button>
             </Space>
-          </Card>
-          <Card>
-            <Table rowKey="_id" columns={columns} dataSource={items} loading={loading} pagination={{ pageSize: 10 }} />
-          </Card>
-        </div>
-        <Drawer title="Job details" open={drawerOpen} onClose={() => setDrawerOpen(false)} width={560}>
-          {viewing && (
-            <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="Title">{viewing.title}</Descriptions.Item>
-              <Descriptions.Item label="Company">{viewing.company?.name || viewing.companyName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="Expires">{viewing.expiresAt ? new Date(viewing.expiresAt).toLocaleString() : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Requested At">{viewing.renewalRequestedAt ? new Date(viewing.renewalRequestedAt).toLocaleString() : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Status">{viewing.status===2?'Active':viewing.status===1?'Pending':viewing.status===3?'Past':'Draft'}</Descriptions.Item>
-              <Descriptions.Item label="Publish At">{viewing.publishAt ? new Date(viewing.publishAt).toLocaleString() : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Approved At">{viewing.approvedAt ? new Date(viewing.approvedAt).toLocaleString() : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Description">{viewing.description || '-'}</Descriptions.Item>
-            </Descriptions>
-          )}
-        </Drawer>
-      </Layout.Content>
-      <Footer />
-    </Layout>
+            <AdminRenewalDetails record={viewing} />
+          </>
+        ) : null}
+      </Drawer>
+    </div>
   );
 }
 

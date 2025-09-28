@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { Layout, Table, Button, Space, Tag, message, Modal, Typography, Card, Descriptions } from 'antd';
+import { Layout, Table, Button, Space, Tag, message, Modal, Typography, Card, Descriptions, Segmented } from 'antd';
 import { CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
-import Navbar from '../../../components/Navbar';
-import Footer from '../../../components/Footer';
+
 import { API_BASE_URL } from '../../../config';
+import dynamic from 'next/dynamic';
+const AdminCompaniesTable = dynamic(() => import('../../../components/admin/AdminCompaniesTable'), { ssr: false, loading: () => <div /> });
+
 
 const { Title } = Typography;
 
@@ -13,10 +15,18 @@ export default function AdminCompaniesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all'); // all|pending|approved|rejected
 
   useEffect(() => {
     loadCompanies();
-  }, []);
+  }, [statusFilter]);
+
+  function statusToQueryValue(filter) {
+    if (filter === 'pending') return 0;
+    if (filter === 'approved') return 1;
+    if (filter === 'rejected') return 2;
+    return undefined;
+  }
 
   async function loadCompanies() {
     try {
@@ -27,7 +37,12 @@ export default function AdminCompaniesPage() {
         return;
       }
 
-      const res = await fetch(`${API_BASE_URL}/companies?$sort[submittedAt]=-1`, {
+      const vs = statusToQueryValue(statusFilter);
+      const qs = new URLSearchParams();
+      qs.set('$sort[submittedAt]','-1');
+      qs.set('$limit','200');
+      if (vs !== undefined) qs.set('verifiedStatus', String(vs));
+      const res = await fetch(`${API_BASE_URL}/companies?${qs.toString()}` , {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -101,12 +116,11 @@ export default function AdminCompaniesPage() {
   }
 
   function getStatusTag(status) {
-    switch (status) {
-      case 0: return <Tag color="orange">Pending</Tag>;
-      case 1: return <Tag color="green">Approved</Tag>;
-      case 2: return <Tag color="red">Rejected</Tag>;
-      default: return <Tag>Unknown</Tag>;
-    }
+    const s = typeof status === 'string' ? status : ({0:'pending',1:'approved',2:'rejected'}[status] ?? 'unknown');
+    if (s === 'pending') return <Tag color="orange">Pending</Tag>;
+    if (s === 'approved') return <Tag color="green">Approved</Tag>;
+    if (s === 'rejected') return <Tag color="red">Rejected</Tag>;
+    return <Tag>Unknown</Tag>;
   }
 
   const columns = [
@@ -179,73 +193,78 @@ export default function AdminCompaniesPage() {
   ];
 
   return (
-    <Layout>
-      <Navbar />
-      <Layout.Content style={{ padding: '24px', minHeight: '80vh' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Title level={2}>Company Management</Title>
-          
-          <Card>
-            <Table
-              columns={columns}
-              dataSource={companies}
-              loading={loading}
-              rowKey="_id"
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total) => `Total ${total} companies`
-              }}
-            />
-          </Card>
+    <div>
+      <Title level={2}>Company Management</Title>
 
-          <Modal
-            title="Company Details"
-            open={detailsVisible}
-            onCancel={() => setDetailsVisible(false)}
-            footer={[
-              <Button key="close" onClick={() => setDetailsVisible(false)}>
-                Close
-              </Button>
+      <Card style={{ marginBottom: 16 }}>
+        <Space style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+          <Segmented
+            options={[
+              { label: 'All', value: 'all' },
+              { label: 'Pending', value: 'pending' },
+              { label: 'Approved', value: 'approved' },
+              { label: 'Rejected', value: 'rejected' }
             ]}
-            width={800}
-          >
-            {selectedCompany && (
-              <Descriptions bordered column={1}>
-                <Descriptions.Item label="Company Name">
-                  {selectedCompany.name}
-                </Descriptions.Item>
-                <Descriptions.Item label="Registration Number">
-                  {selectedCompany.registrationNumber}
-                </Descriptions.Item>
-                <Descriptions.Item label="Phone">
-                  {selectedCompany.phone}
-                </Descriptions.Item>
-                <Descriptions.Item label="Industry">
-                  {selectedCompany.industry || 'Not specified'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Website">
-                  {selectedCompany.website || 'Not specified'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Description">
-                  {selectedCompany.description || 'Not specified'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Status">
-                  {getStatusTag(selectedCompany.verifiedStatus)}
-                </Descriptions.Item>
-                <Descriptions.Item label="Submitted At">
-                  {selectedCompany.submittedAt ? new Date(selectedCompany.submittedAt).toLocaleString() : '-'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Reviewed At">
-                  {selectedCompany.reviewedAt ? new Date(selectedCompany.reviewedAt).toLocaleString() : '-'}
-                </Descriptions.Item>
-              </Descriptions>
-            )}
-          </Modal>
-        </div>
-      </Layout.Content>
-      <Footer />
-    </Layout>
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
+          <Button onClick={loadCompanies}>Refresh</Button>
+        </Space>
+      </Card>
+
+      <Card>
+        <AdminCompaniesTable
+          companies={companies}
+          loading={loading}
+          onApprove={approveCompany}
+          onReject={rejectCompany}
+          onView={(rec) => { setSelectedCompany(rec); setDetailsVisible(true); }}
+        />
+      </Card>
+
+      <Modal
+        title="Company Details"
+        open={detailsVisible}
+        onCancel={() => setDetailsVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setDetailsVisible(false)}>
+            Close
+          </Button>
+        ]}
+        width={800}
+      >
+        {selectedCompany && (
+          <Descriptions bordered column={1}>
+            <Descriptions.Item label="Company Name">
+              {selectedCompany.name}
+            </Descriptions.Item>
+            <Descriptions.Item label="Registration Number">
+              {selectedCompany.registrationNumber}
+            </Descriptions.Item>
+            <Descriptions.Item label="Phone">
+              {selectedCompany.phone}
+            </Descriptions.Item>
+            <Descriptions.Item label="Industry">
+              {selectedCompany.industry || 'Not specified'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Website">
+              {selectedCompany.website || 'Not specified'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Description">
+              {selectedCompany.description || 'Not specified'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Status">
+              {getStatusTag(selectedCompany.verifiedStatus)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Submitted At">
+              {selectedCompany.submittedAt ? new Date(selectedCompany.submittedAt).toLocaleString() : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Reviewed At">
+              {selectedCompany.reviewedAt ? new Date(selectedCompany.reviewedAt).toLocaleString() : '-'}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+    </div>
   );
 }

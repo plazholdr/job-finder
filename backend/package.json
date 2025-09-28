@@ -15,7 +15,11 @@
     "format": "prettier --write src/ test/",
     "clean": "rm -rf node_modules yarn.lock",
     "fresh": "yarn clean && yarn install",
-    "migrate:statuses": "node scripts/migrate-statuses.js"
+    "migrate:statuses": "node scripts/migrate-statuses.js",
+    "generate:service": "node ../scripts/dev-helpers.js service",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:unit": "jest --testPathPattern=unit",
+    "docs:generate": "node scripts/generate-docs.js"
   },
   "keywords": [
     "feathers",

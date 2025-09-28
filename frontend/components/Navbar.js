@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { Layout, Menu, Button, Space, Switch, Dropdown, theme as antdTheme, Avatar, Typography, Badge, Tabs, List, Tag } from 'antd';
+import { Layout, Menu, Button, Space, Switch, Dropdown, theme as antdTheme, Avatar, Typography, Badge } from 'antd';
 import Link from 'next/link';
 import { BellOutlined } from '@ant-design/icons';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useTheme } from './Providers';
 import { API_BASE_URL } from '../config';
@@ -18,8 +19,8 @@ export default function Navbar() {
   const [notifTab, setNotifTab] = useState('direct');
   const unreadCount = notifs.filter(n => !n.read).length;
 
-  const directNotifs = notifs.filter(n => (n.channel || n.type || 'direct') !== 'watching');
-  const watchingNotifs = notifs.filter(n => (n.channel || n.type) === 'watching');
+
+  const NotificationsDropdownContent = dynamic(() => import('./NotificationsDropdownContent'), { ssr: false, loading: () => <div style={{ padding: 12 }}>Loading...</div> });
 
   const fetchNotifs = async () => {
     try {
@@ -49,21 +50,7 @@ export default function Navbar() {
     } catch (_) {}
   };
 
-  const statusTag = (n) => {
-    const s = (n?.status || n?.state || '').toString().toLowerCase();
-    const map = {
-      'in progress': { text: 'In progress', color: 'blue' },
-      'in_progress': { text: 'In progress', color: 'blue' },
-      'action needed': { text: 'Action needed', color: 'orange' },
-      'action_needed': { text: 'Action needed', color: 'orange' },
-      'completed': { text: 'Completed', color: 'green' },
-      'rejected': { text: 'Rejected', color: 'red' },
-      'pending': { text: 'Pending', color: 'blue' },
-      'active': { text: 'Active', color: 'green' },
-    };
-    const m = map[s];
-    return m ? <Tag color={m.color}>{m.text}</Tag> : null;
-  };
+  // Moved statusTag and heavy dropdown UI into dynamic NotificationsDropdownContent
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('jf_token') : null;
     setAuthed(!!token);
@@ -101,27 +88,29 @@ export default function Navbar() {
     })();
   }, []);
 
+  const [notifOpen, setNotifOpen] = useState(false);
   const logoSrc = theme === 'dark' ? '/logo_rect_dark.svg' : '/logo_rect_light.svg';
 
   const menuItems = [
-    { key: 'jobs', label: <Link href="/jobs">Jobs</Link> },
-    { key: 'companies', label: <Link href="/companies">Companies</Link> },
+    { key: 'jobs', label: <Link href="/jobs" prefetch={false}>Jobs</Link> },
+    { key: 'companies', label: <Link href="/companies" prefetch={false}>Companies</Link> },
   ];
 
   const userMenu = {
     items: role === 'admin' ? [
-      { key: 'admin-dashboard', label: <Link href="/admin/dashboard">Dashboard</Link> },
-      { key: 'admin-companies', label: <Link href="/admin/companies">Companies</Link> },
-      { key: 'admin-renewals', label: <Link href="/admin/renewals">Renewal Requests</Link> },
+      { key: 'admin-dashboard', label: <Link href="/admin/dashboard" prefetch={false}>Dashboard</Link> },
+      { key: 'admin-companies', label: <Link href="/admin/companies" prefetch={false}>Companies</Link> },
+      { key: 'admin-renewals', label: <Link href="/admin/renewals" prefetch={false}>Renewal Requests</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
     ] : role === 'company' ? [
-      { key: 'profile', label: <Link href="/company/profile">Profile</Link> },
-      { key: 'create-job', label: <Link href="/company/jobs/new">Create Job</Link> },
+      { key: 'profile', label: <Link href="/company/profile" prefetch={false}>Profile</Link> },
+      { key: 'applications', label: <Link href="/company/applications" prefetch={false}>Applications</Link> },
+      { key: 'create-job', label: <Link href="/company/jobs/new" prefetch={false}>Create Job</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
     ] : [
-      { key: 'profile', label: <Link href="/profile">Profile</Link> },
-      { key: 'saved', label: <Link href="/saved-jobs">Saved Jobs</Link> },
-      { key: 'liked', label: <Link href="/liked-jobs">Liked Jobs</Link> },
+      { key: 'profile', label: <Link href="/profile" prefetch={false}>Profile</Link> },
+      { key: 'saved', label: <Link href="/saved-jobs" prefetch={false}>Saved Jobs</Link> },
+      { key: 'liked', label: <Link href="/liked-jobs" prefetch={false}>Liked Jobs</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
     ]
   };
@@ -139,73 +128,21 @@ export default function Navbar() {
           {authed && (
             <Dropdown
               dropdownRender={() => (
-                <div style={{ width: 420, background: token.colorBgElevated, borderRadius: token.borderRadiusLG, boxShadow: token.boxShadowSecondary, boxSizing: 'border-box' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding: '8px 12px', fontWeight: 600, borderBottom: `1px solid ${token.colorBorder}` }}>
-                    <span>Notifications</span>
-                    <Button type="link" size="small" onClick={markAllAsRead}>Mark all as read</Button>
-                  </div>
-                  <Tabs size="small" activeKey={notifTab} onChange={setNotifTab} items={[
-                    { key: 'direct', label: 'Direct', children: (
-                      <div style={{ maxHeight: 420, overflowY: 'auto', padding: '8px 8px' }}>
-                        <List size="small" split={false} dataSource={directNotifs} renderItem={(n) => (
-                          <List.Item key={n._id} style={{ cursor:'pointer', padding: '8px 8px' }} onClick={() => { window.location.href = n.link || '/notifications'; }}>
-                            <div style={{ display:'flex', gap: 8, width:'100%' }}>
-                              <span style={{ width:8, height:8, marginTop: 6, flexShrink:0, borderRadius:'50%', backgroundColor: n.read ? token.colorBorder : token.colorPrimary, display:'inline-block' }} />
-                              <div style={{ flex: 1 }}>
-                                <div style={{ display:'flex', justifyContent:'space-between', gap: 12 }}>
-                                  <Space size={6} wrap>
-                                    {!n.read && <Tag color="blue">Unread</Tag>}
-                                    <Typography.Text strong>{n.title || n.message || 'Notification'}</Typography.Text>
-                                    {statusTag(n)}
-                                  </Space>
-                                  <Space size={8} wrap>
-                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                                      {new Date(n.createdAt || Date.now()).toLocaleString()}
-                                    </Typography.Text>
-                                    {!n.read && <Button size="small" type="link" onClick={(e)=>{ e.stopPropagation(); markAllAsRead([n._id]); }}>Mark as read</Button>}
-                                  </Space>
-                                </div>
-                                {(n.body || n.message) && <Typography.Text type="secondary">{n.body || n.message}</Typography.Text>}
-                              </div>
-                            </div>
-                          </List.Item>
-                        )} />
-                      </div>
-                    ) },
-                    { key: 'watching', label: 'Watching', children: (
-                      <div style={{ maxHeight: 420, overflowY: 'auto', padding: '8px 8px' }}>
-                        <List size="small" split={false} dataSource={watchingNotifs} renderItem={(n) => (
-                          <List.Item key={n._id} style={{ cursor:'pointer', padding: '8px 8px' }} onClick={() => { window.location.href = n.link || '/notifications'; }}>
-                            <div style={{ display:'flex', gap: 8, width:'100%' }}>
-                              <span style={{ width:8, height:8, marginTop: 6, flexShrink:0, borderRadius:'50%', backgroundColor: n.read ? token.colorBorder : token.colorPrimary, display:'inline-block' }} />
-                              <div style={{ flex: 1 }}>
-                                <div style={{ display:'flex', justifyContent:'space-between', gap: 12 }}>
-                                  <Space size={6} wrap>
-                                    {!n.read && <Tag color="blue">Unread</Tag>}
-                                    <Typography.Text strong>{n.title || n.message || 'Notification'}</Typography.Text>
-                                    {statusTag(n)}
-                                  </Space>
-                                  <Space size={8} wrap>
-                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                                      {new Date(n.createdAt || Date.now()).toLocaleString()}
-                                    </Typography.Text>
-                                    {!n.read && <Button size="small" type="link" onClick={(e)=>{ e.stopPropagation(); markAllAsRead([n._id]); }}>Mark as read</Button>}
-                                  </Space>
-                                </div>
-                                {(n.body || n.message) && <Typography.Text type="secondary">{n.body || n.message}</Typography.Text>}
-                              </div>
-                            </div>
-                          </List.Item>
-                        )} />
-                      </div>
-                    ) },
-                  ]} />
-                  <div style={{ position:'sticky', bottom: 0, background: token.colorBgElevated, borderTop: `1px solid ${token.colorBorder}`, padding: 8, textAlign: 'center' }}>
-                    <Link href="/notifications">View all</Link>
-                  </div>
-                </div>
+                notifOpen ? (
+                  <NotificationsDropdownContent
+                    notifs={notifs}
+                    token={typeof window !== 'undefined' ? localStorage.getItem('jf_token') : null}
+                    onMarkAll={markAllAsRead}
+                    notifTab={notifTab}
+                    setNotifTab={setNotifTab}
+                    onItemClick={(n) => { window.location.href = n.link || '/notifications'; }}
+                    tokenColors={{ bg: token.colorBgElevated, border: token.colorBorder, primary: token.colorPrimary, radius: token.borderRadiusLG, shadow: token.boxShadowSecondary }}
+                  />
+                ) : (
+                  <div style={{ width: 320, padding: 12 }}>Loading...</div>
+                )
               )}
-              onOpenChange={(o)=>{ if(o) fetchNotifs(); }}
+              onOpenChange={(o)=>{ setNotifOpen(o); if(o) fetchNotifs(); }}
               placement="bottomRight"
             >
               <Badge count={unreadCount} size="small">

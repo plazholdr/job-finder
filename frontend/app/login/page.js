@@ -54,8 +54,31 @@ function LoginInner() {
       localStorage.setItem('jf_token', data.accessToken);
       message.success('Signed in');
 
-      // Always redirect to homepage after successful login
-      const dest = next || '/';
+      // Role-based landing logic
+      let dest = '/';
+      try {
+        const meRes = await fetch(`${API_BASE_URL}/users/me`, { headers: { 'Authorization': `Bearer ${data.accessToken}` } });
+        const me = meRes.ok ? await meRes.json() : null;
+        const role = (me?.role || '').toLowerCase();
+
+        // If "next" is provided, only allow it when it matches the role access
+        function isAllowed(pathname, r) {
+          if (!pathname) return false;
+          if (pathname.startsWith('/admin')) return r === 'admin';
+          if (pathname.startsWith('/company')) return r === 'company' || r === 'admin';
+          return true; // general pages are fine
+        }
+
+        if (role === 'admin') dest = '/admin/dashboard';
+        else if (role === 'company') dest = '/company/profile';
+        else dest = '/profile';
+
+        // Prefer a valid next param if allowed for this role
+        if (next && isAllowed(next, role)) dest = next;
+      } catch (_) {
+        // fallback: keep default dest
+      }
+
       window.location.href = dest;
     } catch (e) {
       // Ensure token is cleared on any error

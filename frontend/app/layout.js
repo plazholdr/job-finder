@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import Providers from "../components/Providers";
+import PerfVitalsClient from "../components/PerfVitalsClient";
 import "antd/dist/reset.css";
 import "./globals.css";
 
@@ -23,6 +24,8 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
         <Providers>{children}</Providers>
+        {/* Enable RUM logs by setting NEXT_PUBLIC_RUM=1 in env */}
+        <PerfVitalsClient />
       </body>
     </html>
   );

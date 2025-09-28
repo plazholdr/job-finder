@@ -11,15 +11,10 @@ import {
   Col,
   Tabs,
   Tag,
-  Form,
-  Input,
   Upload,
   message,
   Avatar,
-  Segmented,
   Skeleton,
-  Empty,
-  Pagination,
 } from "antd";
 import {
   EditOutlined,
@@ -29,27 +24,26 @@ import {
   MailOutlined,
   PhoneOutlined,
 } from "@ant-design/icons";
-import JobCard from "../../../components/JobCard";
-import Link from "next/link";
+
+
+
 import Navbar from "../../../components/Navbar";
 import Footer from "../../../components/Footer";
 import { API_BASE_URL } from "../../../config";
+import dynamic from "next/dynamic";
+const CompanyJobsSection = dynamic(() => import("../../../components/company/CompanyJobsSection"), { ssr: false, loading: () => <Card title="Job listings"><Skeleton active /></Card> });
+const EditCompanyForm = dynamic(() => import("../../../components/company/EditCompanyForm"), { ssr: false, loading: () => <Card loading style={{ minHeight: 300 }} /> });
+
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
+
 
 export default function CompanyProfilePage() {
   // Align with ProfilePageInner.js structure/state
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState(null);
   const [editing, setEditing] = useState(false);
-  const [form] = Form.useForm();
-  const [jobsView, setJobsView] = useState("list");
-  const [jobsLoading, setJobsLoading] = useState(true);
-  const [jobs, setJobs] = useState([]);
-  const [page, setPage] = useState(1);
-  const pageSize = 12;
-  const [total, setTotal] = useState(0);
+
 
   const storageBase =
     process.env.NEXT_PUBLIC_STORAGE_URL ||
@@ -96,31 +90,6 @@ export default function CompanyProfilePage() {
   }, []);
 
 
-  // Load jobs for this company
-  useEffect(() => {
-    let aborted = false;
-    async function fetchJobs() {
-      if (!company?._id) return;
-      try {
-        setJobsLoading(true);
-        const token = localStorage.getItem("jf_token");
-        const skip = (page - 1) * pageSize;
-        const res = await fetch(`${API_BASE_URL}/job-listings?companyId=${company._id}&$limit=${pageSize}&$skip=${skip}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        const items = Array.isArray(data) ? data : (data?.data || []);
-        const t = data?.total ?? items.length;
-        if (!aborted) { setJobs(items); setTotal(t); }
-      } catch (e) {
-        if (!aborted) { setJobs([]); setTotal(0); }
-      } finally {
-        if (!aborted) setJobsLoading(false);
-      }
-    }
-    fetchJobs();
-    return () => { aborted = true; };
-  }, [company?._id, page]);
 
   useEffect(() => {
     load();
@@ -330,76 +299,7 @@ export default function CompanyProfilePage() {
               <Tabs defaultActiveKey="overview" items={tabItems} tabBarStyle={{ marginBottom: 0 }} />
             </Card>
 
-            <Card
-              title="Job listings"
-              extra={
-                <Space size={8}>
-                  <Segmented
-                    size="small"
-                    options={[
-                      { label: "List", value: "list" },
-                      { label: "Grid", value: "grid" },
-                    ]}
-                    value={jobsView}
-                    onChange={(val) => setJobsView(val)}
-                  />
-                  {company?._id && (
-                    <>
-                      <Link href={`/companies/${company._id}`}>
-                        <Button type="link" size="small">View all</Button>
-                      </Link>
-                      <Link href="/company/jobs/new">
-                        <Button type="primary" size="small">Create job listing</Button>
-                      </Link>
-                    </>
-                  )}
-                </Space>
-              }
-            >
-              {jobsLoading ? (
-                <Skeleton active />
-              ) : jobs.length ? (
-                (() => {
-                  const activeJobs = jobs.filter(j => j.status === 2);
-                  const pastJobs = jobs.filter(j => j.status === 3);
-                  const renderJobs = (list) => (
-                    jobsView === "grid" ? (
-                      <Row gutter={[16,16]}>
-                        {list.map(j => (
-                          <Col xs={24} sm={12} md={8} lg={6} key={j._id}>
-                            <JobCard job={j} companyView />
-                          </Col>
-                        ))}
-                      </Row>
-                    ) : (
-                      <Row gutter={[16,16]}>
-                        {list.map(j => (
-                          <Col xs={24} key={j._id}>
-                            <JobCard job={j} companyView />
-                          </Col>
-                        ))}
-                      </Row>
-                    )
-                  );
-                  return (
-                    <>
-                      <Tabs
-                        defaultActiveKey="active"
-                        items={[
-                          { key: 'active', label: 'Active', children: renderJobs(activeJobs) },
-                          { key: 'past', label: 'Past', children: renderJobs(pastJobs) },
-                        ]}
-                      />
-                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-                        <Pagination current={page} pageSize={pageSize} total={total} showSizeChanger={false} onChange={(p)=> setPage(p)} />
-                      </div>
-                    </>
-                  );
-                })()
-              ) : (
-                <Empty description="No jobs yet" />
-              )}
-            </Card>
+            <CompanyJobsSection companyId={company?._id} />
           </Space>
         </Col>
       </Row>
@@ -424,93 +324,13 @@ export default function CompanyProfilePage() {
       <Layout.Content style={{ maxWidth: 1400, margin: "24px auto", padding: "0 16px" }}>
         {!editing && <ViewLayout />}
         {editing && (
-          <Row gutter={24}>
-            <Col xs={24} lg={8}>
-              <Card title="Logo & Branding">
-                <Space direction="vertical" size="large" style={{ width: "100%", textAlign: "center" }}>
-                  <Avatar size={120} src={logoUrl} style={{ marginBottom: 16 }}>
-                    {company?.name?.charAt(0) || "C"}
-                  </Avatar>
-                  <Upload beforeUpload={onUploadLogo} maxCount={1} accept="image/*" showUploadList={false}>
-                    <Button icon={<UploadOutlined />} block>
-                      Change Logo
-                    </Button>
-                  </Upload>
-                </Space>
-              </Card>
-            </Col>
-
-            <Col xs={24} lg={16}>
-              <Card>
-                <Space direction="vertical" size="large" style={{ width: "100%" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Title level={3} style={{ margin: 0 }}>
-                      Edit Company
-                    </Title>
-                    <Button onClick={() => setEditing(false)}>Cancel</Button>
-                  </div>
-
-                  <Form
-                    form={form}
-                    layout="vertical"
-                    initialValues={{
-                      name: company?.name,
-                      industry: company?.industry,
-                      website: company?.website,
-                      description: company?.description,
-                      email: company?.email,
-                      phone: company?.phone,
-                      fullAddress: company?.address?.fullAddress,
-                    }}
-                    onFinish={onSave}
-                  >
-                    <Form.Item name="name" label="Company Name" rules={[{ required: true, message: "Please enter company name" }]}>
-                      <Input placeholder="Enter company name" />
-                    </Form.Item>
-                    <Row gutter={16}>
-                      <Col xs={24} sm={12}>
-                        <Form.Item name="industry" label="Industry">
-                          <Input placeholder="e.g. Manufacturing" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} sm={12}>
-                        <Form.Item name="website" label="Website">
-                          <Input placeholder="https://..." />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row gutter={16}>
-                      <Col xs={24} sm={12}>
-                        <Form.Item name="email" label="Contact Email">
-                          <Input placeholder="name@company.com" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} sm={12}>
-                        <Form.Item name="phone" label="Contact Phone">
-                          <Input placeholder="+60 ..." />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Form.Item name="fullAddress" label="Address">
-                      <Input placeholder="Full address" />
-                    </Form.Item>
-                    <Form.Item name="description" label="Company Description">
-                      <TextArea rows={4} placeholder="Describe your company" />
-                    </Form.Item>
-
-                    <Form.Item style={{ textAlign: "right", marginBottom: 0 }}>
-                      <Space>
-                        <Button onClick={() => setEditing(false)}>Cancel</Button>
-                        <Button htmlType="submit" type="primary">
-                          Save Changes
-                        </Button>
-                      </Space>
-                    </Form.Item>
-                  </Form>
-                </Space>
-              </Card>
-            </Col>
-          </Row>
+          <EditCompanyForm
+            company={company}
+            logoUrl={logoUrl}
+            onUploadLogo={onUploadLogo}
+            onSave={onSave}
+            setEditing={setEditing}
+          />
         )}
       </Layout.Content>
       <Footer />

@@ -37,9 +37,9 @@ class AdminMonitoringService {
       countOrZero(() => JobModel.countDocuments({ status: 3 })),
       countOrZero(() => JobModel.countDocuments({})),
 
-      countOrZero(() => CompanyModel.countDocuments({ verifiedStatus: 0 })), // pending
-      countOrZero(() => CompanyModel.countDocuments({ verifiedStatus: 1 })), // approved
-      countOrZero(() => CompanyModel.countDocuments({ verifiedStatus: 2 })), // rejected
+      countOrZero(() => CompanyModel.countDocuments({ $or: [ { verifiedStatus: 0 }, { verifiedStatus: 'pending' }, { verifiedStatus: { $exists: false } } ] })), // pending (tolerate legacy strings/null)
+      countOrZero(() => CompanyModel.countDocuments({ $or: [ { verifiedStatus: 1 }, { verifiedStatus: 'approved' } ] })), // approved (tolerate legacy strings)
+      countOrZero(() => CompanyModel.countDocuments({ $or: [ { verifiedStatus: 2 }, { verifiedStatus: 'rejected' } ] })), // rejected (tolerate legacy strings)
       countOrZero(() => CompanyModel.countDocuments({})),
 
       countOrZero(() => UserModel.countDocuments({ role: 'student' })),
@@ -75,16 +75,39 @@ class AdminMonitoringService {
     const query = params?.query || {};
     const type = String(query.type || 'pending_jobs');
 
+    const $limit = Math.max(1, Math.min(1000, Number(query.$limit || 50)));
+    const $skip = Math.max(0, Number(query.$skip || 0));
+    const q = String(query.q || '').trim();
+    const start = query.start ? new Date(query.start) : null;
+    const end = query.end ? new Date(query.end) : null;
+
+    // Helpers
+    const applyRange = (criteria, field) => {
+      if (start && end) criteria[field] = { $gte: start, $lte: end };
+      return criteria;
+    };
+    const rx = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
+
     if (type === 'pending_jobs') {
       const JobModel = this.app.service('job-listings').Model;
-      const items = await JobModel.find({ status: 1 }).sort({ submittedAt: -1 }).limit(50).lean();
-      return items;
+      const CompanyModel = this.app.service('companies').Model;
+      const criteria = applyRange({ status: 1 }, 'submittedAt');
+      if (rx) {
+        const companyIds = (await CompanyModel.find({ name: rx }, { _id: 1 }).lean()).map(c => c._id);
+        criteria.$or = [{ title: rx }, { companyId: { $in: companyIds } }];
+      }
+      const total = await JobModel.countDocuments(criteria);
+      const data = await JobModel.find(criteria).sort({ submittedAt: -1 }).skip($skip).limit($limit).lean();
+      return { total, data };
     }
 
     if (type === 'pending_companies') {
       const CompanyModel = this.app.service('companies').Model;
-      const items = await CompanyModel.find({ verifiedStatus: 0 }).sort({ submittedAt: -1 }).limit(50).lean();
-      return items;
+      const criteria = applyRange({ $or: [ { verifiedStatus: 0 }, { verifiedStatus: 'pending' }, { verifiedStatus: { $exists: false } } ] }, 'createdAt');
+      if (rx) criteria.name = rx;
+      const total = await CompanyModel.countDocuments(criteria);
+      const data = await CompanyModel.find(criteria).sort({ createdAt: -1 }).skip($skip).limit($limit).lean();
+      return { total, data };
     }
 
     if (type === 'renewal_requests') {
@@ -92,37 +115,39 @@ class AdminMonitoringService {
       const CompanyModel = this.app.service('companies').Model;
       const now = new Date();
 
-      const q = String(query.q || '').trim();
       const maxDays = Number(query.maxDays || 0);
 
       const criteria = { status: 2, renewal: true };
-      if (maxDays > 0) {
-        const max = new Date(now.getTime());
-        max.setDate(max.getDate() + maxDays);
+      if (start && end) { criteria.renewalRequestedAt = { $gte: start, $lte: end }; }
+      else if (maxDays > 0) {
+        const max = new Date(now.getTime()); max.setDate(max.getDate() + maxDays);
         criteria.expiresAt = { $lte: max, $gte: now };
       }
 
-      if (q) {
-        const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-        const companies = await CompanyModel.find({ name: rx }, { _id: 1 }).lean();
-        const companyIds = companies.map(c => c._id);
+      if (rx) {
+        const companyIds = (await CompanyModel.find({ name: rx }, { _id: 1 }).lean()).map(c => c._id);
         criteria.$or = [ { title: rx }, { companyId: { $in: companyIds } } ];
       }
 
-      const items = await JobModel.find(criteria).sort({ renewalRequestedAt: -1 }).limit(200).lean();
-      return items;
+      const total = await JobModel.countDocuments(criteria);
+      const data = await JobModel.find(criteria).sort({ renewalRequestedAt: -1 }).skip($skip).limit($limit).lean();
+      return { total, data };
     }
 
     if (type === 'expiring_jobs') {
       const JobModel = this.app.service('job-listings').Model;
-      const now = new Date();
-      const threshold = new Date(now.getTime());
-      threshold.setDate(threshold.getDate() + 7);
-      const items = await JobModel.find({ status: 2, expiresAt: { $lte: threshold, $gte: now } }).sort({ expiresAt: 1 }).limit(50).lean();
-      return items;
+      let criteria = { status: 2 };
+      if (start && end) criteria = applyRange(criteria, 'expiresAt');
+      else {
+        const now = new Date(); const threshold = new Date(now.getTime()); threshold.setDate(threshold.getDate() + 7);
+        criteria.expiresAt = { $lte: threshold, $gte: now };
+      }
+      const total = await JobModel.countDocuments(criteria);
+      const data = await JobModel.find(criteria).sort({ expiresAt: 1 }).skip($skip).limit($limit).lean();
+      return { total, data };
     }
 
-    return [];
+    return { total: 0, data: [] };
   }
 }
 

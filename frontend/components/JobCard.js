@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { Card, Tag, Typography, Button, Space, App } from 'antd';
+import { Card, Tag, Typography, Button, Space, App, Modal } from 'antd';
 import { SaveOutlined, CheckOutlined, LikeOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { apiAuth, getToken } from '../lib/api';
@@ -36,7 +36,11 @@ export default function JobCard({ job, companyView = false }) {
   })();
 
   function handleCardClick() {
-    router.push(`/jobs/${job._id}`);
+    if (companyView) {
+      router.push(`/company/jobs/${job._id}`);
+    } else {
+      router.push(`/jobs/${job._id}`);
+    }
   }
 
   useEffect(() => {
@@ -172,6 +176,22 @@ export default function JobCard({ job, companyView = false }) {
         </div>
       )}
 
+      {/* Quick meta */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        {job.approvedAt || job.createdAt ? (
+          <Tag>Posted {new Date(job.approvedAt || job.createdAt).toLocaleDateString()}</Tag>
+        ) : null}
+        {job?.project?.startDate && job?.project?.endDate ? (
+          <Tag color="purple">
+            {(() => {
+              const s = new Date(job.project.startDate); const e = new Date(job.project.endDate);
+              const months = Math.round(((e - s) / (1000*60*60*24*30)));
+              return `${months} month${months===1?'':'s'}`;
+            })()}
+          </Tag>
+        ) : null}
+      </div>
+
       <Typography.Paragraph ellipsis={{ rows: 2 }}>{job.description}</Typography.Paragraph>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         {job.location?.city || job.location?.state ? (
@@ -196,6 +216,50 @@ export default function JobCard({ job, companyView = false }) {
         </Button>
         <Button size="small" type={liked ? 'primary' : 'default'} onClick={handleLike} icon={<LikeOutlined />}>{liked ? 'Liked' : 'Like'}</Button>
       </Space>
+
+      {companyView && job.status === 0 && (
+        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}/edit`); }}>
+            Continue editing
+          </Button>
+          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>
+            View
+          </Button>
+        </div>
+      )}
+      {companyView && job.status === 1 && (
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+          {job.picUpdatedAt && <Tag color="blue">PIC updated</Tag>}
+          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>
+            View
+          </Button>
+          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}?editPIC=1`); }}>
+            Edit PIC
+          </Button>
+        </div>
+      )}
+      {companyView && job.status === 2 && (
+        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>View</Button>
+          <Button size="small" danger onClick={(e)=>{
+            e.preventDefault(); e.stopPropagation();
+            Modal.confirm({
+              title: 'Close this job?',
+              content: 'Once closed, it will be removed from public listings.',
+              okText: 'Yes, close job',
+              cancelText: 'Cancel',
+              onOk: async () => {
+                try {
+                  if (!getToken()) { message.error('Sign in required'); return; }
+                  await apiAuth(`/job-listings/${job._id}`, { method: 'PATCH', body: { close: true } });
+                  message.success('Job closed');
+                  if (typeof window !== 'undefined') window.location.href = '/company/profile?tab=past';
+                } catch (err) { message.error('Failed to close job'); }
+              }
+            });
+          }}>Close job</Button>
+        </div>
+      )}
 
       <AuthPromptModal
         open={authModalOpen}

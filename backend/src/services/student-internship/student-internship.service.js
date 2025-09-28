@@ -42,11 +42,53 @@ class StudentInternshipService {
       throw e;
     }
 
-    // Whitelist internProfile fields
+    // Normalize incoming payload into users.internProfile schema
     const allowedRoots = ['skills','languages','courses','assignments','preferences'];
+    const src = {};
+    for (const k of allowedRoots) if (data?.[k] != null) src[k] = data[k];
+
     const payload = {};
-    for (const key of allowedRoots) {
-      if (data?.[key] != null) payload[key] = data[key];
+    // skills/languages: pass-through arrays of strings
+    if (Array.isArray(src.skills)) payload.skills = src.skills;
+    if (Array.isArray(src.languages)) payload.languages = src.languages;
+
+    // courses: [{ id,name,description }] -> [{ courseId,courseName,courseDescription }]
+    if (Array.isArray(src.courses)) {
+      payload.courses = src.courses.map(c => ({
+        courseId: c.courseId ?? c.id ?? '',
+        courseName: c.courseName ?? c.name ?? '',
+        courseDescription: c.courseDescription ?? c.description ?? ''
+      }));
+    }
+
+    // assignments: [{ title, nature, methodology, description }] -> natureOfAssignment
+    if (Array.isArray(src.assignments)) {
+      payload.assignments = src.assignments.map(a => ({
+        title: a.title ?? '',
+        natureOfAssignment: a.natureOfAssignment ?? a.nature ?? '',
+        methodology: a.methodology ?? '',
+        description: a.description ?? ''
+      }));
+    }
+
+    // preferences: map simplified fields to schema
+    if (src.preferences && typeof src.preferences === 'object') {
+      const p = src.preferences;
+      const pref = {};
+      // Dates
+      if (p.preferredStartDate || p.startDate) pref.preferredStartDate = p.preferredStartDate ? new Date(p.preferredStartDate) : (p.startDate ? new Date(p.startDate) : undefined);
+      if (p.preferredEndDate || p.endDate) pref.preferredEndDate = p.preferredEndDate ? new Date(p.preferredEndDate) : (p.endDate ? new Date(p.endDate) : undefined);
+      // Industries (array) or single industry
+      if (Array.isArray(p.industries)) pref.industries = p.industries;
+      else if (p.industry) pref.industries = [p.industry];
+      // Locations
+      if (Array.isArray(p.locations)) pref.locations = p.locations.slice(0,3);
+      // Salary range
+      if (p.salaryRange || p.salary) {
+        const s = p.salaryRange || p.salary;
+        pref.salaryRange = { min: s.min != null ? Number(s.min) : undefined, max: s.max != null ? Number(s.max) : undefined };
+      }
+      payload.preferences = pref;
     }
 
     // Persist via users.patch (internal)

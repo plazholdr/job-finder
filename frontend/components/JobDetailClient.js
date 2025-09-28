@@ -11,7 +11,7 @@ export default function JobDetailClient({ job }) {
       <Navbar />
       <Layout.Content style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
         {!job ? (
-          <Typography.Title level={3}>Job not found</Typography.Title>
+          <Typography.Title level={3}>Job unavailable</Typography.Title>
         ) : (
           <>
             <Typography.Title>

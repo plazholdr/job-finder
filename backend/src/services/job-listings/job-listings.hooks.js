@@ -108,6 +108,14 @@ export default (app) => ({
 
         // Company actions
         if (user.role === 'company') {
+          // While pending, restrict company edits to PIC details only
+          if (current.status === STATUS.PENDING) {
+            const pic = d.pic || {};
+            ctx.params._picUpdatedDuringPending = true;
+            ctx.data = { pic: { name: pic.name, phone: pic.phone, email: pic.email }, picUpdatedAt: new Date() };
+            return;
+          }
+
           if (d.submitForApproval) {
             d.status = STATUS.PENDING;
             d.submittedAt = new Date();
@@ -215,6 +223,19 @@ export default (app) => ({
       };
       if (prev.status === STATUS.PENDING && next.status === STATUS.ACTIVE) {
         await notifyCompany('Job approved', 'Your job listing has been approved and is now active.');
+      }
+      // PIC updated while pending: notify admins
+      if (ctx.params._picUpdatedDuringPending) {
+        try {
+          const admins = await app.service('users').find({ paginate: false, query: { role: 'admin' } });
+          await Promise.all((admins || []).map(a => app.service('notifications').create({
+            recipientUserId: a._id,
+            recipientRole: 'admin',
+            type: 'job_pic_updated',
+            title: 'Pending job PIC updated',
+            body: `${next.title}`
+          })));
+        } catch (_) {}
       }
       if (prev.status === STATUS.PENDING && next.status === STATUS.DRAFT) {
         await notifyCompany('Job rejected', 'Your job listing was rejected. Please review and resubmit.');

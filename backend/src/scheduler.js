@@ -92,12 +92,15 @@ export default function configureScheduler(app) {
     try {
       const now = new Date();
 
-      // Auto-withdraw expired application validity (student side)
-      const toWithdraw = await Applications.find({ status: { $in: [S.NEW, S.SHORTLISTED, S.INTERVIEW_SCHEDULED, S.PENDING_ACCEPTANCE] }, validityUntil: { $lte: now } }).limit(200).lean();
-      if (toWithdraw.length) {
-        for (const a of toWithdraw) {
+      // Auto-reject expired application validity (no company action)
+      const toExpire = await Applications.find({ status: { $in: [S.NEW, S.SHORTLISTED, S.INTERVIEW_SCHEDULED] }, validityUntil: { $lte: now } }).limit(200).lean();
+      if (toExpire.length) {
+        for (const a of toExpire) {
           try {
-            await Applications.updateOne({ _id: a._id }, { $set: { status: S.WITHDRAWN, withdrawnAt: now }, $push: { history: { at: now, actorRole: 'system', action: 'autoWithdraw' } } });
+            await Applications.updateOne(
+              { _id: a._id },
+              { $set: { status: S.REJECTED, rejectedAt: now, rejection: { by: 'company', reason: 'Expired: no action within validity' } }, $push: { history: { at: now, actorRole: 'system', action: 'autoRejectValidity' } } }
+            );
             try {
               const company = await Companies.findById(a.companyId).lean();
               const ownerUserId = company?.ownerUserId;
@@ -116,6 +119,24 @@ export default function configureScheduler(app) {
       for (const a of offers) {
         try {
           await app.service('notifications').create({ recipientUserId: a.userId, recipientRole: 'student', type: 'offer_expiring', title: 'Offer expiring soon', data: { applicationId: a._id, validUntil: a.offer?.validUntil } }, { provider: 'scheduler' });
+        } catch (_) {}
+      }
+
+      // Auto-reject expired offers (no acceptance)
+      const expiredOffers = await Applications.find({ status: S.PENDING_ACCEPTANCE, 'offer.validUntil': { $lte: now } }).limit(200).lean();
+      for (const a of expiredOffers) {
+        try {
+          await Applications.updateOne(
+            { _id: a._id },
+            { $set: { status: S.REJECTED, rejectedAt: now, rejection: { by: 'applicant', reason: 'Offer expired without acceptance' } }, $push: { history: { at: now, actorRole: 'system', action: 'autoRejectOfferExpired' } } }
+          );
+          try {
+            const company = await Companies.findById(a.companyId).lean();
+            const ownerUserId = company?.ownerUserId;
+            if (ownerUserId) {
+              await app.service('notifications').create({ recipientUserId: ownerUserId, recipientRole: 'company', type: 'offer_expired', title: 'Offer expired', data: { applicationId: a._id } }, { provider: 'scheduler' });
+            }
+          } catch (_) {}
         } catch (_) {}
       }
     } catch (_) {}

@@ -1,31 +1,22 @@
 import Navbar from "../../../components/Navbar";
 import Footer from "../../../components/Footer";
-import { Layout, Typography, Card } from "antd";
+import dynamic from "next/dynamic";
 import { API_BASE_URL } from "../../../config";
 
-async function getShare(token) {
-  const res = await fetch(`${API_BASE_URL}/shares/${token}`, { next: { revalidate: 60 } });
-  if (!res.ok) return null;
-  return res.json();
-}
+const ShareViewerClient = dynamic(() => import("../../../components/shares/ShareViewerClient"), { loading: () => <div style={{ padding: 16 }}>Loading…</div> });
 
-export default async function SharePreview({ params }) {
-  const data = await getShare(params.token);
+export default function SharePreview({ params }) {
   return (
-    <Layout>
+    <div>
       <Navbar />
-      <Layout.Content style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
-        <Typography.Title level={3}>Shared item</Typography.Title>
-        {data ? (
-          <Card title={data.type?.toUpperCase() || 'Item'}>
-            <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(data.snapshot || data, null, 2)}</pre>
-          </Card>
-        ) : (
-          <Typography.Text>Not found</Typography.Text>
-        )}
-      </Layout.Content>
+      <main style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>Shared item</h1>
+        <div style={{ marginTop: 12, border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, background: 'white' }}>
+          <ShareViewerClient token={params.token} apiBase={API_BASE_URL} />
+        </div>
+      </main>
       <Footer />
-    </Layout>
+    </div>
   );
 }
 

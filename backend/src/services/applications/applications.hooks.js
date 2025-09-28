@@ -1,4 +1,5 @@
 import { hooks as authHooks } from '@feathersjs/authentication';
+import { BadRequest } from '@feathersjs/errors';
 import mongoose from 'mongoose';
 import { ApplicationStatus as S } from '../../constants/enums.js';
 import { storageUtils } from '../../utils/storage.js';
@@ -93,6 +94,38 @@ export default (app) => {
     return ctx;
   }
 
+  // Auto-withdraw expired applications (company did not respond within validity)
+  async function expireIfNeeded(ctx) {
+    try {
+      const doc = await Applications.findById(ctx.id).lean();
+      if (!doc) return ctx;
+      const now = new Date();
+      if (doc.status === S.NEW && doc.validityUntil && new Date(doc.validityUntil) <= now) {
+        await Applications.updateOne(
+          { _id: doc._id },
+          { $set: { status: S.WITHDRAWN, withdrawnAt: now }, $push: { history: { at: now, actorRole: 'system', action: 'autoWithdraw', data: { reason: 'validityExpired' } } } }
+        );
+      }
+    } catch (_) {}
+    return ctx;
+  }
+
+  // Sweep expiration for list endpoints
+  async function expireInFind(ctx) {
+    try {
+      const user = ctx.params.user;
+      if (!user) return ctx;
+      const now = new Date();
+      const scope = user.role === 'student' ? { userId: user._id } : (user.role === 'company' ? { companyId: (await app.service('companies').Model.findOne({ ownerUserId: user._id }).lean())?._id } : {});
+      if (!scope || (scope.companyId === undefined && scope.userId === undefined)) return ctx;
+      await Applications.updateMany(
+        { status: S.NEW, validityUntil: { $lte: now }, ...scope },
+        { $set: { status: S.WITHDRAWN, withdrawnAt: now }, $push: { history: { at: now, actorRole: 'system', action: 'autoWithdraw', data: { reason: 'validityExpired' } } } }
+      );
+    } catch (_) {}
+    return ctx;
+  }
+
   async function onCreate(ctx) {
     const user = ctx.params.user;
     if (user.role !== 'student') throw Object.assign(new Error('Only students can apply'), { code: 403 });
@@ -174,12 +207,14 @@ export default (app) => {
       if (action === 'sendOffer' && (doc.status === S.INTERVIEW_SCHEDULED || doc.status === S.SHORTLISTED)) {
         const defaultOfferDays = Number(process.env.OFFER_VALIDITY_DAYS || 7);
         const validUntil = ctx.data.validUntil ? new Date(ctx.data.validUntil) : new Date(now.getTime() + defaultOfferDays * 86400000);
-        set({ status: S.PENDING_ACCEPTANCE, offer: { sentAt: now, validUntil, title: ctx.data.title, notes: ctx.data.notes } });
+        set({ status: S.PENDING_ACCEPTANCE, offer: { sentAt: now, validUntil, title: ctx.data.title, notes: ctx.data.notes, letterKey: ctx.data.letterKey } });
         ctx.params._notify = { type: 'offer_sent', toUserId: doc.userId, toRole: 'student' };
         return;
       }
       if (action === 'reject' && [S.NEW, S.SHORTLISTED, S.INTERVIEW_SCHEDULED, S.PENDING_ACCEPTANCE].includes(doc.status)) {
-        set({ status: S.REJECTED, rejectedAt: now });
+        const reason = String(ctx.data.reason || '').trim();
+        if (!reason) { throw new BadRequest('Rejection reason is required'); }
+        set({ status: S.REJECTED, rejectedAt: now, rejection: { by: 'company', reason } });
         ctx.params._notify = { type: 'application_rejected', toUserId: doc.userId, toRole: 'student' };
         return;
       }
@@ -209,6 +244,7 @@ export default (app) => {
         // Create EmploymentRecord
         try {
           const Employment = app.service('employment-records')?.Model;
+          const Users = app.service('users')?.Model;
           const job = await JobModel.findById(doc.jobListingId).lean();
           const startDate = job?.project?.startDate ? new Date(job.project.startDate) : undefined;
           const endDate = job?.project?.endDate ? new Date(job.project.endDate) : undefined;
@@ -226,11 +262,30 @@ export default (app) => {
               requiredDocs
             });
           }
+          // Send onboarding guide via email + notification
+          try {
+            const student = await Users.findById(doc.userId).lean();
+            const baseWeb = process.env.PUBLIC_WEB_URL || '';
+            const onboardingUrl = `${baseWeb}/onboarding?applicationId=${doc._id}`;
+            const subject = 'Offer accepted - Onboarding guide';
+            const text = `Welcome aboard! Visit your onboarding guide: ${onboardingUrl}`;
+            const html = `<p>Welcome aboard! Click below to view your onboarding guide.</p><p><a href="${onboardingUrl}">Open Onboarding Guide</a></p>`;
+            const attachUrl = process.env.ONBOARDING_DOC_URL;
+            try {
+              const { sendMail } = await import('../../utils/mailer.js');
+              const opts = { to: student?.email, subject, text, html };
+              if (attachUrl) opts.attachments = [{ filename: 'Onboarding Guide.pdf', path: attachUrl }];
+              await sendMail(opts);
+            } catch (_) {}
+            try {
+              await notify(doc.userId, 'student', 'onboarding_guide', 'Onboarding guide available', '', { applicationId: doc._id, url: onboardingUrl });
+            } catch (_) {}
+          } catch (_) {}
         } catch (_) {}
         return;
       }
       if (action === 'declineOffer' && doc.status === S.PENDING_ACCEPTANCE) {
-        set({ status: S.REJECTED, rejectedAt: now });
+        set({ status: S.REJECTED, rejectedAt: now, rejection: { by: 'applicant', reason: String(ctx.data.reason || 'Offer declined by applicant') } });
         ctx.params._notify = { type: 'offer_declined', toUserId: doc.companyId, toRole: 'company' };
         return;
       }
@@ -259,8 +314,8 @@ export default (app) => {
   return {
     before: {
       all: [ authenticate('jwt') ],
-      find: [ ensureAccessFind ],
-      get: [ ensureAccessGet ],
+      find: [ ensureAccessFind, expireInFind ],
+      get: [ ensureAccessGet, expireIfNeeded ],
       create: [ onCreate ],
       patch: [ applyTransition ]
     },

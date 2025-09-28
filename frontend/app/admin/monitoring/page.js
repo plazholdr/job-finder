@@ -1,0 +1,168 @@
+"use client";
+
+import { useEffect, useMemo, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Table, Card, Space, Segmented, Typography, Tag, Button, message, DatePicker } from 'antd';
+import { API_BASE_URL } from '../../../config';
+
+const { Title } = Typography;
+
+function MonitoringClient() {
+  const search = useSearchParams();
+  const router = useRouter();
+  const type = search?.get('type') || 'pending_jobs';
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [range, setRange] = useState([]); // [startDayjs, endDayjs]
+
+  useEffect(() => { setPage(1); load(); }, [type, q, page, pageSize, JSON.stringify(range?.map?.(d=>d?.toISOString?.()||''))]);
+
+  async function load() {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('jf_token');
+      if (!token) { message.error('Please sign in as admin'); window.location.href = '/login'; return; }
+      const params = new URLSearchParams();
+      params.set('type', type);
+      if (q) params.set('q', q);
+      params.set('$limit', String(pageSize));
+      params.set('$skip', String((page - 1) * pageSize));
+      if (Array.isArray(range) && range[0] && range[1]) {
+        params.set('start', range[0].startOf('day').toISOString());
+        params.set('end', range[1].endOf('day').toISOString());
+      }
+      const res = await fetch(`${API_BASE_URL}/admin/monitoring?${params.toString()}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Failed to load');
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data?.data || []);
+      setItems(list);
+      const totalHeader = res.headers.get('x-total-count') || res.headers.get('x-total');
+      setTotal(Number(data?.total || totalHeader || list.length));
+    } catch (e) {
+      message.error(e.message || 'Failed to load');
+      setItems([]);
+    } finally { setLoading(false); }
+  }
+
+  function setType(v) {
+    const qs = new URLSearchParams(search?.toString() || '');
+    qs.set('type', v);
+    router.replace(`/admin/monitoring?${qs.toString()}`);
+  }
+
+  const baseCols = [
+    { title: 'Title', dataIndex: 'title', key: 'title' },
+    { title: 'Company', key: 'company', render: (_, r) => r.company?.name || r.companyName || '-' },
+  ];
+
+  const expiringColumns = [
+    ...baseCols,
+    { title: 'Expires', dataIndex: 'expiresAt', key: 'expiresAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
+    { title: 'Status', dataIndex: 'status', key: 'status', render: (s) => <Tag color={s===2?'green':s===1?'orange':s===3?'red':'default'}>{s===2?'Active':s===1?'Pending':s===3?'Past':'Draft'}</Tag> },
+  ];
+
+  const pendingJobColumns = [
+    ...baseCols,
+    { title: 'Submitted', dataIndex: 'submittedAt', key: 'submittedAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
+  ];
+
+  const pendingCompanyColumns = [
+    { title: 'Name', dataIndex: 'name', key: 'name' },
+    { title: 'Registration No.', dataIndex: 'registrationNumber', key: 'registrationNumber' },
+    { title: 'Submitted', dataIndex: 'submittedAt', key: 'submittedAt', render: (d) => d ? new Date(d).toLocaleDateString() : '-' },
+  ];
+
+  const columns = useMemo(() => {
+    if (type === 'pending_companies') return pendingCompanyColumns;
+    if (type === 'expiring_jobs') return expiringColumns;
+    if (type === 'renewal_requests') return [
+      ...baseCols,
+      { title: 'Expires', dataIndex: 'expiresAt', key: 'expiresAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
+      { title: 'Requested', dataIndex: 'renewalRequestedAt', key: 'renewalRequestedAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
+    ];
+    return pendingJobColumns; // pending_jobs
+  }, [type]);
+
+  function toCSV(t, rows){
+    const esc = (v)=>`"${String(v??'').replace(/"/g,'""')}"`;
+    let headers = [];
+    let mapRow = (r)=>[];
+    if (t==='pending_companies') { headers=['Name','Registration','Submitted']; mapRow=(r)=>[r.name,r.registrationNumber,r.submittedAt?new Date(r.submittedAt).toISOString():'' ]; }
+    else if (t==='expiring_jobs') { headers=['Title','Company','Expires','Status']; mapRow=(r)=>[r.title,r.company?.name||r.companyName||'', r.expiresAt?new Date(r.expiresAt).toISOString():'', r.status]; }
+    else if (t==='renewal_requests') { headers=['Title','Company','Expires','Requested']; mapRow=(r)=>[r.title,r.company?.name||r.companyName||'', r.expiresAt?new Date(r.expiresAt).toISOString():'', r.renewalRequestedAt?new Date(r.renewalRequestedAt).toISOString():'' ]; }
+    else { headers=['Title','Company','Submitted']; mapRow=(r)=>[r.title,r.company?.name||r.companyName||'', r.submittedAt?new Date(r.submittedAt).toISOString():'' ]; }
+    const lines=[headers.join(',')];
+    rows.forEach(r=>{ lines.push(mapRow(r).map(esc).join(',')); });
+    return lines.join('\n');
+  }
+
+  return (
+    <div>
+      <Title level={2}>Monitoring</Title>
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Segmented
+            options={[
+              { label: 'Pending Jobs', value: 'pending_jobs' },
+              { label: 'Pending Companies', value: 'pending_companies' },
+              { label: 'Expiring Jobs', value: 'expiring_jobs' },
+              { label: 'Renewal Requests', value: 'renewal_requests' },
+            ]}
+            value={type}
+            onChange={setType}
+          />
+          <input placeholder="Search title/company" value={q} onChange={(e)=>setQ(e.target.value)} style={{ padding:6, border:'1px solid #ddd', borderRadius:6, minWidth:240 }} />
+          <DatePicker.RangePicker value={range} onChange={setRange} allowClear />
+          <Button onClick={load}>Refresh</Button>
+          <Button onClick={async ()=>{
+            try {
+              const token = localStorage.getItem('jf_token');
+              const p = new URLSearchParams();
+              p.set('type', type);
+              if (q) p.set('q', q);
+              if (Array.isArray(range) && range[0] && range[1]) {
+                p.set('start', range[0].startOf('day').toISOString());
+                p.set('end', range[1].endOf('day').toISOString());
+              }
+              p.set('$limit','1000'); p.set('$skip','0');
+              const r = await fetch(`${API_BASE_URL}/admin/monitoring?${p.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+              const j = await r.json();
+              const list = Array.isArray(j) ? j : (j?.data || []);
+              const csv = toCSV(type, list);
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `monitoring-${type}-${new Date().toISOString().slice(0,10)}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            } catch (e) { message.error(e.message || 'Export failed'); }
+          }}>Export CSV</Button>
+        </Space>
+      </Card>
+
+      <Card>
+        <Table
+          rowKey={r => r._id || r.id}
+          loading={loading}
+          columns={columns}
+          dataSource={items}
+          pagination={{ current: page, pageSize, total, showSizeChanger: true, onChange: (p, s) => { setPage(p); setPageSize(s); } }}
+        />
+      </Card>
+    </div>
+  );
+}
+
+export default function AdminMonitoringPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 24 }}>Loading...</div>}>
+      <MonitoringClient />
+    </Suspense>
+  );
+}
+

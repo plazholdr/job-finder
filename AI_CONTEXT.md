@@ -309,3 +309,221 @@ Current Company Registration and Approval Flow (Working)
    • No company and no pending submission → force /company/setup
    • Pending submission or unapproved company → force /company/pending-approval
    • Approved → allow normal navigation; show occasional “Complete your company profile” modal if required fields are missing
+
+
+
+Continuation (Job Listing Management, Company Admin Flows, Status-Based Actions)
+
+Company Job Listing Management System
+- Comprehensive job listing creation wizard implemented:
+  • Multi-step form: Job Details → Project Details → Onboarding Materials → Publish Settings
+  • Draft/Submit for Approval functionality with backend status transitions
+  • File upload support for onboarding materials (general and job-specific)
+  • PIC (Person In Charge) details integrated into job listings
+  • Expiry date management with automatic calculations
+
+Status-Based Company Admin Actions
+- Draft listings (status = 0):
+  • "Continue editing" and "View" buttons on company profile cards
+  • Edit page with "Discard changes?" confirmation modal on cancel
+  • Save as draft or submit for approval options
+
+- Pending approval listings (status = 1):
+  • View job listing details, project details, and onboarding materials
+  • PIC-only editing capability (name, phone, email) while pending
+  • Backend enforcement prevents editing other fields during pending status
+  • "Edit PIC" quick action on cards with auto-opening modal
+  • PIC update notifications sent to admins
+  • Visual indicators: "PIC updated" tags and timestamps
+
+- Active listings (status = 2):
+  • View all details and materials
+  • "Close job" functionality from detail page and card quick actions
+  • Confirmation modal with explanation of public visibility removal
+  • Auto-redirect to Past tab after closing
+
+- Closed/Past listings (status = 3):
+  • View-only access to job listing and project details
+  • No edit actions available
+  • Public URLs show "Job unavailable" message
+
+Company Profile Enhancements
+- Extended job tabs: Draft, Pending, Active, Past (with counts)
+- List/grid view toggle with pagination
+- Deep-linkable tabs via URL parameters (?tab=past)
+- Company-specific job detail routing (/company/jobs/[id] vs public /jobs/[id])
+- Role-based card actions and visibility
+
+Backend Job Management Features
+- Status transition validation and authorization
+- PIC update tracking with picUpdatedAt field
+- Notification system for status changes and PIC updates
+- Admin approval/rejection workflows
+- Company close job functionality
+- Role-based access control for job visibility
+
+Job Expiry and Renewal System
+- Automatic expiry warnings (7 days before expiration)
+- Company renewal request workflow
+- Admin approval required for renewals (Option A implementation)
+- Background scheduler for auto-expiry and notifications
+- Renewal request management in admin dashboard
+
+Admin Management Tools
+- Admin dashboard with key metrics and quick access panels
+- Renewal requests management page with server-side filtering
+- Company verification management
+- Job listing approval workflows
+- Notification system for admin actions
+
+Technical Implementation Details
+- Integer-based status enums with centralized mapping (constants.js)
+- Server-side filtering for admin endpoints to improve performance
+- Real-time notifications with type-based routing
+- File upload integration with object storage (IPServerOne S3)
+- Comprehensive error handling and user feedback
+- Mobile-responsive design with Ant Design components
+
+Current Development Status
+- All major company admin flows implemented and tested
+- Job listing lifecycle management complete
+- Admin tools functional with proper authorization
+- Notification system operational
+- Ready for production deployment with existing infrastructure
+
+
+
+Continuation (Enhanced Development Environment and Project Configuration)
+
+MCP Setup and Project Context
+- Comprehensive project configuration established for enhanced AI assistance
+- Project structure documentation with technology stack definitions
+- Development workflow configurations and design system specifications
+- Enhanced package scripts for testing, code generation, and development utilities
+
+Technology Stack Details
+- Frontend: Next.js 15.5.3 with Ant Design 5.27.4 and TanStack Query 5.89.0
+- Backend: FeathersJS 5.0.35 with MongoDB/Mongoose 8.18.1 and Redis 5.8.2
+- Authentication: FeathersJS native JWT authentication
+- Storage: IPServerOne S3-compatible object storage
+- Testing: Cypress for E2E/component testing, Jest 30.1.3 for unit testing
+- Deployment: Manual deployment to 103.209.156.198 from major-change-sebas branch
+
+Development Tools and Helpers
+- Component generator for React components (scripts/dev-helpers.js)
+- Service generator for FeathersJS services
+- Enhanced package.json scripts for testing and development workflows
+- Design system documentation (frontend/design-system.md)
+- Cypress configuration for comprehensive testing setup
+
+Code Standards and Architecture
+- ES module syntax (import/export) enforced across backend
+- Integer enum status fields (0,1,2,3) with central constants mapping
+- FeathersJS-native authentication only (no Express routes)
+- API endpoint standardization: /authentication for auth
+- Microservices architecture with RESTful API and Socket.IO real-time features
+
+Design System Guidelines
+- Ant Design as primary UI framework with CSS-in-JS theming
+- Mobile-first responsive design approach
+- WCAG 2.1 AA accessibility compliance target
+- Consistent component patterns and layout structures
+- Custom theming and brand integration capabilities
+
+Development Workflow Enhancements
+- Parallel tool execution for maximum efficiency
+- Structured task management for complex development work
+- Package manager enforcement (prefer yarn, avoid manual package.json edits)
+- Testing-first approach with comprehensive test coverage
+- Code generation utilities for faster development cycles
+
+Project Context Integration
+- Real-time codebase indexing for accurate context retrieval
+- Framework-specific assistance with Next.js 15 and FeathersJS 5
+- Design pattern recommendations aligned with Ant Design best practices
+- Performance optimization guidance for React/Node.js stack
+- Deployment and infrastructure guidance for production readiness
+
+
+
+
+Continuation (Company Application Management Workflow)
+
+Overview
+- Company admins can view and manage applications submitted to their job listings.
+- Visibility: A company can only access applications where application.companyId = their company._id. Students see only their own applications. Admins see all.
+
+Company Admin View (per application)
+- Job details (title, project timeline, PIC, location, salary range)
+- Intern application information (full application PDF + structured fields)
+  • Candidate statement
+  • Application validity (validityUntil)
+  • Personal information (from application.form)
+  • Internship details
+  • Course information
+  • Assignment information
+
+Application Status (integer enums; see backend/src/constants/enums.js)
+- 0 = NEW (submitted)
+- 1 = SHORTLISTED
+- 2 = INTERVIEW_SCHEDULED (optional step)
+- 3 = PENDING_ACCEPTANCE (offer sent; waiting for applicant)
+- 4 = ACCEPTED (aka Hired)
+- 5 = REJECTED
+- 6 = WITHDRAWN (by applicant)
+- 7 = NOT_ATTENDING (interview no-show)
+
+Rejection Attribution and Reason
+- When status becomes REJECTED, capture:
+  • rejection.by: 'company' | 'applicant' | 'system'
+  • rejection.reason: non-empty string explaining why (required for 'company')
+  • rejectedAt: timestamp
+- Auto-rejections set an appropriate reason (see rules below).
+
+Lifecycle and Actions (performed via PATCH /applications/:id with { action, ...payload })
+- Company → 'shortlist' when status=NEW → status=SHORTLISTED
+- Company → 'sendOffer' when status in [SHORTLISTED, INTERVIEW_SCHEDULED]
+  • Payload: { title, notes, validUntil?, letterKey? }
+  • System stores offer: { sentAt, validUntil, title, notes, letterKey }
+  • Status auto→ PENDING_ACCEPTANCE
+- Company → 'reject' when status in [NEW, SHORTLISTED, INTERVIEW_SCHEDULED, PENDING_ACCEPTANCE]
+  • Payload: { reason } (mandatory)
+  • Status → REJECTED; rejection.by='company'
+- Student → 'acceptOffer' when status=PENDING_ACCEPTANCE
+  • Status → ACCEPTED (Hired)
+  • Auto-create EmploymentRecord linked to application; status initially ONGOING (or UPCOMING until startDate, then ONGOING)
+  • Auto-send onboarding guide to candidate
+- Student → 'declineOffer' when status=PENDING_ACCEPTANCE
+  • Status → REJECTED; rejection.by='applicant'
+- Student → 'withdraw' when status in [NEW, SHORTLISTED, INTERVIEW_SCHEDULED, PENDING_ACCEPTANCE]
+  • Status → WITHDRAWN
+
+Validity Rules and Automation
+- Application validity (application.validityUntil)
+  • If no company action occurs before validityUntil, system auto-rejects
+    – Status → REJECTED; rejection.by='company'; reason='Expired: no action within validity'
+- Offer validity (application.offer.validUntil)
+  • If the candidate does not accept by this date, system auto-rejects
+    – Status → REJECTED; rejection.by='applicant'; reason='Offer expired without acceptance'
+- Scheduler responsibility
+  • Background job scans for expired applications/offers and applies the above transitions daily/hourly.
+
+Documents and Storage
+- Application PDF is generated and stored (applications/<id>.pdf); available to company admins.
+- Offer letter upload: store in object storage; save key as application.offer.letterKey.
+
+Notifications
+- On key transitions, send notifications to the other party:
+  • application_created, application_shortlisted, interview_scheduled/cancelled, application_rejected,
+    offer_sent, offer_accepted, offer_declined, application_withdrawn
+- On offer acceptance, also send onboarding guide to the applicant.
+
+Employment Record on Hire
+- When an offer is accepted, create EmploymentRecord linked to { applicationId, jobListingId, userId, companyId }.
+- Initial status: ONGOING (or set UPCOMING and auto-switch to ONGOING on the job start date).
+- Required onboarding documents may be seeded (e.g., contract, NDA).
+
+Frontend Notes
+- Company dashboard should surface a tab/filter for NEW applications and an application detail view matching the information list above.
+- Provide actions as buttons with confirmations and required inputs (e.g., rejection reason, offer validity picker, file upload for offer letter).
+- Show validity countdowns for both application and offer phases.

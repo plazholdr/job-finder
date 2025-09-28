@@ -7,10 +7,10 @@ const notificationSchema = new mongoose.Schema({
     'invite_sent','invite_accepted','invite_declined',
     'kyc_submitted','kyc_approved','kyc_rejected','kyc_review_required',
     'email_verification','email_verified',
-    'job_submitted','job_update','job_expiring','job_renewal_requested','job_renewal_approved',
+    'job_submitted','job_update','job_expiring','job_expired','job_renewal_requested','job_renewal_approved',
     // Applications lifecycle
     'application_created','application_shortlisted','interview_scheduled','interview_cancelled','interview_declined','interview_noshow',
-    'offer_sent','offer_accepted','offer_declined',
+    'offer_sent','offer_accepted','offer_declined','offer_expiring','offer_expired',
     'application_withdrawn','application_rejected','application_pdf_regenerated',
     // Employment lifecycle
     'employment_started','employment_moved_to_closure','employment_completed','employment_terminated',
@@ -26,7 +26,7 @@ const notificationSchema = new mongoose.Schema({
     // Shares
     'share_opened',
     // Generic
-    'message','system'
+    'onboarding_guide','message','system'
   ], required: true },
   title: String,
   body: String,

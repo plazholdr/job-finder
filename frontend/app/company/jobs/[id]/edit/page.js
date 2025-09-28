@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Layout, Card, Steps, Form, Input, InputNumber, DatePicker, Select, Upload, Button, Space, Typography, message, Checkbox } from "antd";
+import { Layout, Card, Steps, Form, Input, InputNumber, DatePicker, Select, Upload, Button, Space, Typography, message, Checkbox, Modal } from "antd";
 import Navbar from "../../../../../components/Navbar";
 import Footer from "../../../../../components/Footer";
 import { API_BASE_URL } from "../../../../../config";
@@ -269,6 +269,16 @@ export default function EditJobListingPage() {
   const next = () => setCurrent((c) => Math.min(c + 1, steps.length - 1));
   const prev = () => setCurrent((c) => Math.max(c - 1, 0));
 
+  const onCancelEdit = () => {
+    Modal.confirm({
+      title: 'Discard changes?',
+      content: 'Any unsaved changes will be lost. Do you want to leave this page?',
+      okText: 'Discard and leave',
+      cancelText: 'Stay',
+      onOk: () => router.replace('/company/profile')
+    });
+  };
+
   return (
     <Layout>
       <Navbar />
@@ -277,8 +287,9 @@ export default function EditJobListingPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <Title level={3} style={{ margin: 0 }}>Edit Job Listing</Title>
             <Space>
+              <Button onClick={onCancelEdit}>Cancel</Button>
               <Button onClick={saveDraft} loading={loading}>Save draft</Button>
-              <Button type="primary" onClick={submitForApproval} loading={loading}>Submit amended listing</Button>
+              <Button type="primary" onClick={submitForApproval} loading={loading}>Submit for approval</Button>
             </Space>
           </div>
           <Steps current={current} items={steps.map(s=>({ title: s.title }))} style={{ marginBottom: 24 }} />

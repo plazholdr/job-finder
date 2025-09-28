@@ -27,10 +27,10 @@ function getTransporter() {
   return cachedTransporter;
 }
 
-async function sendMail({ to, subject, text, html }) {
+async function sendMail({ to, subject, text, html, attachments }) {
   const transporter = getTransporter();
   const from = transporter.__from;
-  const info = await transporter.sendMail({ from, to, subject, text, html });
+  const info = await transporter.sendMail({ from, to, subject, text, html, attachments });
   return info;
 }
 

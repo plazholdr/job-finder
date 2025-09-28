@@ -3,7 +3,7 @@ import { config } from 'dotenv';
 
 config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/jobfinder';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://saino365forweb_db_user:dgBXwQFyUwI6LBnI@cluster0.tffyagz.mongodb.net/jobfinder?retryWrites=true&w=majority&appName=Cluster0'
 
 async function approveCompany(companyName) {
   try {
@@ -75,7 +75,7 @@ async function approveCompany(companyName) {
     if (result.modifiedCount > 0) {
       console.log('\n🎉 Company approved successfully!');
       console.log('The company can now sign in and access the platform.');
-      
+
       // Also approve any pending verifications
       const verificationResult = await db.collection('companyverifications').updateMany(
         { companyId: company._id, status: 0 },
@@ -86,7 +86,7 @@ async function approveCompany(companyName) {
           }
         }
       );
-      
+
       if (verificationResult.modifiedCount > 0) {
         console.log(`✅ Also approved ${verificationResult.modifiedCount} verification(s).`);
       }
