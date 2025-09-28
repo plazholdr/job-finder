@@ -6,7 +6,8 @@ import Footer from "./Footer";
 import Hero from "./Hero";
 import JobCard from "./JobCard";
 import CompanyCard from "./CompanyCard";
-import { Layout, Row, Col, Typography, Skeleton, Empty, Input, Space, Select, InputNumber, Button, message, Segmented } from "antd";
+import InternCard from "./InternCard";
+import { Layout, Row, Col, Typography, Skeleton, Empty, Input, Space, Select, InputNumber, DatePicker, Button, message, Segmented } from "antd";
 import { API_BASE_URL } from "../config";
 import { apiAuth, getToken } from "../lib/api";
 
@@ -49,6 +50,79 @@ export default function HomeContent({ jobs = [], companies = [] }) {
   // View modes
   const [jobsView, setJobsView] = useState('list');
   const [companiesView, setCompaniesView] = useState('list');
+  // Role detection (student/company/admin)
+  const [role, setRole] = useState('');
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    (async () => {
+      try {
+        const r = await fetch(`${API_BASE_URL}/users/me`, { headers: { Authorization: `Bearer ${token}` } });
+        if (r.ok) {
+          const me = await r.json();
+          setRole(String(me?.role || '').toLowerCase());
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
+  // Company-facing intern search filters
+  const [fos, setFos] = useState("");
+  const [prefStart, setPrefStart] = useState();
+  const [prefEnd, setPrefEnd] = useState();
+  const [loc1, setLoc1] = useState("");
+  const [loc2, setLoc2] = useState("");
+  const [loc3, setLoc3] = useState("");
+  const [internSalMin, setInternSalMin] = useState();
+  const [internSalMax, setInternSalMax] = useState();
+  const [internsView, setInternsView] = useState('list');
+
+  const candidatesUrl = useMemo(() => {
+    const qs = new URLSearchParams();
+    if (fos) qs.set('faculty', fos);
+    if (prefStart) qs.set('startDate', prefStart.toISOString());
+    if (prefEnd) qs.set('endDate', prefEnd.toISOString());
+    [loc1, loc2, loc3].filter(Boolean).forEach(l => qs.append('locations', l));
+    if (internSalMin != null) qs.set('salaryMin', String(internSalMin));
+    if (internSalMax != null) qs.set('salaryMax', String(internSalMax));
+    return `${API_BASE_URL}/programme-candidates?${qs.toString()}`;
+  }, [fos, prefStart, prefEnd, loc1, loc2, loc3, internSalMin, internSalMax]);
+
+  const internsQuery = useQuery({
+    queryKey: ['home-interns', candidatesUrl, role],
+    queryFn: async () => {
+      const token = getToken();
+      const res = await fetch(candidatesUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) throw new Error('Candidates fetch failed');
+      const data = await res.json();
+      return data?.items || [];
+    },
+    enabled: role === 'company',
+    initialData: [],
+  });
+
+  async function handleSaveCompanySearchProfile() {
+    try {
+      await apiAuth('/users', {
+        method: 'PATCH',
+        body: {
+          profile: {
+            internSearchProfile: {
+              fieldOfStudy: fos || undefined,
+              preferredStartDate: prefStart ? prefStart.toISOString() : undefined,
+              preferredEndDate: prefEnd ? prefEnd.toISOString() : undefined,
+              locations: [loc1, loc2, loc3].filter(Boolean),
+              salaryRange: { min: internSalMin, max: internSalMax }
+            }
+          }
+        }
+      });
+      message.success('Intern search profile saved');
+    } catch (e) {
+      message.error(e.message || 'Failed to save search profile');
+    }
+  }
+
 
   const jobsUrl = useMemo(() => buildQuery("/job-listings", { q, location, salaryMin, salaryMax }), [q, location, salaryMin, salaryMax]);
   const companiesUrl = useMemo(() => buildQuery("/companies", { q, nature, city: companyCity, salaryMin, salaryMax, sort }), [q, nature, companyCity, salaryMin, salaryMax, sort]);
@@ -144,131 +218,192 @@ export default function HomeContent({ jobs = [], companies = [] }) {
       <Navbar />
       <Hero onSearch={({ q: qq = "" }) => { setQ(qq); }} industryOptions={industriesQuery.data || []} />
       <Layout.Content style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-        <Space direction="vertical" style={{ width: '100%', marginBottom: 24 }} size="middle">
-          <Row gutter={[16, 16]} align="middle">
-            <Col xs={24} sm={12} md={6}>
-              <Typography.Text strong>Nature of business</Typography.Text>
-              <Select
-                placeholder="Select industry"
-                value={nature}
-                onChange={setNature}
-                style={{ width: '100%', marginTop: 4 }}
-                allowClear
-                options={industriesQuery.data?.map(industry => ({
-                  value: industry,
-                  label: industry
-                })) || []}
-              />
-            </Col>
-            <Col xs={12} sm={6} md={3}>
-              <Typography.Text strong>Salary Min (RM)</Typography.Text>
-              <InputNumber
-                placeholder="Min"
-                value={salaryMin}
-                onChange={setSalaryMin}
-                style={{ width: '100%', marginTop: 4 }}
-                min={0}
-                max={50000}
-                step={500}
-                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={value => value.replace(/\$\s?|(,*)/g, '')}
-              />
-            </Col>
-            <Col xs={12} sm={6} md={3}>
-              <Typography.Text strong>Salary Max (RM)</Typography.Text>
-              <InputNumber
-                placeholder="Max"
-                value={salaryMax}
-                onChange={setSalaryMax}
-                style={{ width: '100%', marginTop: 4 }}
-                min={0}
-                max={50000}
-                step={500}
-                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={value => value.replace(/\$\s?|(,*)/g, '')}
-              />
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Typography.Text strong>Location</Typography.Text>
-              <Select
-                placeholder="Select location"
-                value={companyCity}
-                onChange={setCompanyCity}
-                style={{ width: '100%', marginTop: 4 }}
-                allowClear
-                options={[
-                  { value: 'Kuala Lumpur', label: 'Kuala Lumpur' },
-                  { value: 'Selangor', label: 'Selangor' },
-                  { value: 'Penang', label: 'Penang' },
-                  { value: 'Johor', label: 'Johor' },
-                  { value: 'Perak', label: 'Perak' },
-                  { value: 'Sabah', label: 'Sabah' },
-                  { value: 'Sarawak', label: 'Sarawak' },
-                ]}
-              />
-            </Col>
-            <Col xs={24} sm={12} md={4}>
-              <Typography.Text strong>Sort by</Typography.Text>
-              <Select
-                value={sort}
-                onChange={setSort}
-                style={{ width: '100%', marginTop: 4 }}
-                options={[
-                  { value: 'latest', label: 'Latest' },
-                  { value: 'name', label: 'A→Z' },
-                  { value: 'salary', label: 'Salary ↓' },
-                ]}
-              />
-            </Col>
-            <Col xs={24} sm={12} md={2}>
-              <Button
-                type="primary"
-                onClick={handleSaveSearchProfile}
-                style={{ width: '100%', marginTop: 20 }}
-              >
-                Save Profile
-              </Button>
-            </Col>
-          </Row>
-        </Space>
-        <section id="jobs" style={{ marginBottom: 32 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Typography.Title level={3} style={{ margin: 0 }}>Latest Jobs</Typography.Title>
-            <Segmented value={jobsView} onChange={setJobsView} options={[{label:'List',value:'list'},{label:'Grid',value:'grid'}]} />
-          </div>
-          {jobsQuery.isLoading ? (
-            <Skeleton active />
-          ) : jobsQuery.data?.length ? (
-            <Row gutter={[16, 16]}>
-              {jobsQuery.data.map((j) => (
-                <Col xs={24} sm={jobsView==='grid'?12:24} md={jobsView==='grid'?8:24} lg={jobsView==='grid'?6:24} key={j._id}>
-                  <JobCard job={j} />
+        {role === 'company' ? (
+          <>
+            <Space direction="vertical" style={{ width: '100%', marginBottom: 24 }} size="middle">
+              <Row gutter={[16,16]} align="middle">
+                <Col xs={24} md={8}>
+                  <Typography.Text strong>Intern field of study</Typography.Text>
+                  <Input placeholder="e.g., Computer Science" value={fos} onChange={(e)=>setFos(e.target.value)} />
                 </Col>
-              ))}
-            </Row>
-          ) : (
-            <Empty description="No jobs found" />
-          )}
-        </section>
-        <section id="companies" style={{ marginBottom: 32 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Typography.Title level={3} style={{ margin: 0 }}>Featured Companies</Typography.Title>
-            <Segmented value={companiesView} onChange={setCompaniesView} options={[{label:'List',value:'list'},{label:'Grid',value:'grid'}]} />
-          </div>
-          {companiesQuery.isLoading ? (
-            <Skeleton active />
-          ) : companiesQuery.data?.length ? (
-            <Row gutter={[16, 16]}>
-              {companiesQuery.data.map((c) => (
-                <Col xs={24} sm={companiesView==='grid'?12:24} md={companiesView==='grid'?8:24} lg={companiesView==='grid'?6:24} key={c._id}>
-                  <CompanyCard company={c} />
+                <Col xs={24} md={8}>
+                  <Typography.Text strong>Internship dates</Typography.Text>
+                  <Space style={{ width: '100%' }}>
+                    <DatePicker placeholder="Start on/after" value={prefStart} onChange={setPrefStart} />
+                    <DatePicker placeholder="End on/before" value={prefEnd} onChange={setPrefEnd} />
+                  </Space>
                 </Col>
-              ))}
-            </Row>
-          ) : (
-            <Empty description="No companies found" />
-          )}
-        </section>
+                <Col xs={24} md={8}>
+                  <Typography.Text strong>Preferred locations</Typography.Text>
+                  <Space style={{ width: '100%' }}>
+                    <Input placeholder="City/State 1" value={loc1} onChange={(e)=>setLoc1(e.target.value)} />
+                    <Input placeholder="City/State 2" value={loc2} onChange={(e)=>setLoc2(e.target.value)} />
+                    <Input placeholder="City/State 3" value={loc3} onChange={(e)=>setLoc3(e.target.value)} />
+                  </Space>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Typography.Text strong>Salary range (RM)</Typography.Text>
+                  <Space>
+                    <InputNumber placeholder="Min" min={0} value={internSalMin} onChange={setInternSalMin} />
+                    <InputNumber placeholder="Max" min={0} value={internSalMax} onChange={setInternSalMax} />
+                  </Space>
+                </Col>
+                <Col xs={24} md={4}>
+                  <Button type="primary" onClick={handleSaveCompanySearchProfile} style={{ marginTop: 22 }}>Save search profile</Button>
+                </Col>
+              </Row>
+            </Space>
+
+            <section id="interns" style={{ marginBottom: 32 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Typography.Title level={3} style={{ margin: 0 }}>Interns</Typography.Title>
+                <Segmented value={internsView} onChange={setInternsView} options={[{label:'List',value:'list'},{label:'Grid',value:'grid'}]} />
+              </div>
+              {internsQuery.isLoading ? (
+                <Skeleton active />
+              ) : internsQuery.data?.length ? (
+                <Row gutter={[16,16]}>
+                  {internsQuery.data.map((u) => (
+                    <Col xs={24} sm={internsView==='grid'?12:24} md={internsView==='grid'?8:24} lg={internsView==='grid'?6:24} key={u._id || u.id}>
+                      <InternCard intern={u} />
+                    </Col>
+                  ))}
+                </Row>
+              ) : (
+                <Empty description="No interns found" />
+              )}
+            </section>
+          </>
+        ) : (
+          <>
+            <Space direction="vertical" style={{ width: '100%', marginBottom: 24 }} size="middle">
+              <Row gutter={[16, 16]} align="middle">
+                <Col xs={24} sm={12} md={6}>
+                  <Typography.Text strong>Nature of business</Typography.Text>
+                  <Select
+                    placeholder="Select industry"
+                    value={nature}
+                    onChange={setNature}
+                    style={{ width: '100%', marginTop: 4 }}
+                    allowClear
+                    options={industriesQuery.data?.map(industry => ({
+                      value: industry,
+                      label: industry
+                    })) || []}
+                  />
+                </Col>
+                <Col xs={12} sm={6} md={3}>
+                  <Typography.Text strong>Salary Min (RM)</Typography.Text>
+                  <InputNumber
+                    placeholder="Min"
+                    value={salaryMin}
+                    onChange={setSalaryMin}
+                    style={{ width: '100%', marginTop: 4 }}
+                    min={0}
+                    max={50000}
+                    step={500}
+                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                  />
+                </Col>
+                <Col xs={12} sm={6} md={3}>
+                  <Typography.Text strong>Salary Max (RM)</Typography.Text>
+                  <InputNumber
+                    placeholder="Max"
+                    value={salaryMax}
+                    onChange={setSalaryMax}
+                    style={{ width: '100%', marginTop: 4 }}
+                    min={0}
+                    max={50000}
+                    step={500}
+                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Typography.Text strong>Location</Typography.Text>
+                  <Select
+                    placeholder="Select location"
+                    value={companyCity}
+                    onChange={setCompanyCity}
+                    style={{ width: '100%', marginTop: 4 }}
+                    allowClear
+                    options={[
+                      { value: 'Kuala Lumpur', label: 'Kuala Lumpur' },
+                      { value: 'Selangor', label: 'Selangor' },
+                      { value: 'Penang', label: 'Penang' },
+                      { value: 'Johor', label: 'Johor' },
+                      { value: 'Perak', label: 'Perak' },
+                      { value: 'Sabah', label: 'Sabah' },
+                      { value: 'Sarawak', label: 'Sarawak' },
+                    ]}
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={4}>
+                  <Typography.Text strong>Sort by</Typography.Text>
+                  <Select
+                    value={sort}
+                    onChange={setSort}
+                    style={{ width: '100%', marginTop: 4 }}
+                    options={[
+                      { value: 'latest', label: 'Latest' },
+                      { value: 'name', label: 'A→Z' },
+                      { value: 'salary', label: 'Salary ↓' },
+                    ]}
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={2}>
+                  <Button
+                    type="primary"
+                    onClick={handleSaveSearchProfile}
+                    style={{ width: '100%', marginTop: 20 }}
+                  >
+                    Save Profile
+                  </Button>
+                </Col>
+              </Row>
+            </Space>
+            <section id="jobs" style={{ marginBottom: 32 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Typography.Title level={3} style={{ margin: 0 }}>Latest Jobs</Typography.Title>
+                <Segmented value={jobsView} onChange={setJobsView} options={[{label:'List',value:'list'},{label:'Grid',value:'grid'}]} />
+              </div>
+              {jobsQuery.isLoading ? (
+                <Skeleton active />
+              ) : jobsQuery.data?.length ? (
+                <Row gutter={[16, 16]}>
+                  {jobsQuery.data.map((j) => (
+                    <Col xs={24} sm={jobsView==='grid'?12:24} md={jobsView==='grid'?8:24} lg={jobsView==='grid'?6:24} key={j._id}>
+                      <JobCard job={j} />
+                    </Col>
+                  ))}
+                </Row>
+              ) : (
+                <Empty description="No jobs found" />
+              )}
+            </section>
+            <section id="companies" style={{ marginBottom: 32 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Typography.Title level={3} style={{ margin: 0 }}>Featured Companies</Typography.Title>
+                <Segmented value={companiesView} onChange={setCompaniesView} options={[{label:'List',value:'list'},{label:'Grid',value:'grid'}]} />
+              </div>
+              {companiesQuery.isLoading ? (
+                <Skeleton active />
+              ) : companiesQuery.data?.length ? (
+                <Row gutter={[16, 16]}>
+                  {companiesQuery.data.map((c) => (
+                    <Col xs={24} sm={companiesView==='grid'?12:24} md={companiesView==='grid'?8:24} lg={companiesView==='grid'?6:24} key={c._id}>
+                      <CompanyCard company={c} />
+                    </Col>
+                  ))}
+                </Row>
+              ) : (
+                <Empty description="No companies found" />
+              )}
+            </section>
+          </>
+        )}
+
       </Layout.Content>
       <Footer />
     </Layout>
