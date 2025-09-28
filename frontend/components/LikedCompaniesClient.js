@@ -48,7 +48,7 @@ export default function LikedCompaniesClient(){
               dataSource={items}
               rowKey={c => c._id}
               renderItem={(c) => (
-                <List.Item actions={[<Button type="link" href={`/companies/${c._id}`}>View</Button>] }>
+                <List.Item actions={[<Button key="view" type="link" href={`/companies/${c._id}`}>View</Button>] }>
                   <List.Item.Meta
                     avatar={<Avatar src={c.logoUrl} shape="square" />}
                     title={c.name}
