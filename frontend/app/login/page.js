@@ -223,7 +223,7 @@ function LoginInner() {
                       loading={loading}
                       size="large"
                       style={{
-                        background: "linear-gradient(to right, #7d69ff, #917fff)",
+                        color: 'blue',
                         borderColor: '#1890ff',
                         borderRadius: '6px',
                         height: '48px',

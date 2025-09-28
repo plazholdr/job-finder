@@ -1,16 +1,21 @@
 "use client";
 import { useState, useMemo, useEffect } from 'react';
 import { Form, Input, Button, Space, DatePicker, Select, Card, App, Typography, Checkbox } from 'antd';
+import { useState, useMemo, useEffect } from 'react';
+import { Form, Input, Button, Space, DatePicker, Select, Card, App, Typography, Checkbox } from 'antd';
 import { API_BASE_URL } from '../config';
+import { PlusCircleTwoTone } from '@ant-design/icons';
 import { PlusCircleTwoTone } from '@ant-design/icons';
 
 const { RangePicker } = DatePicker;
+const { Text, Title } = Typography;
 const { Text, Title } = Typography;
 
 
 const EDU_LEVELS = ['Diploma', 'Degree', 'Master', 'PhD', 'Certificate', 'Other'];
 const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Freelance'];
 
+export default function RegisterWizard({ onStepChange }) {
 export default function RegisterWizard({ onStepChange }) {
   const { message } = App.useApp();
   const [current, setCurrent] = useState(0);
@@ -26,7 +31,19 @@ export default function RegisterWizard({ onStepChange }) {
     { key: 'interests', title: 'Interests (Optional)' },
     { key: 'work', title: 'Work Experience (Optional)' },
     { key: 'events', title: 'Events (Optional)' },
+    { key: 'education', title: 'Education (Optional)' },
+    { key: 'certs', title: 'Certifications (Optional)' },
+    { key: 'interests', title: 'Interests (Optional)' },
+    { key: 'work', title: 'Work Experience (Optional)' },
+    { key: 'events', title: 'Events (Optional)' },
   ]), []);
+
+  // Notify parent component about step changes
+  useEffect(() => {
+    if (onStepChange) {
+      onStepChange(current);
+    }
+  }, [current, onStepChange]);
 
   // Notify parent component about step changes
   useEffect(() => {
@@ -189,14 +206,20 @@ export default function RegisterWizard({ onStepChange }) {
       console.log('Validating fields:', fields);
       console.log('Form values:', form.getFieldsValue());
       await form.validateFields(fields);
-      setCurrent((c) => c + 1);
+      const newStep = current + 1;
+      setCurrent(newStep);
+      if (onStepChange) onStepChange(newStep);
     } catch (err) {
       console.error('Validation failed:', err);
       message.error('Please fill in all required fields correctly');
     }
   }
 
-  async function handlePrev() { setCurrent((c) => c - 1); }
+  async function handlePrev() {
+    const newStep = current - 1;
+    setCurrent(newStep);
+    if (onStepChange) onStepChange(newStep);
+  }
 
   async function handleFinish() {
     try {
@@ -304,6 +327,11 @@ export default function RegisterWizard({ onStepChange }) {
                 Add your education background now, or skip and do it later from your profile.
               </Text>
             </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Text type="secondary">
+                Add your education background now, or skip and do it later from your profile.
+              </Text>
+            </div>
             <Form.List name="educations">
               {(fields, { add, remove }) => (
                 <>
@@ -374,6 +402,11 @@ export default function RegisterWizard({ onStepChange }) {
                 Add your certifications and professional credentials, or skip and do it later.
               </Text>
             </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Text type="secondary">
+                Add your certifications and professional credentials, or skip and do it later.
+              </Text>
+            </div>
             <Form.List name="certifications">
               {(fields, { add, remove }) => (
                 <>
@@ -433,6 +466,11 @@ export default function RegisterWizard({ onStepChange }) {
                 Share your interests and hobbies to help employers get to know you better.
               </Text>
             </div>
+            <div style={{ marginBottom: '16px' }}>
+              <Text type="secondary">
+                Share your interests and hobbies to help employers get to know you better.
+              </Text>
+            </div>
             <Form.List name="interests">
               {(fields, { add, remove }) => (
                 <>
@@ -487,6 +525,11 @@ export default function RegisterWizard({ onStepChange }) {
 
         {current === 5 && (
           <>
+            <div style={{ marginBottom: '16px' }}>
+              <Text type="secondary">
+                Add your work experience to showcase your professional background.
+              </Text>
+            </div>
             <div style={{ marginBottom: '16px' }}>
               <Text type="secondary">
                 Add your work experience to showcase your professional background.
@@ -637,15 +680,30 @@ export default function RegisterWizard({ onStepChange }) {
         }}
       >
         <Space>
+        </Form>
+      </div>
+
+      {/* Fixed navigation buttons at bottom */}
+      <div
+        style={{
+          borderTop: '1px solid #f0f0f0',
+          padding: '16px 24px',
+          backgroundColor: '#fafafa',
+          flexShrink: 0
+        }}
+      >
+        <Space>
           {current > 0 && (
             <Button onClick={handlePrev}>Previous</Button>
           )}
           {!isLast ? (
             <Button type="primary" style={{background: "linear-gradient(to right, #7d69ff, #917fff)" }} onClick={handleNext}>Next</Button>
+            <Button type="primary" style={{background: "linear-gradient(to right, #7d69ff, #917fff)" }} onClick={handleNext}>Next</Button>
           ) : (
             <Button type="primary" loading={submitting} onClick={handleFinish}>Submit</Button>
           )}
         </Space>
+      </div>
       </div>
     </Card>
   );

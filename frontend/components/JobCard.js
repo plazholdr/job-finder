@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { Card, Tag, Typography, Button, Space, App, Modal } from 'antd';
-import { SaveOutlined, CheckOutlined, LikeOutlined } from '@ant-design/icons';
+import { Card, Tag, Typography, Button, Space, App, Modal, Avatar } from 'antd';
+import { SaveOutlined, CheckOutlined, LikeOutlined, BankOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { apiAuth, getToken } from '../lib/api';
 import AuthPromptModal from './AuthPromptModal';
@@ -155,7 +155,7 @@ export default function JobCard({ job, companyView = false }) {
       title={job.title}
       extra={<span>{companyName}</span>}
       onClick={handleCardClick}
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: 'pointer', position: 'relative' }}
     >
       {/* Status/expiry notice for company view */}
       {companyView && (
@@ -195,7 +195,8 @@ export default function JobCard({ job, companyView = false }) {
       <Typography.Paragraph ellipsis={{ rows: 2 }}>{job.description}</Typography.Paragraph>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         {job.location?.city || job.location?.state ? (
-          <Tag>{[job.location?.city, job.location?.state].filter(Boolean).join(', ')}</Tag>
+          <><Typography.Paragraph style={{ margin: 0, fontSize: '14px', color: '#666' }}><EnvironmentOutlined style={{marginRight: 5}}/>{[job.location?.city, job.location?.state].filter(Boolean).join(', ')}</Typography.Paragraph></>
+          // <Tag>{[job.location?.city, job.location?.state].filter(Boolean).join(', ')}</Tag>
         ) : (
           (job.locations || []).slice(0, 3).map((loc, i) => (<Tag key={i}>{loc}</Tag>))
         )}
@@ -207,15 +208,29 @@ export default function JobCard({ job, companyView = false }) {
           </Tag>
         )}
         {job.company?.industry && (
-          <Tag color="blue">{job.company.industry}</Tag>
+          <Tag color="blue" style={{ padding: '0px 10px 0px 10px',borderRadius: 15 }}>{job.company.industry}</Tag>
         )}
       </div>
-      <Space>
-        <Button size="small" type={saved ? 'primary' : 'default'} icon={saved ? <CheckOutlined /> : <SaveOutlined />} onClick={handleSave}>
-          {saved ? 'Saved' : 'Save'}
-        </Button>
-        <Button size="small" type={liked ? 'primary' : 'default'} onClick={handleLike} icon={<LikeOutlined />}>{liked ? 'Liked' : 'Like'}</Button>
-      </Space>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Space>
+          <Button size="small" type={saved ? 'primary' : 'default'} icon={saved ? <CheckOutlined /> : <SaveOutlined />} onClick={handleSave}>
+            {saved ? 'Saved' : 'Save'}
+          </Button>
+          <Button size="small" type={liked ? 'primary' : 'default'} onClick={handleLike} icon={<LikeOutlined />}>{liked ? 'Liked' : 'Like'}</Button>
+        </Space>
+
+        {/* Company Logo */}
+        <Avatar
+          size={48}
+          src={job.company?.logo || job.companyLogo}
+          icon={<BankOutlined />}
+          style={{
+            backgroundColor: job.company?.logo || job.companyLogo ? 'transparent' : '#f0f0f0',
+            color: '#999',
+            border: '1px solid #d9d9d9'
+          }}
+        />
+      </div>
 
       {companyView && job.status === 0 && (
         <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
