@@ -527,3 +527,50 @@ Frontend Notes
 - Company dashboard should surface a tab/filter for NEW applications and an application detail view matching the information list above.
 - Provide actions as buttons with confirmations and required inputs (e.g., rejection reason, offer validity picker, file upload for offer letter).
 - Show validity countdowns for both application and offer phases.
+
+
+
+Continuation (Search Profiles service, Role‑based Home, Titles/Favicon)
+
+Overview
+- Implemented a dedicated Feathers service for saved search profiles instead of embedding under /users. Resource: /search-profiles
+- Rationale: separation of concerns, per-resource RBAC, evolvable schema for different kinds (intern vs company), clean analytics, and simple upsert semantics
+- Frontend now uses role-based homepage:
+  • Company users see Interns search (filters + list/grid results)
+  • Students see existing Jobs + Companies sections
+
+Backend – Search Profiles
+- Model: backend/src/models/search-profiles.model.js
+  • Fields: userId (owner), kind ('intern' | 'company'), optional name, filters {}
+  • Unique index: (userId, kind) → one profile per kind per user (can be relaxed later)
+  • Filters schema covers both kinds; unused keys are simply omitted
+- Service: backend/src/services/search-profiles/search-profiles.service.js
+  • Auth: JWT required
+  • find: returns only current user’s profiles, optional ?kind
+  • create: upsert by kind (idempotent save)
+  • get/patch/remove: owner or admin
+- Registration: backend/src/services/index.js → app.configure(searchProfiles)
+- OpenAPI: backend/openapi.yaml
+  • Paths: /search-profiles (GET, POST), /search-profiles/{id} (GET, PATCH, DELETE)
+  • Schemas: SearchProfileFilters, SearchProfile
+- Postman: backend/docs/postman/SearchProfiles.postman_collection.json with examples for both kinds
+
+Frontend – Usage and Wiring
+- Company (searching interns)
+  • Save profile: POST /search-profiles { kind: 'intern', filters: { fieldOfStudy, preferredStartDate, preferredEndDate, locations[], salaryRange{min,max} } }
+  • Home UI: company sees Intern filters + results powered by /programme-candidates; card component: components/InternCard.js
+- Student (searching companies/jobs)
+  • Save profile: POST /search-profiles { kind: 'company', filters: { keyword, nature, location, salaryRange{min,max}, sort } }
+  • Home UI: on load, auto-applies saved profile (GET /search-profiles?kind=company) to prefill filters
+  • Code: components/HomeContent.js (studentSearchProfileQuery + useEffect prefill)
+
+Titles and Favicon
+- Title template: frontend/app/layout.js → metadata.title = { default: "JobFinder", template: "%s | JobFinder" }
+- Home page title: frontend/app/page.js → export const metadata = { title: "Home" } (renders "Home | JobFinder")
+- Favicon: frontend/public/favicon.svg referenced via metadata.icons.icon = "/favicon.svg"
+
+Notes / Next Steps
+- Optional: Auto-apply company’s saved intern search profile on load (GET /search-profiles?kind=intern)
+- Optional: Add a simple “Manage Search Profile” page under both user and company menus
+- Future: To support multiple saved profiles per kind, drop the unique index and add name + isDefault; update service and UI accordingly
+- Consider unifying Postman entries by also adding /search-profiles to the main Job Finder API collection
