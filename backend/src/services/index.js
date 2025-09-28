@@ -30,6 +30,7 @@ import employmentDetail from './employment-detail/employment-detail.service.js';
 import universities from './universities/universities.service.js';
 import programmes from './programmes/programmes.service.js';
 import programmeCandidates from './programme-candidates/programme-candidates.service.js';
+import searchProfiles from './search-profiles/search-profiles.service.js';
 import shares from './shares/shares.service.js';
 
 export default function (app) {
@@ -66,5 +67,6 @@ export default function (app) {
   app.configure(universities);
   app.configure(programmes);
   app.configure(programmeCandidates);
+  app.configure(searchProfiles);
   app.configure(shares);
 };

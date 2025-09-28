@@ -1,0 +1,70 @@
+{
+  "info": {
+    "name": "Search Profiles API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{accessToken}}", "type": "string" } ] },
+  "variable": [ { "key": "baseUrl", "value": "http://localhost:3030" } ],
+  "item": [
+    {
+      "name": "GET /search-profiles (all of mine)",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/search-profiles", "host": ["{{baseUrl}}"], "path": ["search-profiles"] }
+      }
+    },
+    {
+      "name": "GET /search-profiles?kind=company",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/search-profiles?kind=company", "host": ["{{baseUrl}}"], "path": ["search-profiles"], "query": [ {"key":"kind","value":"company"} ] }
+      }
+    },
+    {
+      "name": "POST /search-profiles (student → company)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"kind\": \"company\",\n  \"filters\": {\n    \"keyword\": \"software\",\n    \"nature\": \"IT Services\",\n    \"location\": \"Kuala Lumpur\",\n    \"salaryRange\": { \"min\": 800, \"max\": 1500 },\n    \"sort\": \"latest\"\n  }\n}" },
+        "url": { "raw": "{{baseUrl}}/search-profiles", "host": ["{{baseUrl}}"], "path": ["search-profiles"] }
+      }
+    },
+    {
+      "name": "POST /search-profiles (company → intern)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"kind\": \"intern\",\n  \"filters\": {\n    \"fieldOfStudy\": \"Computer Science\",\n    \"preferredStartDate\": \"2025-01-01\",\n    \"preferredEndDate\": \"2025-06-30\",\n    \"locations\": [\"Kuala Lumpur\", \"Selangor\"],\n    \"salaryRange\": { \"min\": 800, \"max\": 1500 }\n  }\n}" },
+        "url": { "raw": "{{baseUrl}}/search-profiles", "host": ["{{baseUrl}}"], "path": ["search-profiles"] }
+      }
+    },
+    {
+      "name": "GET /search-profiles/{id}",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/search-profiles/{{id}}", "host": ["{{baseUrl}}"], "path": ["search-profiles", "{{id}}"] }
+      }
+    },
+    {
+      "name": "PATCH /search-profiles/{id}",
+      "request": {
+        "method": "PATCH",
+        "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Default search\",\n  \"filters\": { \"sort\": \"latest\" }\n}" },
+        "url": { "raw": "{{baseUrl}}/search-profiles/{{id}}", "host": ["{{baseUrl}}"], "path": ["search-profiles", "{{id}}"] }
+      }
+    },
+    {
+      "name": "DELETE /search-profiles/{id}",
+      "request": {
+        "method": "DELETE",
+        "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/search-profiles/{{id}}", "host": ["{{baseUrl}}"], "path": ["search-profiles", "{{id}}"] }
+      }
+    }
+  ]
+}
+

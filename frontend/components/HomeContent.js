@@ -270,36 +270,16 @@ export default function HomeContent({ jobs = [], companies = [] }) {
 
   async function handleSaveCompanySearchProfile() {
     try {
-      const {
-        fieldOfStudy,
-        educationLevel,
-        university,
-        workExperience,
-        skills,
-        preferredLocations
-      } = selectedFilters;
-
-      await apiAuth('/users', {
-        method: 'PATCH',
+      await apiAuth('/search-profiles', {
+        method: 'POST',
         body: {
-          profile: {
-            internSearchProfile: {
-              // Save new filter structure
-              fieldOfStudy: fieldOfStudy?.length > 0 ? fieldOfStudy : (fos ? [fos] : undefined),
-              educationLevel: educationLevel?.length > 0 ? educationLevel : undefined,
-              university: university?.length > 0 ? university : undefined,
-              workExperience: workExperience?.length > 0 ? workExperience : undefined,
-              skills: skills?.length > 0 ? skills : undefined,
-              preferredLocations: preferredLocations?.length > 0 ? preferredLocations : [loc1, loc2, loc3].filter(Boolean),
-
-              // Legacy fields for backward compatibility
-              preferredStartDate: prefStart ? prefStart.toISOString() : undefined,
-              preferredEndDate: prefEnd ? prefEnd.toISOString() : undefined,
-              salaryRange: { min: internSalMin, max: internSalMax },
-
-              // Save complete filter selections
-              filterSelections: selectedFilters
-            }
+          kind: 'intern',
+          filters: {
+            fieldOfStudy: fos || undefined,
+            preferredStartDate: prefStart ? prefStart.toISOString() : undefined,
+            preferredEndDate: prefEnd ? prefEnd.toISOString() : undefined,
+            locations: [loc1, loc2, loc3].filter(Boolean),
+            salaryRange: { min: internSalMin, max: internSalMax }
           }
         }
       });
@@ -309,46 +289,38 @@ export default function HomeContent({ jobs = [], companies = [] }) {
     }
   }
 
-  async function handleSaveStudentSearchProfile() {
-    try {
-      const {
-        fieldOfStudy,
-        educationLevel,
-        university,
-        workExperience,
-        skills,
-        preferredLocations
-      } = selectedFilters;
+  // Student company search profile
+  const [studentPrefApplied, setStudentPrefApplied] = useState(false);
+  const studentSearchProfileQuery = useQuery({
+    queryKey: ['student-search-profile-company', role],
+    queryFn: async () => {
+      const token = getToken();
+      if (!token) return null;
+      const res = await fetch(`${API_BASE_URL}/search-profiles?kind=company`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const items = data?.items || data?.data || [];
+      return items[0] || null;
+    },
+    enabled: role === 'student',
+    staleTime: 60_000,
+  });
 
-      await apiAuth('/users', {
-        method: 'PATCH',
-        body: {
-          profile: {
-            internSearchPreferences: {
-              // Save student's search preferences for finding other interns/peers
-              fieldOfStudy: fieldOfStudy?.length > 0 ? fieldOfStudy : (fos ? [fos] : undefined),
-              educationLevel: educationLevel?.length > 0 ? educationLevel : undefined,
-              university: university?.length > 0 ? university : undefined,
-              workExperience: workExperience?.length > 0 ? workExperience : undefined,
-              skills: skills?.length > 0 ? skills : undefined,
-              preferredLocations: preferredLocations?.length > 0 ? preferredLocations : [loc1, loc2, loc3].filter(Boolean),
-
-              // Legacy fields for backward compatibility
-              preferredStartDate: prefStart ? prefStart.toISOString() : undefined,
-              preferredEndDate: prefEnd ? prefEnd.toISOString() : undefined,
-              salaryRange: { min: internSalMin, max: internSalMax },
-
-              // Save complete filter selections
-              filterSelections: selectedFilters
-            }
-          }
-        }
-      });
-      message.success('Search preferences saved');
-    } catch (e) {
-      message.error(e.message || 'Failed to save search preferences');
+  useEffect(() => {
+    if (role !== 'student') return;
+    if (studentPrefApplied) return;
+    const filters = studentSearchProfileQuery.data?.filters;
+    if (!filters) return;
+    if (filters.keyword != null) setQ(filters.keyword);
+    if (filters.nature != null) setNature(filters.nature);
+    if (filters.location != null) setCompanyCity(filters.location);
+    if (filters.salaryRange) {
+      setSalaryMin(filters.salaryRange.min ?? 0);
+      setSalaryMax(filters.salaryRange.max ?? 5000);
     }
-  }
+    if (filters.sort) setSort(filters.sort);
+    setStudentPrefApplied(true);
+  }, [role, studentPrefApplied, studentSearchProfileQuery.data]);
 
 
   const jobsUrl = useMemo(() => buildQuery("/job-listings", { q, location, salaryMin, salaryMax }), [q, location, salaryMin, salaryMax]);
@@ -493,19 +465,22 @@ export default function HomeContent({ jobs = [], companies = [] }) {
 
   async function handleSaveSearchProfile() {
     try {
-      await apiAuth('/student/internship/me', {
-        method: 'PATCH',
+      await apiAuth('/search-profiles', {
+        method: 'POST',
         body: {
-          preferences: {
-            industries: nature ? [nature] : [],
-            locations: companyCity ? [companyCity] : [],
-            salaryRange: { min: salaryMin, max: salaryMax }
+          kind: 'company',
+          filters: {
+            keyword: q || undefined,
+            nature: nature || undefined,
+            location: companyCity || undefined,
+            salaryRange: { min: salaryMin, max: salaryMax },
+            sort
           }
         }
       });
       message.success('Search profile saved');
     } catch (e) {
-      if (e.message?.includes('Not signed in')) message.warning('Sign in as a student to save your search profile');
+      if (e.message?.includes('Not authenticated')) message.warning('Sign in to save your search profile');
       else message.error('Failed to save search profile');
     }
   }

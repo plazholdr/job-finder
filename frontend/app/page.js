@@ -1,4 +1,6 @@
 import HomeContent from "../components/HomeContent";
+export const metadata = { title: "Home" };
+
 import { API_BASE_URL } from "../config";
 
 async function fetchJson(path) {

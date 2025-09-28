@@ -161,7 +161,7 @@ function LoginInner() {
                 }}
               >
                 <Image
-                src="/images/login_page/logo_image.svg"
+                src="/logo_rect_light.svg"
                 alt="Login illustration"
                 width={200}
                 height={200}

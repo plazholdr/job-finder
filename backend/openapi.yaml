@@ -398,6 +398,94 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Company'
+
+  /search-profiles:
+    get:
+      summary: List my search profiles (JWT)
+      tags: [Search Profiles]
+      parameters:
+        - in: query
+          name: kind
+          schema: { type: string, enum: [intern, company] }
+      responses:
+        '200':
+          description: My profiles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SearchProfile' }
+    post:
+      summary: Upsert my search profile by kind (JWT)
+      description: Creates or updates a single profile per kind ('intern' for company users; 'company' for students).
+      tags: [Search Profiles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind]
+              properties:
+                kind: { type: string, enum: [intern, company] }
+                name: { type: string }
+                filters: { $ref: '#/components/schemas/SearchProfileFilters' }
+      responses:
+        '201':
+          description: Created/Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchProfile' }
+
+  /search-profiles/{id}:
+    get:
+      summary: Get my search profile by id (JWT)
+      tags: [Search Profiles]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: The profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchProfile' }
+    patch:
+      summary: Update my search profile (JWT)
+      tags: [Search Profiles]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                filters: { $ref: '#/components/schemas/SearchProfileFilters' }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchProfile' }
+    delete:
+      summary: Delete my search profile (JWT)
+      tags: [Search Profiles]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+
     patch:
       summary: Update company (owner/admin)
       tags: [Companies]
@@ -610,6 +698,37 @@ components:
             skills: { type: array, items: { type: string } }
             preferences:
               type: object
+
+    SearchProfileFilters:
+      type: object
+      properties:
+        # Intern search (companies)
+        fieldOfStudy: { type: string }
+        preferredStartDate: { type: string, format: date-time }
+        preferredEndDate: { type: string, format: date-time }
+        locations: { type: array, items: { type: string } }
+        salaryRange:
+          type: object
+          properties:
+            min: { type: number }
+            max: { type: number }
+        # Company search (students)
+        keyword: { type: string }
+        companyName: { type: string }
+        nature: { type: string }
+        location: { type: string }
+        sort: { type: string }
+    SearchProfile:
+      type: object
+      properties:
+        _id: { type: string }
+        userId: { type: string }
+        kind: { type: string, enum: [intern, company] }
+        name: { type: string }
+        filters: { $ref: '#/components/schemas/SearchProfileFilters' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
               properties:
                 industries: { type: array, items: { type: string } }
     UserPatch:
