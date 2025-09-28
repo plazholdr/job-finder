@@ -11,10 +11,15 @@ export default function JobDetailClient({ job }) {
       <Navbar />
       <Layout.Content style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
         {!job ? (
-          <Typography.Title level={3}>Job not found</Typography.Title>
+          <Typography.Title level={3}>Job unavailable</Typography.Title>
         ) : (
           <>
-            <Typography.Title>{job.title}</Typography.Title>
+            <Typography.Title>
+              {job.title}
+              {job.status === 3 && (
+                <Tag color="red" style={{ marginLeft: 12 }}>Past</Tag>
+              )}
+            </Typography.Title>
             {job.company?._id ? (
               <Typography.Paragraph type="secondary">
                 <Link href={`/companies/${job.company._id}`}>{job.company.name}</Link>

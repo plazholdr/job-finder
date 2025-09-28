@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { Card, Tag, Typography, Button, Space, App } from 'antd';
+import { Card, Tag, Typography, Button, Space, App, Modal } from 'antd';
 import { SaveOutlined, CheckOutlined, LikeOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { apiAuth, getToken } from '../lib/api';
 import AuthPromptModal from './AuthPromptModal';
 
-export default function JobCard({ job }) {
+export default function JobCard({ job, companyView = false }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const { message } = App.useApp();
   const [saved, setSaved] = useState(false);
@@ -17,8 +17,30 @@ export default function JobCard({ job }) {
   const router = useRouter();
   const companyName = job.company?.name || job.companyName || 'Company';
 
+  const statusLabel = (s) => {
+    switch (s) {
+      case 0: return 'Draft';
+      case 1: return 'Pending';
+      case 2: return 'Active';
+      case 3: return 'Past';
+      default: return '';
+    }
+  };
+
+  const daysLeft = (() => {
+    if (!job?.expiresAt) return null;
+    const now = new Date();
+    const exp = new Date(job.expiresAt);
+    const diff = Math.ceil((exp.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+    return diff;
+  })();
+
   function handleCardClick() {
-    router.push(`/jobs/${job._id}`);
+    if (companyView) {
+      router.push(`/company/jobs/${job._id}`);
+    } else {
+      router.push(`/jobs/${job._id}`);
+    }
   }
 
   useEffect(() => {
@@ -114,6 +136,19 @@ export default function JobCard({ job }) {
     }
   }
 
+  async function requestRenewal(e) {
+    e?.preventDefault?.(); e?.stopPropagation?.();
+    try {
+      if (!getToken()) { message.error('Sign in required'); return; }
+      await apiAuth(`/job-listings/${job._id}`, { method: 'PATCH', body: { requestRenewal: true } });
+      message.success('Renewal requested. Awaiting operator approval.');
+      // naive refresh of the page/route to fetch updated job data
+      if (typeof window !== 'undefined') window.location.reload();
+    } catch (err) {
+      message.error('Failed to request renewal');
+    }
+  }
+
   return (
     <Card
       hoverable
@@ -122,6 +157,41 @@ export default function JobCard({ job }) {
       onClick={handleCardClick}
       style={{ cursor: 'pointer' }}
     >
+      {/* Status/expiry notice for company view */}
+      {companyView && (
+        <div style={{ marginBottom: 8 }}>
+          {job.status === 3 && (<Tag>{statusLabel(job.status)}</Tag>)}
+          {job.status === 2 && daysLeft != null && daysLeft <= 7 && (
+            <div style={{ padding: '8px 12px', border: '1px dashed #d9d9d9', borderRadius: 6, background: '#fafafa' }}>
+              <Space wrap>
+                <Tag color="orange">Expiring in {Math.max(daysLeft, 0)} day{Math.max(daysLeft,0)===1?'':'s'}</Tag>
+                {job.renewal ? (
+                  <Tag color="blue">Renewal pending approval</Tag>
+                ) : (
+                  <Button size="small" type="primary" onClick={requestRenewal}>Request renewal</Button>
+                )}
+              </Space>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Quick meta */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        {job.approvedAt || job.createdAt ? (
+          <Tag>Posted {new Date(job.approvedAt || job.createdAt).toLocaleDateString()}</Tag>
+        ) : null}
+        {job?.project?.startDate && job?.project?.endDate ? (
+          <Tag color="purple">
+            {(() => {
+              const s = new Date(job.project.startDate); const e = new Date(job.project.endDate);
+              const months = Math.round(((e - s) / (1000*60*60*24*30)));
+              return `${months} month${months===1?'':'s'}`;
+            })()}
+          </Tag>
+        ) : null}
+      </div>
+
       <Typography.Paragraph ellipsis={{ rows: 2 }}>{job.description}</Typography.Paragraph>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         {job.location?.city || job.location?.state ? (
@@ -146,6 +216,50 @@ export default function JobCard({ job }) {
         </Button>
         <Button size="small" type={liked ? 'primary' : 'default'} onClick={handleLike} icon={<LikeOutlined />}>{liked ? 'Liked' : 'Like'}</Button>
       </Space>
+
+      {companyView && job.status === 0 && (
+        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}/edit`); }}>
+            Continue editing
+          </Button>
+          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>
+            View
+          </Button>
+        </div>
+      )}
+      {companyView && job.status === 1 && (
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+          {job.picUpdatedAt && <Tag color="blue">PIC updated</Tag>}
+          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>
+            View
+          </Button>
+          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}?editPIC=1`); }}>
+            Edit PIC
+          </Button>
+        </div>
+      )}
+      {companyView && job.status === 2 && (
+        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>View</Button>
+          <Button size="small" danger onClick={(e)=>{
+            e.preventDefault(); e.stopPropagation();
+            Modal.confirm({
+              title: 'Close this job?',
+              content: 'Once closed, it will be removed from public listings.',
+              okText: 'Yes, close job',
+              cancelText: 'Cancel',
+              onOk: async () => {
+                try {
+                  if (!getToken()) { message.error('Sign in required'); return; }
+                  await apiAuth(`/job-listings/${job._id}`, { method: 'PATCH', body: { close: true } });
+                  message.success('Job closed');
+                  if (typeof window !== 'undefined') window.location.href = '/company/profile?tab=past';
+                } catch (err) { message.error('Failed to close job'); }
+              }
+            });
+          }}>Close job</Button>
+        </div>
+      )}
 
       <AuthPromptModal
         open={authModalOpen}

@@ -2,6 +2,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
 import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
 const CompanyStatusGate = dynamic(() => import('./CompanyStatusGate'), { ssr: false });
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -34,15 +35,19 @@ export default function Providers({ children }) {
     ? { colorBgLayout: '#0b1220', colorBgContainer: '#111827', colorText: '#e5e7eb', colorTextSecondary: '#9ca3af', colorBorder: '#1f2937', colorPrimary: '#1677ff' }
     : { colorBgLayout: '#f7f9fc', colorBgContainer: '#ffffff', colorText: '#0f172a', colorTextSecondary: '#475569', colorBorder: '#e5e7eb', colorPrimary: '#1677ff' };
 
+  const pathname = usePathname();
+  const showCompanyGate = pathname?.startsWith('/company');
   return (
     <ConfigProvider theme={{ algorithm, token: tokens }}>
       <AntdApp>
         <QueryClientProvider client={client}>
           <ThemeContext.Provider value={{ theme, toggle: () => setTheme(t => t === 'dark' ? 'light' : 'dark') }}>
-            {/* Global company status guard to enforce flow for company users */}
-            <div suppressHydrationWarning>
-              <CompanyStatusGate />
-            </div>
+            {/* Only enforce company flow on /company/* routes to avoid global overhead */}
+            {showCompanyGate && (
+              <div suppressHydrationWarning>
+                <CompanyStatusGate />
+              </div>
+            )}
             {children}
           </ThemeContext.Provider>
         </QueryClientProvider>

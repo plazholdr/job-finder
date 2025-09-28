@@ -23,7 +23,8 @@ const offerSchema = new mongoose.Schema({
   sentAt: Date,
   validUntil: Date,
   title: String,
-  notes: String
+  notes: String,
+  letterKey: String // object storage key for uploaded offer letter
 }, { _id: false });
 
 const applicationSchema = new mongoose.Schema({
@@ -46,6 +47,12 @@ const applicationSchema = new mongoose.Schema({
   acceptedAt: Date,
   rejectedAt: Date,
   withdrawnAt: Date,
+
+  // Rejection attribution and reason (when status=REJECTED)
+  rejection: {
+    by: { type: String, enum: ['company','applicant','system'], default: undefined },
+    reason: { type: String }
+  },
 
   history: [historySchema]
 }, { timestamps: true });

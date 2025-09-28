@@ -1,4 +1,5 @@
 import { hooks as authHooks } from '@feathersjs/authentication';
+import { BadRequest } from '@feathersjs/errors';
 import mongoose from 'mongoose';
 import { ApplicationStatus as S } from '../../constants/enums.js';
 import { storageUtils } from '../../utils/storage.js';
@@ -75,7 +76,7 @@ export default (app) => {
     } else if (user.role === 'company') {
       const company = await app.service('companies').Model.findOne({ ownerUserId: user._id }).lean();
       if (!company) { throw new Error('Company profile not found'); }
-      ctx.params.query = { ...q, companyId: company._id };
+      ctx.params.query = { ...q, companyId: company._id, status: { $ne: S.WITHDRAWN } };
     } // admin sees all
     return ctx;
   }
@@ -89,7 +90,40 @@ export default (app) => {
     if (user.role === 'company') {
       const company = await app.service('companies').Model.findOne({ ownerUserId: user._id }).lean();
       if (!company || String(doc.companyId) !== String(company._id)) throw Object.assign(new Error('Forbidden'), { code: 403 });
+      if (doc.status === S.WITHDRAWN) throw Object.assign(new Error('Not found'), { code: 404 });
     }
+    return ctx;
+  }
+
+  // Auto-withdraw expired applications (company did not respond within validity)
+  async function expireIfNeeded(ctx) {
+    try {
+      const doc = await Applications.findById(ctx.id).lean();
+      if (!doc) return ctx;
+      const now = new Date();
+      if (doc.status === S.NEW && doc.validityUntil && new Date(doc.validityUntil) <= now) {
+        await Applications.updateOne(
+          { _id: doc._id },
+          { $set: { status: S.WITHDRAWN, withdrawnAt: now }, $push: { history: { at: now, actorRole: 'system', action: 'autoWithdraw', data: { reason: 'validityExpired' } } } }
+        );
+      }
+    } catch (_) {}
+    return ctx;
+  }
+
+  // Sweep expiration for list endpoints
+  async function expireInFind(ctx) {
+    try {
+      const user = ctx.params.user;
+      if (!user) return ctx;
+      const now = new Date();
+      const scope = user.role === 'student' ? { userId: user._id } : (user.role === 'company' ? { companyId: (await app.service('companies').Model.findOne({ ownerUserId: user._id }).lean())?._id } : {});
+      if (!scope || (scope.companyId === undefined && scope.userId === undefined)) return ctx;
+      await Applications.updateMany(
+        { status: S.NEW, validityUntil: { $lte: now }, ...scope },
+        { $set: { status: S.WITHDRAWN, withdrawnAt: now }, $push: { history: { at: now, actorRole: 'system', action: 'autoWithdraw', data: { reason: 'validityExpired' } } } }
+      );
+    } catch (_) {}
     return ctx;
   }
 
@@ -158,6 +192,7 @@ export default (app) => {
       if (action === 'shortlist' && doc.status === S.NEW) {
         set({ status: S.SHORTLISTED });
         ctx.params._notify = { type: 'application_shortlisted', toUserId: doc.userId, toRole: 'student' };
+        ctx.params._email = { kind: 'status_email', to: 'student', template: 'shortlisted' };
         return;
       }
       if ((action === 'scheduleInterview' || action === 'rescheduleInterview') && (doc.status === S.SHORTLISTED || doc.status === S.INTERVIEW_SCHEDULED)) {
@@ -174,13 +209,17 @@ export default (app) => {
       if (action === 'sendOffer' && (doc.status === S.INTERVIEW_SCHEDULED || doc.status === S.SHORTLISTED)) {
         const defaultOfferDays = Number(process.env.OFFER_VALIDITY_DAYS || 7);
         const validUntil = ctx.data.validUntil ? new Date(ctx.data.validUntil) : new Date(now.getTime() + defaultOfferDays * 86400000);
-        set({ status: S.PENDING_ACCEPTANCE, offer: { sentAt: now, validUntil, title: ctx.data.title, notes: ctx.data.notes } });
+        set({ status: S.PENDING_ACCEPTANCE, offer: { sentAt: now, validUntil, title: ctx.data.title, notes: ctx.data.notes, letterKey: ctx.data.letterKey } });
         ctx.params._notify = { type: 'offer_sent', toUserId: doc.userId, toRole: 'student' };
+        ctx.params._email = { kind: 'status_email', to: 'student', template: 'offer' };
         return;
       }
       if (action === 'reject' && [S.NEW, S.SHORTLISTED, S.INTERVIEW_SCHEDULED, S.PENDING_ACCEPTANCE].includes(doc.status)) {
-        set({ status: S.REJECTED, rejectedAt: now });
+        const reason = String(ctx.data.reason || '').trim();
+        if (!reason) { throw new BadRequest('Rejection reason is required'); }
+        set({ status: S.REJECTED, rejectedAt: now, rejection: { by: 'company', reason } });
         ctx.params._notify = { type: 'application_rejected', toUserId: doc.userId, toRole: 'student' };
+        ctx.params._email = { kind: 'status_email', to: 'student', template: 'rejected' };
         return;
       }
       if (action === 'markNoShow' && doc.status === S.INTERVIEW_SCHEDULED) {
@@ -193,9 +232,20 @@ export default (app) => {
 
     // Student-driven
     if (user.role === 'student') {
-      if (action === 'withdraw' && [S.NEW, S.SHORTLISTED, S.INTERVIEW_SCHEDULED, S.PENDING_ACCEPTANCE].includes(doc.status)) {
-        set({ status: S.WITHDRAWN, withdrawnAt: now });
+      if (action === 'withdraw' && [S.NEW, S.SHORTLISTED, S.INTERVIEW_SCHEDULED, S.PENDING_ACCEPTANCE, S.ACCEPTED].includes(doc.status)) {
+        const reason = String(ctx.data.reason || '').trim();
+        const data = { status: S.WITHDRAWN, withdrawnAt: now };
+        if (reason) data.withdrawReason = reason;
+        set(data);
         ctx.params._notify = { type: 'application_withdrawn', toUserId: doc.companyId, toRole: 'company' };
+        ctx.params._email = { kind: 'withdraw', prevStatus: doc.status };
+        return;
+      }
+      if (action === 'extendValidity' && doc.status === S.NEW) {
+        const days = Math.max(1, Math.min(30, Number(ctx.data.days || 7)));
+        if (doc.extendedOnce) throw new BadRequest('Validity already extended once');
+        const until = new Date((doc.validityUntil ? new Date(doc.validityUntil).getTime() : Date.now()) + days * 86400000);
+        set({ validityUntil: until, extendedOnce: true });
         return;
       }
       if (action === 'declineInterview' && doc.status === S.INTERVIEW_SCHEDULED) {
@@ -206,6 +256,7 @@ export default (app) => {
       if (action === 'acceptOffer' && doc.status === S.PENDING_ACCEPTANCE) {
         set({ status: S.ACCEPTED, acceptedAt: now });
         ctx.params._notify = { type: 'offer_accepted', toUserId: doc.companyId, toRole: 'company' };
+        ctx.params._email = { kind: 'status_email', to: 'student', template: 'hired' };
         // Create EmploymentRecord
         try {
           const Employment = app.service('employment-records')?.Model;
@@ -230,7 +281,7 @@ export default (app) => {
         return;
       }
       if (action === 'declineOffer' && doc.status === S.PENDING_ACCEPTANCE) {
-        set({ status: S.REJECTED, rejectedAt: now });
+        set({ status: S.REJECTED, rejectedAt: now, rejection: { by: 'applicant', reason: String(ctx.data.reason || 'Offer declined by applicant') } });
         ctx.params._notify = { type: 'offer_declined', toUserId: doc.companyId, toRole: 'company' };
         return;
       }
@@ -256,11 +307,53 @@ export default (app) => {
     return ctx;
   }
 
+  // Send transactional emails when required
+  async function afterEmails(ctx) {
+    const mail = ctx.params._email;
+    if (!mail) return ctx;
+    try {
+      const { sendMail } = await import('../../utils/mailer.js');
+      const appDoc = await Applications.findById(ctx.id).lean();
+      if (!appDoc) return ctx;
+      const Users = app.service('users')?.Model;
+      const Companies = app.service('companies')?.Model;
+
+      if (mail.kind === 'withdraw') {
+        // Only email company when previous status was shortlisted or pending acceptance
+        if ([S.SHORTLISTED, S.PENDING_ACCEPTANCE].includes(mail.prevStatus)) {
+          const company = await Companies.findById(appDoc.companyId).lean();
+          const owner = company?.ownerUserId ? await Users.findById(company.ownerUserId).lean() : null;
+          if (owner?.email) {
+            await sendMail({ to: owner.email, subject: 'Application withdrawn', text: 'The candidate has withdrawn their application.', html: '<p>The candidate has withdrawn their application.</p>' });
+          }
+        }
+        return ctx;
+      }
+
+      if (mail.kind === 'status_email') {
+        // email student on specific transitions
+        const student = await Users.findById(appDoc.userId).lean();
+        if (!student?.email) return ctx;
+        if (mail.template === 'shortlisted') {
+          await sendMail({ to: student.email, subject: 'You have been shortlisted', text: 'Your application status changed to Shortlisted.', html: '<p>Your application status changed to <b>Shortlisted</b>.</p>' });
+        } else if (mail.template === 'offer') {
+          await sendMail({ to: student.email, subject: 'Offer received', text: 'Your application status changed to Pending Acceptance (offer sent).', html: '<p>Your application status changed to <b>Pending Acceptance</b>.</p>' });
+        } else if (mail.template === 'hired') {
+          await sendMail({ to: student.email, subject: 'Hired', text: 'Congratulations! Your application has been marked as Hired.', html: '<p>Congratulations! Your application has been marked as <b>Hired</b>.</p>' });
+        } else if (mail.template === 'rejected') {
+          await sendMail({ to: student.email, subject: 'Application rejected', text: 'Your application status changed to Rejected.', html: '<p>Your application status changed to <b>Rejected</b>.</p>' });
+        }
+        return ctx;
+      }
+    } catch (_) {}
+    return ctx;
+  }
+
   return {
     before: {
       all: [ authenticate('jwt') ],
-      find: [ ensureAccessFind ],
-      get: [ ensureAccessGet ],
+      find: [ ensureAccessFind, expireInFind ],
+      get: [ ensureAccessGet, expireIfNeeded ],
       create: [ onCreate ],
       patch: [ applyTransition ]
     },
@@ -291,6 +384,18 @@ export default (app) => {
         } catch (_) {}
       } ],
       patch: [ async (ctx) => {
+        if (!ctx.params._regenPdf) {
+          // derive which email to send from action + resulting status
+          try {
+            const a = await Applications.findById(ctx.id).lean();
+            const action = ctx.params?.data?.action || '';
+            if (action === 'shortlist') ctx.params._email = { kind: 'status_email', to: 'student', template: 'shortlisted' };
+            if (action === 'sendOffer') ctx.params._email = { kind: 'status_email', to: 'student', template: 'offer' };
+            if (action === 'reject') ctx.params._email = { kind: 'status_email', to: 'student', template: 'rejected' };
+          } catch (_) {}
+        }
+        return ctx;
+      }, afterEmails, async (ctx) => {
         if (!ctx.params._regenPdf) return ctx;
         try {
           const a = await Applications.findById(ctx.id).lean();
@@ -310,7 +415,7 @@ export default (app) => {
           }
         } catch (_) {}
         return ctx;
-      }, afterNotify ]
+      } ]
     },
     error: { }
   };

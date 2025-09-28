@@ -1,0 +1,94 @@
+{
+  "project": {
+    "name": "Job Finder Application",
+    "type": "fullstack-web-app",
+    "version": "1.0.0"
+  },
+  "architecture": {
+    "frontend": {
+      "path": "./frontend",
+      "framework": "nextjs",
+      "version": "15.5.3",
+      "ui_library": "antd",
+      "state_management": "tanstack-query",
+      "styling": "antd-cssinjs",
+      "entry_points": [
+        "frontend/app/page.js",
+        "frontend/app/layout.js"
+      ],
+      "key_directories": [
+        "frontend/app",
+        "frontend/components",
+        "frontend/lib",
+        "frontend/public"
+      ]
+    },
+    "backend": {
+      "path": "./backend",
+      "framework": "feathersjs",
+      "version": "5.0.35",
+      "database": "mongodb",
+      "cache": "redis",
+      "auth": "feathers-auth",
+      "entry_points": [
+        "backend/src/index.js",
+        "backend/src/app.js"
+      ],
+      "key_directories": [
+        "backend/src/services",
+        "backend/src/hooks",
+        "backend/src/models",
+        "backend/config"
+      ]
+    }
+  },
+  "development": {
+    "package_managers": {
+      "frontend": "yarn",
+      "backend": "yarn"
+    },
+    "dev_servers": {
+      "frontend": {
+        "command": "yarn dev",
+        "port": 3000,
+        "url": "http://localhost:3000"
+      },
+      "backend": {
+        "command": "yarn dev",
+        "port": 3030,
+        "url": "http://localhost:3030"
+      }
+    },
+    "testing": {
+      "frontend": "cypress",
+      "backend": "jest",
+      "coverage": true
+    }
+  },
+  "design_system": {
+    "primary_library": "antd",
+    "theme_customization": true,
+    "responsive_breakpoints": {
+      "xs": "480px",
+      "sm": "576px",
+      "md": "768px",
+      "lg": "992px",
+      "xl": "1200px",
+      "xxl": "1600px"
+    },
+    "color_palette": {
+      "primary": "#1890ff",
+      "success": "#52c41a",
+      "warning": "#faad14",
+      "error": "#f5222d"
+    }
+  },
+  "coding_standards": {
+    "module_system": "es6",
+    "status_enums": "integer_based",
+    "api_pattern": "feathers_services_only",
+    "auth_pattern": "feathers_native",
+    "file_naming": "kebab-case",
+    "component_naming": "PascalCase"
+  }
+}

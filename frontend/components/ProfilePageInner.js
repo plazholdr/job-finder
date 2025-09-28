@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Layout, Card, Typography, Button, Space, Form, Input, Select, Upload, Checkbox, Avatar, message, Tabs, Tag, Progress, Row, Col } from 'antd';
+import dynamic from 'next/dynamic';
+const InternshipEditor = dynamic(() => import('./student/InternshipEditor'), { ssr: false, loading: () => <Card loading style={{ minHeight: 200 }} /> });
 import { UploadOutlined, EditOutlined, PhoneOutlined, MailOutlined, PlusOutlined, FileTextOutlined, WarningOutlined } from '@ant-design/icons';
 import Navbar from './Navbar';
 import Footer from './Footer';
@@ -339,6 +341,15 @@ export default function ProfilePageInner({ targetIdProp = null }) {
           <div style={{ padding: '16px 0' }}>
             <Title level={4}>Personal details</Title>
             <Text type="secondary">Personal information for profile completion</Text>
+          </div>
+        )
+      },
+      {
+        key: 'internship',
+        label: 'Internship',
+        children: (
+          <div style={{ padding: '16px 0' }}>
+            <InternshipEditor />
           </div>
         )
       }

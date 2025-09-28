@@ -9,7 +9,17 @@ export default (app) => ({
   before: {
     all: [],
     find: [
+      // Optionally authenticate to detect admin role, but do not require auth for public listing
       async (context) => {
+        try {
+          const hasAuthHeader = !!context.params?.headers?.authorization;
+          const hasAccessToken = !!context.params?.authentication?.accessToken;
+          if (hasAuthHeader || hasAccessToken) {
+            await authenticate('jwt')(context);
+          }
+        } catch (_) {
+          // ignore auth errors here to keep endpoint public; role remains undefined
+        }
         const q = { ...(context.params.query || {}) };
 
         // Custom params
@@ -85,9 +95,19 @@ export default (app) => ({
 
         // Build final query; only include $sort when it has fields to avoid
         // `Invalid query parameter $sort` from the adapter
+        // Legacy tolerance: for admin filters, if verifiedStatus is 0/1/2 also include string forms
+        const finalQuery = { ...query };
+        if (q.verifiedStatus !== undefined) {
+          const vsNum = typeof q.verifiedStatus === 'string' && q.verifiedStatus.match(/^\d+$/) ? Number(q.verifiedStatus) : q.verifiedStatus;
+          const map = { 0: 'pending', 1: 'approved', 2: 'rejected' };
+          if (context.params.user?.role === 'admin' && (vsNum === 0 || vsNum === 1 || vsNum === 2)) {
+            finalQuery.$or = [ { verifiedStatus: vsNum }, { verifiedStatus: map[vsNum] } ];
+          } else {
+            finalQuery.verifiedStatus = q.verifiedStatus;
+          }
+        }
         context.params.query = {
-          ...query,
-          ...(q.verifiedStatus !== undefined ? { verifiedStatus: q.verifiedStatus } : {}),
+          ...finalQuery,
           ...(Object.keys($sort).length ? { $sort } : {})
         };
 

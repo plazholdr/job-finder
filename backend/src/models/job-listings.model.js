@@ -39,6 +39,7 @@ const jobListingSchema = new mongoose.Schema({
   },
   salaryRange: salaryRangeSchema,
   pic: picSchema,
+  picUpdatedAt: Date,
 
   project: projectSchema,
   onboardingMaterials: [onboardingDocSchema],
