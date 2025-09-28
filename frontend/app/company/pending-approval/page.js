@@ -16,10 +16,9 @@ export default function CompanyPendingApprovalPage() {
 
   return (
     <Layout>
-      <Navbar />
       <Layout.Content style={{ padding: '48px 16px', minHeight: '80vh' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          <Card bordered={false} style={{ marginBottom: 16, textAlign: 'center', background: 'linear-gradient(180deg,#fefcf5,#fff)' }}>
+          <Card bordered={false} style={{ marginBottom: 16, textAlign: 'center', background: 'linear-gradient(180deg,#fefcf5,#fff)', boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)" }}>
             <Result
               icon={<ClockCircleOutlined style={{ color: '#faad14' }} />}
               title="Your company submission is under review"
@@ -44,7 +43,7 @@ export default function CompanyPendingApprovalPage() {
             </div>
           </Card>
 
-          <Card style={{ textAlign: 'left' }}>
+          <Card style={{ textAlign: 'left', boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)" }}>
             <Title level={4} style={{ marginTop: 0 }}>What happens next?</Title>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <div>

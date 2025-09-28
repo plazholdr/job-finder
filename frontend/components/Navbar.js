@@ -109,8 +109,11 @@ export default function Navbar() {
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
     ] : [
       { key: 'profile', label: <Link href="/profile" prefetch={false}>Profile</Link> },
+      { key: 'applications', label: <Link href="/applications" prefetch={false}>Applications</Link> },
+      { key: 'invitations', label: <Link href="/invitations" prefetch={false}>Invitations</Link> },
       { key: 'saved', label: <Link href="/saved-jobs" prefetch={false}>Saved Jobs</Link> },
       { key: 'liked', label: <Link href="/liked-jobs" prefetch={false}>Liked Jobs</Link> },
+      { key: 'liked-companies', label: <Link href="/liked-companies" prefetch={false}>Liked Companies</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
     ]
   };

@@ -9,6 +9,22 @@ import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
+function SectionKV({ data }){
+  if (!data || typeof data !== 'object') return <span>-</span>;
+  const entries = Object.entries(data || {});
+  if (!entries.length) return <span>-</span>;
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:8 }}>
+      {entries.map(([k,v]) => (
+        <>
+          <div style={{ fontWeight:600, color:'#555' }}>{k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase())}</div>
+          <div style={{ whiteSpace:'pre-wrap' }}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</div>
+        </>
+      ))}
+    </div>
+  );
+}
+
 export default function ApplicationDetailPage({ params }) {
   const { id } = params || {};
   const [data, setData] = useState(null);
@@ -191,11 +207,13 @@ export default function ApplicationDetailPage({ params }) {
                     <Descriptions.Item label="Candidate">{data.candidate?.fullName || data.candidateName || '-'}</Descriptions.Item>
                     <Descriptions.Item label="Candidate Statement">{data.candidateStatement || data.statement || '-'}</Descriptions.Item>
                     <Descriptions.Item label="Application Validity">{data.validityUntil ? new Date(data.validityUntil).toLocaleDateString() : '-'}</Descriptions.Item>
-                    <Descriptions.Item label="Personal Information">{data.form?.personalInfo ? JSON.stringify(data.form.personalInfo) : (data.personalInfo ? JSON.stringify(data.personalInfo) : '-')}</Descriptions.Item>
-                    <Descriptions.Item label="Internship Details">{data.form?.internshipInfo ? JSON.stringify(data.form.internshipInfo) : (data.internshipInfo ? JSON.stringify(data.internshipInfo) : '-')}</Descriptions.Item>
-                    <Descriptions.Item label="Course Information">{data.form?.courseInfo ? JSON.stringify(data.form.courseInfo) : (data.courseInfo ? JSON.stringify(data.courseInfo) : '-')}</Descriptions.Item>
-                    <Descriptions.Item label="Assignment Information">{data.form?.assignmentInfo ? JSON.stringify(data.form.assignmentInfo) : (data.assignmentInfo ? JSON.stringify(data.assignmentInfo) : '-')}</Descriptions.Item>
-                    <Descriptions.Item label="Application Details">{data.applicationDetails ? JSON.stringify(data.applicationDetails) : '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Personal Information"><SectionKV data={data.form?.personalInfo || data.personalInfo} /></Descriptions.Item>
+                    <Descriptions.Item label="Internship Details"><SectionKV data={data.form?.internshipInfo || data.internshipInfo} /></Descriptions.Item>
+                    <Descriptions.Item label="Course Information"><SectionKV data={data.form?.courseInfo || data.courseInfo} /></Descriptions.Item>
+                    <Descriptions.Item label="Assignment Information"><SectionKV data={data.form?.assignmentInfo || data.assignmentInfo} /></Descriptions.Item>
+                    {data.applicationDetails && (
+                      <Descriptions.Item label="Application Details"><SectionKV data={data.applicationDetails} /></Descriptions.Item>
+                    )}
                   </Descriptions>
 
                   {Array.isArray(data?.statusHistory) && (

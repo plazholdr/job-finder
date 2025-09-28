@@ -1,10 +1,11 @@
 "use client";
-import { useState, useMemo } from 'react';
-import { Steps, Form, Input, Button, Space, DatePicker, Select, Card, App, Typography, Checkbox } from 'antd';
+import { useState, useMemo, useEffect } from 'react';
+import { Form, Input, Button, Space, DatePicker, Select, Card, App, Typography, Checkbox } from 'antd';
 import { API_BASE_URL } from '../config';
+import { PlusCircleTwoTone } from '@ant-design/icons';
 
 const { RangePicker } = DatePicker;
-const { Title, Text } = Typography;
+const { Text, Title } = Typography;
 
 
 const EDU_LEVELS = ['Diploma', 'Degree', 'Master', 'PhD', 'Certificate', 'Other'];
@@ -26,6 +27,13 @@ export default function RegisterWizard({ onStepChange }) {
     { key: 'work', title: 'Work Experience (Optional)' },
     { key: 'events', title: 'Events (Optional)' },
   ]), []);
+
+  // Notify parent component about step changes
+  useEffect(() => {
+    if (onStepChange) {
+      onStepChange(current);
+    }
+  }, [current, onStepChange]);
 
   async function handleSubmitAll(values) {
     // Compose payload matching backend schema
@@ -216,7 +224,11 @@ export default function RegisterWizard({ onStepChange }) {
         boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
         height: '70vh',
         display: 'flex',
+<<<<<<< HEAD
         flexDirection: 'column'
+=======
+        flexDirection: 'column',
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
       }}
       styles={{
         body: {
@@ -224,7 +236,12 @@ export default function RegisterWizard({ onStepChange }) {
           display: 'flex',
           flexDirection: 'column',
           padding: 0,
+<<<<<<< HEAD
           overflow: 'hidden'
+=======
+          overflow: 'hidden',
+          borderRadius: '10px'
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
         }
       }}
     >
@@ -237,12 +254,18 @@ export default function RegisterWizard({ onStepChange }) {
           flexShrink: 0
         }}
       >
+<<<<<<< HEAD
         <Title level={3} style={{ }}>
           Create Account
         </Title>
         <Title level={4} style={{ color: 'blue' }}>
           Let's Start Your Journey
         </Title>
+=======
+        <Title level={3} style={{ margin: 0, color: "linear-gradient(to right, #7d69ff, #917fff)" }}>
+          Create Account
+        </Title>
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
         <Text type="secondary">
           Step {current + 1} of {steps.length}
         </Text>
@@ -259,7 +282,6 @@ export default function RegisterWizard({ onStepChange }) {
         <Form form={form} layout="vertical" onValuesChange={(changed)=>{ if (Object.prototype.hasOwnProperty.call(changed,'username')) { const v=String(changed.username||''); if (v.includes('@')) { const cur=form.getFieldValue('email'); if (!cur) form.setFieldsValue({ email:v }); } } }}>
         {current === 0 && (
           <>
-            <Title level={5}>1. Account</Title>
             <Form.Item name="username" label="Username (can be email)" rules={[{ required: true }]}>
               <Input placeholder="username or email" onChange={(e)=>{ const v=e.target.value; form.setFieldsValue({ username:v }); if (v && v.includes('@')) { form.setFieldsValue({ email:v }); } }} />
             </Form.Item>
@@ -276,7 +298,6 @@ export default function RegisterWizard({ onStepChange }) {
 
         {current === 1 && (
           <>
-            <Title level={5}>2. Profile information</Title>
             <Form.Item name="firstName" label="First name" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
@@ -330,9 +351,13 @@ export default function RegisterWizard({ onStepChange }) {
                         </Text>
                       </div>
                       <Space>
+<<<<<<< HEAD
                         <Button type="primary" onClick={() => add()}>
                           Add Education
                         </Button>
+=======
+                        <PlusCircleTwoTone onClick={() => add()} style={{ fontSize: '24px' }}/>
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                       </Space>
                     </Card>
                   ) : (
@@ -361,7 +386,11 @@ export default function RegisterWizard({ onStepChange }) {
                         </Card>
                       ))}
                       <div style={{ textAlign: 'center', marginTop: '16px' }}>
+<<<<<<< HEAD
                         <Button onClick={() => add()}>Add Another Education</Button>
+=======
+                        <PlusCircleTwoTone onClick={() => add()} style={{ fontSize: '24px' }}/>
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                       </div>
                     </>
                   )}
@@ -387,13 +416,21 @@ export default function RegisterWizard({ onStepChange }) {
                       style={{
                         textAlign: 'center',
                         padding: '40px 20px',
+<<<<<<< HEAD
                         backgroundColor: '#ffffffff',
+=======
+                        backgroundColor: '#fafafa',
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                         border: '2px dashed #d9d9d9'
                       }}
                     >
                       <div style={{ marginBottom: '16px' }}>
                         <Text type="secondary" style={{ fontSize: '16px' }}>
+<<<<<<< HEAD
                           No certifications yet
+=======
+                          No certifications yet!
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                         </Text>
                       </div>
                       <div style={{ marginBottom: '16px' }}>
@@ -402,9 +439,13 @@ export default function RegisterWizard({ onStepChange }) {
                         </Text>
                       </div>
                       <Space>
+<<<<<<< HEAD
                         <Button type="primary" onClick={() => add()}>
                           Add Certification
                         </Button>
+=======
+                        <PlusCircleTwoTone onClick={() => add()} style={{ fontSize: '24px' }}/>
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                       </Space>
                     </Card>
                   ) : (
@@ -422,7 +463,11 @@ export default function RegisterWizard({ onStepChange }) {
                         </Card>
                       ))}
                       <div style={{ textAlign: 'center', marginTop: '16px' }}>
+<<<<<<< HEAD
                         <Button onClick={() => add()}>Add Another Certification</Button>
+=======
+                        <PlusCircleTwoTone onClick={() => add()} style={{ fontSize: '24px' }}/>
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                       </div>
                     </>
                   )}
@@ -454,7 +499,11 @@ export default function RegisterWizard({ onStepChange }) {
                     >
                       <div style={{ marginBottom: '16px' }}>
                         <Text type="secondary" style={{ fontSize: '16px' }}>
+<<<<<<< HEAD
                           No interests added yet
+=======
+                          No interests added yet!
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                         </Text>
                       </div>
                       <div style={{ marginBottom: '16px' }}>
@@ -463,9 +512,13 @@ export default function RegisterWizard({ onStepChange }) {
                         </Text>
                       </div>
                       <Space>
+<<<<<<< HEAD
                         <Button type="primary" onClick={() => add()}>
                           Add Interest
                         </Button>
+=======
+                        <PlusCircleTwoTone onClick={() => add()} style={{ fontSize: '24px' }}/>
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                       </Space>
                     </Card>
                   ) : (
@@ -483,7 +536,11 @@ export default function RegisterWizard({ onStepChange }) {
                         </Card>
                       ))}
                       <div style={{ textAlign: 'center', marginTop: '16px' }}>
+<<<<<<< HEAD
                         <Button onClick={() => add()}>Add Another Interest</Button>
+=======
+                        <PlusCircleTwoTone onClick={() => add()} style={{ fontSize: '24px' }}/>
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                       </div>
                     </>
                   )}
@@ -515,7 +572,11 @@ export default function RegisterWizard({ onStepChange }) {
                     >
                       <div style={{ marginBottom: '16px' }}>
                         <Text type="secondary" style={{ fontSize: '16px' }}>
+<<<<<<< HEAD
                           No work experience yet
+=======
+                          No work experience yet!
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                         </Text>
                       </div>
                       <div style={{ marginBottom: '16px' }}>
@@ -524,6 +585,7 @@ export default function RegisterWizard({ onStepChange }) {
                         </Text>
                       </div>
                       <Space>
+<<<<<<< HEAD
                         <Button type="primary" onClick={() => add()}>
                           Add Work Experience
                         </Button>
@@ -565,6 +627,47 @@ export default function RegisterWizard({ onStepChange }) {
                   ))}
                       <div style={{ textAlign: 'center', marginTop: '16px' }}>
                         <Button onClick={() => add()}>Add Another Work Experience</Button>
+=======
+                        <PlusCircleTwoTone onClick={() => add()} style={{ fontSize: '24px' }}/>
+                      </Space>
+                    </Card>
+                  ) : (
+                    // Show existing entries
+                    <>
+                      {fields.map(({ key, name, ...rest }) => (
+                        <Card key={key} size="small" style={{ marginBottom: 12 }}>
+                          <Space direction="vertical" style={{ width: '100%' }}>
+                            <Form.Item {...rest} name={[name, 'companyName']} label="Company name"><Input /></Form.Item>
+                            <Form.Item {...rest} name={[name, 'industry']} label="Industry">
+                              <Select allowClear options={['Finance','Technology','Education','Healthcare','Retail','Manufacturing','Other'].map(v => ({ value: v, label: v }))} />
+                            </Form.Item>
+                            <Form.Item noStyle shouldUpdate>
+                              {({ getFieldValue }) => {
+                                const sel = getFieldValue(['workExperiences', name, 'industry']);
+                                return sel === 'Other' ? (
+                                  <Form.Item {...rest} name={[name, 'industryOther']} label="Industry (other)"><Input /></Form.Item>
+                                ) : null;
+                              }}
+                            </Form.Item>
+                            <Form.Item {...rest} name={[name, 'jobTitle']} label="Job title"><Input /></Form.Item>
+                            <Form.Item {...rest} name={[name, 'employmentType']} label="Employment type">
+                              <Select allowClear options={EMPLOYMENT_TYPES.map(v => ({ value: v, label: v }))} />
+                            </Form.Item>
+                            <Form.Item {...rest} name={[name, 'startDate']} label="Start date"><DatePicker style={{ width: '100%' }} /></Form.Item>
+                            <Form.Item {...rest} name={[name, 'ongoing']} valuePropName="checked"><Checkbox>Ongoing</Checkbox></Form.Item>
+                            <Form.Item noStyle shouldUpdate>
+                              {({ getFieldValue }) => !getFieldValue(['workExperiences', name, 'ongoing']) ? (
+                                <Form.Item {...rest} name={[name, 'endDate']} label="End date"><DatePicker style={{ width: '100%' }} /></Form.Item>
+                              ) : null}
+                            </Form.Item>
+                            <Form.Item {...rest} name={[name, 'jobDescription']} label="Job description"><Input.TextArea rows={3} /></Form.Item>
+                            <Button danger onClick={() => remove(name)}>Remove</Button>
+                          </Space>
+                        </Card>
+                      ))}
+                      <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                        <PlusCircleTwoTone onClick={() => add()} style={{ fontSize: '24px' }}/>
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                       </div>
                     </>
                   )}
@@ -596,7 +699,11 @@ export default function RegisterWizard({ onStepChange }) {
                     >
                       <div style={{ marginBottom: '16px' }}>
                         <Text type="secondary" style={{ fontSize: '16px' }}>
+<<<<<<< HEAD
                           No events added yet
+=======
+                          No events added yet!
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                         </Text>
                       </div>
                       <div style={{ marginBottom: '16px' }}>
@@ -605,9 +712,13 @@ export default function RegisterWizard({ onStepChange }) {
                         </Text>
                       </div>
                       <Space>
+<<<<<<< HEAD
                         <Button type="primary" onClick={() => add()}>
                           Add Event
                         </Button>
+=======
+                        <PlusCircleTwoTone onClick={() => add()} style={{ fontSize: '24px' }}/>
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                       </Space>
                     </Card>
                   ) : (
@@ -627,7 +738,11 @@ export default function RegisterWizard({ onStepChange }) {
                         </Card>
                       ))}
                       <div style={{ textAlign: 'center', marginTop: '16px' }}>
+<<<<<<< HEAD
                         <Button onClick={() => add()}>Add Another Event</Button>
+=======
+                        <PlusCircleTwoTone onClick={() => add()} style={{ fontSize: '24px' }}/>
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
                       </div>
                     </>
                   )}

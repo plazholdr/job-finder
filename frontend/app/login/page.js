@@ -107,7 +107,7 @@ function LoginInner() {
             >
               {/* Replace with your actual image path */}
               <Image
-                src="/images/login-image.png"
+                src="/images/login_page/login_image.png"
                 alt="Login illustration"
                 width={800}
                 height={800}
@@ -161,7 +161,7 @@ function LoginInner() {
                 }}
               >
                 <Image
-                src="/images/logo-image.png"
+                src="/images/login_page/logo_image.svg"
                 alt="Login illustration"
                 width={200}
                 height={200}

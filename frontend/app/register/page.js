@@ -1,7 +1,14 @@
 "use client";
+<<<<<<< HEAD
 import { useState } from 'react';
 import { Layout, Row, Col, Typography } from "antd";
+=======
+import { useState } from "react";
+import Footer from "../../components/Footer";
+import { Layout, Row, Col } from "antd";
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
 import RegisterWizard from "../../components/RegisterWizard";
+import RegisterSidebar from "../../components/RegisterSidebar";
 
 const { Title, Text } = Typography;
 
@@ -21,6 +28,7 @@ export default function RegisterPage() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Row style={{ minHeight: '100vh' }}>
+<<<<<<< HEAD
         {/* Left side - Independent progress and content */}
         <Col xs={0} md={12} lg={12} xl={12}>
           <div style={{
@@ -114,6 +122,11 @@ export default function RegisterPage() {
               </Text>
             </div>
           </div>
+=======
+        {/* Left side - Sidebar with title and steps */}
+        <Col xs={0} md={12} lg={12} xl={12}>
+          <RegisterSidebar currentStep={currentStep} steps={steps} />
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
         </Col>
 
         {/* Right side - Register Form */}
@@ -121,6 +134,7 @@ export default function RegisterPage() {
           <div
             style={{
               height: '100vh',
+<<<<<<< HEAD
               overflowY: 'auto',
               padding: '24px',
             }}
@@ -136,6 +150,17 @@ export default function RegisterPage() {
               <div style={{ width: '100%', maxWidth: '500px' }}>
                 <RegisterWizard onStepChange={setCurrentStep} />
               </div>
+=======
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px',
+              backgroundColor: '#f5f5f5'
+            }}
+          >
+            <div style={{ width: '100%', maxWidth: '500px' }}>
+              <RegisterWizard onStepChange={setCurrentStep} />
+>>>>>>> 7fc63675107c481278ba130bfb81ec0ae2d419e9
             </div>
           </div>
         </Col>
