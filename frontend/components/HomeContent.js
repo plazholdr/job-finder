@@ -25,6 +25,7 @@ function buildQuery(base, { q, location, nature, city, salaryMin, salaryMax, sor
     if (salaryMin != null) params.append('salaryRange.min[$gte]', String(salaryMin));
     if (salaryMax != null) params.append('salaryRange.max[$lte]', String(salaryMax));
   }
+
   if (!isJobs && (salaryMin != null || salaryMax != null)) {
     if (salaryMin != null) params.append('salaryMin', String(salaryMin));
     if (salaryMax != null) params.append('salaryMax', String(salaryMax));
