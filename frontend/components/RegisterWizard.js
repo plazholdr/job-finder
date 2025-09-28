@@ -568,7 +568,7 @@ export default function RegisterWizard({ onStepChange }) {
           <>
             <div style={{ marginBottom: '16px' }}>
               <Text type="secondary">
-                Add events you've participated in or organized to showcase your involvement.
+                Add events you&apos;ve participated in or organized to showcase your involvement.
               </Text>
             </div>
             <Form.List name="eventExperiences">
@@ -591,7 +591,7 @@ export default function RegisterWizard({ onStepChange }) {
                       </div>
                       <div style={{ marginBottom: '16px' }}>
                         <Text type="secondary">
-                          Add events you've participated in to show your community involvement.
+                          Add events you&apos;ve participated in to show your community involvement.
                         </Text>
                       </div>
                       <Space>

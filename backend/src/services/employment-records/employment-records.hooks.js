@@ -62,7 +62,15 @@ export default (app) => {
     // Company/Admin actions
     if (user.role === 'company' || user.role === 'admin') {
       if (action === 'startNow' && doc.status === ES.UPCOMING) { set({ status: ES.ONGOING }); ctx.params._notify = { type: 'employment_started', toUserId: doc.userId, toRole: 'student' }; return; }
-      if (action === 'moveToClosure' && doc.status === ES.ONGOING) { set({ status: ES.CLOSURE }); ctx.params._notify = { type: 'employment_moved_to_closure', toUserId: doc.userId, toRole: 'student' }; return; }
+      if (action === 'moveToClosure' && doc.status === ES.ONGOING) {
+        // Require required documents to be verified before moving to Closure
+        const required = doc.requiredDocs || [];
+        const hasAllDocs = required.every(rt => (doc.docs || []).some(d => d.type === rt && d.verified));
+        if (!hasAllDocs) throw Object.assign(new Error('Required documents must be verified before moving to closure'), { code: 400 });
+        set({ status: ES.CLOSURE });
+        ctx.params._notify = { type: 'employment_moved_to_closure', toUserId: doc.userId, toRole: 'student' };
+        return;
+      }
       if (action === 'terminate' && [ES.UPCOMING, ES.ONGOING, ES.CLOSURE].includes(doc.status)) { set({ status: ES.TERMINATED, endDate: now }, 'Terminated'); ctx.params._notify = { type: 'employment_terminated', toUserId: doc.userId, toRole: 'student' }; return; }
       if (action === 'updatePIC') { set({ supervisorUserId: ctx.data.supervisorUserId }); return; }
       if (action === 'addNote') { set({}, ctx.data.text || ''); return; }
@@ -92,9 +100,10 @@ export default (app) => {
       throw Object.assign(new Error('Invalid action'), { code: 400 });
     }
 
-    // Student actions: notes only for now (others go through requests)
+    // Student actions: add notes and attach docs (e.g., finalReport/jobReview/companyReview)
     if (user.role === 'student') {
       if (action === 'addNote') { set({}, ctx.data.text || ''); return; }
+      if (action === 'attachDoc') { set({ $push: { docs: { type: ctx.data.type, fileKey: ctx.data.fileKey, verified: false, uploadedAt: now } } }); return; }
       throw Object.assign(new Error('Invalid action'), { code: 400 });
     }
 

@@ -837,3 +837,222 @@ components:
         data:
           type: array
           items: { $ref: '#/components/schemas/CompanyVerification' }
+
+
+  /employment-records:
+    get:
+      summary: List employment records (JWT)
+      tags: [Employments]
+      responses:
+        '200': { description: Paged employments }
+    patch:
+      summary: Update employment by action (JWT)
+      description: |
+        Company/Admin actions: startNow, moveToClosure, complete, terminate, updatePIC, addNote, attachDoc, verifyDoc.
+        Student actions: addNote, attachDoc (uploads student docs like finalReport/jobReview/companyReview).
+      tags: [Employments]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string }
+                type: { type: string, description: For attachDoc, e.g., finalReport|jobReview|companyReview }
+                fileKey: { type: string, description: For attachDoc }
+                text: { type: string, description: For addNote }
+      responses:
+        '200': { description: Updated employment }
+
+  /employment-detail/{id}:
+    get:
+      summary: Get composite employment detail (JWT)
+      tags: [Employments]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200': { description: Composite data including job, application, onboarding docs, latest requests, termination }
+
+  /early-completions:
+    post:
+      summary: Create early completion request (Student)
+      tags: [Requests]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [employmentId]
+              properties:
+                employmentId: { type: string }
+                reason: { type: string }
+                proposedCompletionDate: { type: string, format: date }
+      responses:
+        '201': { description: Request created }
+  /early-completions/{id}:
+    patch:
+      summary: Decide/cancel early completion request
+      tags: [Requests]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [approve, reject, cancel] }
+                decisionRemark: { type: string, description: 'Optional reason/remark when rejecting' }
+      responses:
+        '200': { description: Updated request }
+
+  /internship-terminations:
+    post:
+      summary: Create internship termination request (Student or Company)
+      tags: [Requests]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [employmentId, reason]
+              properties:
+                employmentId: { type: string }
+                reason: { type: string }
+                remark: { type: string }
+                proposedLastDay: { type: string, format: date }
+      responses:
+        '201': { description: Request created }
+  /internship-terminations/{id}:
+    patch:
+      summary: Decide/cancel internship termination request
+      tags: [Requests]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [approve, reject, cancel] }
+                decisionRemark: { type: string, description: 'Optional reason/remark when rejecting' }
+      responses:
+        '200': { description: Updated request }
+
+  /upload/{key}:
+    get:
+      summary: Get signed URL for a file (JWT)
+      tags: [Files]
+      parameters:
+        - in: path
+          name: key
+          schema: { type: string }
+          required: true
+      responses:
+        '200': { description: Signed URL and public URL }
+  /upload:
+    post:
+      summary: Upload files (multipart/form-data)
+      tags: [Files]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: Generic document field used for employment docs
+      responses:
+        '201': { description: Files uploaded }
+
+
+  /universities:
+    get:
+      summary: List universities with counts (JWT)
+      tags: [Talent]
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+          required: false
+      responses:
+        '200': { description: Items: [{ name, count }] }
+
+  /programmes:
+    get:
+      summary: List programmes for a university (JWT)
+      tags: [Talent]
+      parameters:
+        - in: query
+          name: university
+          schema: { type: string }
+          required: true
+      responses:
+        '200': { description: Items: [{ level, programme, faculty, count }] }
+
+  /programme-candidates:
+    get:
+      summary: Find candidates by programme/university and filters (JWT)
+      tags: [Talent]
+      parameters:
+        - in: query
+          name: university
+          schema: { type: string }
+          required: true
+        - in: query
+          name: programme
+          schema: { type: string }
+        - in: query
+          name: faculty
+          schema: { type: string }
+        - in: query
+          name: level
+          schema: { type: string }
+        - in: query
+          name: startDate
+          schema: { type: string, format: date-time }
+        - in: query
+          name: endDate
+          schema: { type: string, format: date-time }
+        - in: query
+          name: locations
+          schema: { type: array, items: { type: string } }
+          style: form
+          explode: true
+        - in: query
+          name: salaryMin
+          schema: { type: number }
+        - in: query
+          name: salaryMax
+          schema: { type: number }
+      responses:
+        '200': { description: Items: candidate user profiles }
+    patch:
+      summary: Send invitations to selected candidates (Company JWT)
+      tags: [Talent]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userIds: { type: array, items: { type: string } }
+                type: { type: string, enum: [profile_access, interview], default: profile_access }
+                message: { type: string }
+      responses:
+        '200': { description: Created invites }

@@ -195,6 +195,128 @@
         }
       ]
     },
+    },
+    {
+      "name": "Employments",
+      "item": [
+        {
+          "name": "GET /employment-records",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/employment-records", "host": ["{{baseUrl}}"], "path": ["employment-records"] } }
+        },
+        {
+          "name": "GET /employment-detail/{id}",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/employment-detail/{{employmentId}}", "host": ["{{baseUrl}}"], "path": ["employment-detail", "{{employmentId}}"] } }
+        },
+        {
+          "name": "PATCH /employment-records/{id} attachDoc (student)",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"attachDoc\",\n  \"type\": \"finalReport\",\n  \"fileKey\": \"<key-from-upload>\"\n}" },
+            "url": { "raw": "{{baseUrl}}/employment-records/{{employmentId}}", "host": ["{{baseUrl}}"], "path": ["employment-records", "{{employmentId}}"] }
+          }
+        },
+        {
+          "name": "POST /early-completions (student)",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"employmentId\": \"{{employmentId}}\",\n  \"reason\": \"Request to complete internship early\"\n}" },
+            "url": { "raw": "{{baseUrl}}/early-completions", "host": ["{{baseUrl}}"], "path": ["early-completions"] }
+          }
+        },
+        {
+          "name": "PATCH /early-completions/{id} cancel",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"cancel\"\n}" },
+            "url": { "raw": "{{baseUrl}}/early-completions/{{earlyCompletionId}}", "host": ["{{baseUrl}}"], "path": ["early-completions", "{{earlyCompletionId}}"] }
+          }
+        },
+        {
+          "name": "POST /internship-terminations (student)",
+          "request": {
+            "method": "POST",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"employmentId\": \"{{employmentId}}\",\n  \"reason\": \"Personal reasons\",\n  \"remark\": \"Optional remark\"\n}" },
+            "url": { "raw": "{{baseUrl}}/internship-terminations", "host": ["{{baseUrl}}"], "path": ["internship-terminations"] }
+          }
+        },
+        {
+          "name": "PATCH /internship-terminations/{id} cancel",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"cancel\"\n}" },
+            "url": { "raw": "{{baseUrl}}/internship-terminations/{{terminationId}}", "host": ["{{baseUrl}}"], "path": ["internship-terminations", "{{terminationId}}"] }
+          }
+        }
+        {
+          "name": "PATCH /early-completions/{id} approve",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"approve\"\n}" },
+            "url": { "raw": "{{baseUrl}}/early-completions/{{earlyCompletionId}}", "host": ["{{baseUrl}}"], "path": ["early-completions", "{{earlyCompletionId}}"] }
+          }
+        },
+        {
+          "name": "PATCH /early-completions/{id} reject (decisionRemark)",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"reject\",\n  \"decisionRemark\": \"Please provide final report\"\n}" },
+            "url": { "raw": "{{baseUrl}}/early-completions/{{earlyCompletionId}}", "host": ["{{baseUrl}}"], "path": ["early-completions", "{{earlyCompletionId}}"] }
+          }
+        },
+        {
+          "name": "PATCH /internship-terminations/{id} approve",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"approve\"\n}" },
+            "url": { "raw": "{{baseUrl}}/internship-terminations/{{terminationId}}", "host": ["{{baseUrl}}"], "path": ["internship-terminations", "{{terminationId}}"] }
+          }
+        },
+        {
+          "name": "PATCH /internship-terminations/{id} reject (decisionRemark)",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"reject\",\n  \"decisionRemark\": \"Insufficient grounds\"\n}" },
+            "url": { "raw": "{{baseUrl}}/internship-terminations/{{terminationId}}", "host": ["{{baseUrl}}"], "path": ["internship-terminations", "{{terminationId}}"] }
+          }
+        },
+      ]
+    },
+    {
+      "name": "Talent",
+      "item": [
+        {
+          "name": "GET /universities",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/universities?q=UiTM", "host": ["{{baseUrl}}"], "path": ["universities"], "query": [{"key":"q","value":"UiTM"}] } }
+        },
+        {
+          "name": "GET /programmes",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/programmes?university={{university}}", "host": ["{{baseUrl}}"], "path": ["programmes"], "query": [{"key":"university","value":"{{university}}"}] } }
+        },
+        {
+          "name": "GET /programme-candidates",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/programme-candidates?university={{university}}&programme={{programme}}", "host": ["{{baseUrl}}"], "path": ["programme-candidates"], "query": [{"key":"university","value":"{{university}}"},{"key":"programme","value":"{{programme}}"}] } }
+        },
+        {
+          "name": "PATCH /programme-candidates (invite)",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key":"Content-Type","value":"application/json"} ],
+            "body": { "mode": "raw", "raw": "{\n  \"userIds\": [\"<userId1>\", \"<userId2>\"],\n  \"type\": \"profile_access\",\n  \"message\": \"We'd like to invite you\"\n}" },
+            "url": { "raw": "{{baseUrl}}/programme-candidates", "host": ["{{baseUrl}}"], "path": ["programme-candidates"] }
+          }
+        }
+      ]
+    },
+    },
     {
       "name": "Users",
       "item": [

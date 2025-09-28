@@ -1,7 +1,7 @@
 import { hooks as authHooks } from '@feathersjs/authentication';
 import { BadRequest } from '@feathersjs/errors';
 import mongoose from 'mongoose';
-import { ApplicationStatus as S } from '../../constants/enums.js';
+import { ApplicationStatus as S, EmploymentStatus as ES } from '../../constants/enums.js';
 import { storageUtils } from '../../utils/storage.js';
 
 const { authenticate } = authHooks;
@@ -96,6 +96,7 @@ export default (app) => {
   }
 
   // Auto-withdraw expired applications (company did not respond within validity)
+  // Auto-reject expired offers (candidate did not accept within offer validity)
   async function expireIfNeeded(ctx) {
     try {
       const doc = await Applications.findById(ctx.id).lean();
@@ -106,6 +107,21 @@ export default (app) => {
           { _id: doc._id },
           { $set: { status: S.WITHDRAWN, withdrawnAt: now }, $push: { history: { at: now, actorRole: 'system', action: 'autoWithdraw', data: { reason: 'validityExpired' } } } }
         );
+      }
+      if (doc.status === S.PENDING_ACCEPTANCE && doc.offer?.validUntil && new Date(doc.offer.validUntil) <= now) {
+        await Applications.updateOne(
+          { _id: doc._id },
+          { $set: { status: S.REJECTED, rejectedAt: now, rejection: { by: 'system', reason: 'offerExpired' } }, $push: { history: { at: now, actorRole: 'system', action: 'offerExpired', data: {} } } }
+        );
+        // Send email to student about expiration (best-effort)
+        try {
+          const { sendMail } = await import('../../utils/mailer.js');
+          const Users = app.service('users')?.Model;
+          const student = await Users.findById(doc.userId).lean();
+          if (student?.email) {
+            await sendMail({ to: student.email, subject: 'Offer expired', text: 'Your offer has expired and the application is now rejected.', html: '<p>Your offer has expired and the application is now <b>Rejected</b>.</p>' });
+          }
+        } catch (_) {}
       }
     } catch (_) {}
     return ctx;
@@ -119,9 +135,15 @@ export default (app) => {
       const now = new Date();
       const scope = user.role === 'student' ? { userId: user._id } : (user.role === 'company' ? { companyId: (await app.service('companies').Model.findOne({ ownerUserId: user._id }).lean())?._id } : {});
       if (!scope || (scope.companyId === undefined && scope.userId === undefined)) return ctx;
+      // 1) Auto-withdraw expired NEW applications
       await Applications.updateMany(
         { status: S.NEW, validityUntil: { $lte: now }, ...scope },
         { $set: { status: S.WITHDRAWN, withdrawnAt: now }, $push: { history: { at: now, actorRole: 'system', action: 'autoWithdraw', data: { reason: 'validityExpired' } } } }
+      );
+      // 2) Auto-reject expired offers
+      await Applications.updateMany(
+        { status: S.PENDING_ACCEPTANCE, 'offer.validUntil': { $lte: now }, ...scope },
+        { $set: { status: S.REJECTED, rejectedAt: now, rejection: { by: 'system', reason: 'offerExpired' } }, $push: { history: { at: now, actorRole: 'system', action: 'offerExpired', data: {} } } }
       );
     } catch (_) {}
     return ctx;
@@ -265,12 +287,15 @@ export default (app) => {
           const endDate = job?.project?.endDate ? new Date(job.project.endDate) : undefined;
           const requiredDocs = ['contract','nda'];
           if (Employment) {
+            const nowTs = now.getTime();
+            const startTs = startDate ? startDate.getTime() : null;
+            const employmentStatus = (startTs && startTs <= nowTs) ? ES.ONGOING : ES.UPCOMING;
             await Employment.create({
               userId: doc.userId,
               companyId: doc.companyId,
               jobListingId: doc.jobListingId,
               applicationId: doc._id,
-              status: 0, // UPCOMING
+              status: employmentStatus,
               startDate,
               endDate,
               cadence: 'weekly',

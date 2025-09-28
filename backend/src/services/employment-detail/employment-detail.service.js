@@ -27,11 +27,15 @@ class EmploymentDetailService {
       emp.jobListingId ? JobListings.findById(emp.jobListingId).lean() : null
     ]);
 
-    // Collect related requests hints (latest pending decision if any)
+    // Related requests data
     const Resignations = this.app.service('resignations')?.Model;
     const EarlyCompletions = this.app.service('early-completions')?.Model;
-    const latestResignation = Resignations ? await Resignations.findOne({ employmentId: emp._id }).sort({ createdAt: -1 }).lean() : null;
-    const latestEarlyCompletion = EarlyCompletions ? await EarlyCompletions.findOne({ employmentId: emp._id }).sort({ createdAt: -1 }).lean() : null;
+    const Terminations = this.app.service('internship-terminations')?.Model;
+    const [latestResignation, latestEarlyCompletion, latestTermination] = await Promise.all([
+      Resignations ? Resignations.findOne({ employmentId: emp._id }).sort({ createdAt: -1 }).lean() : null,
+      EarlyCompletions ? EarlyCompletions.findOne({ employmentId: emp._id }).sort({ createdAt: -1 }).lean() : null,
+      Terminations ? Terminations.findOne({ employmentId: emp._id }).sort({ decidedAt: -1, createdAt: -1 }).lean() : null
+    ]);
 
     return {
       employment: emp,
@@ -43,7 +47,8 @@ class EmploymentDetailService {
       latestRequests: {
         resignation: latestResignation ? { _id: latestResignation._id, status: latestResignation.status, reason: latestResignation.reason, proposedLastDay: latestResignation.proposedLastDay } : null,
         earlyCompletion: latestEarlyCompletion ? { _id: latestEarlyCompletion._id, status: latestEarlyCompletion.status, reason: latestEarlyCompletion.reason, proposedCompletionDate: latestEarlyCompletion.proposedCompletionDate } : null
-      }
+      },
+      termination: latestTermination ? { _id: latestTermination._id, status: latestTermination.status, initiatedBy: latestTermination.initiatedBy, reason: latestTermination.reason, remark: latestTermination.remark || null, decidedBy: latestTermination.decidedBy || null, decidedAt: latestTermination.decidedAt || null } : null
     };
   }
 }

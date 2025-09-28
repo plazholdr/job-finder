@@ -7,7 +7,8 @@ const earlyCompletionSchema = new mongoose.Schema({
   proposedCompletionDate: Date,
   status: { type: Number, enum: [0,1,2,3], default: 0, index: true }, // RequestStatus
   decidedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  decidedAt: Date
+  decidedAt: Date,
+  decisionRemark: String // reason for rejection/decision (company/admin)
 }, { timestamps: true });
 
 export default mongoose.model('EarlyCompletion', earlyCompletionSchema);

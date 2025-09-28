@@ -35,7 +35,7 @@ export default (app) => {
       const company = await app.service('companies').Model.findOne({ ownerUserId: user._id }).lean();
       if (!company || String(emp.companyId) !== String(company._id)) throw Object.assign(new Error('Forbidden'), { code: 403 });
     }
-    ctx.data = { employmentId: emp._id, initiatedBy, reason: body.reason, proposedLastDay: body.proposedLastDay ? new Date(body.proposedLastDay) : null, status: RS.PENDING };
+    ctx.data = { employmentId: emp._id, initiatedBy, reason: body.reason, remark: body.remark || null, proposedLastDay: body.proposedLastDay ? new Date(body.proposedLastDay) : null, status: RS.PENDING };
   }
 
   async function applyAction(ctx) {
@@ -70,7 +70,7 @@ export default (app) => {
         try { await app.service('notifications').create({ recipientUserId: emp.userId, recipientRole: 'student', type: 'employment_terminated', title: 'Employment terminated', data: { employmentId: emp._id } }); } catch (_) {}
         return;
       }
-      if (action === 'reject') { ctx.data = { status: RS.REJECTED, decidedBy: user._id, decidedAt: now }; return; }
+      if (action === 'reject') { const decisionRemark = ctx.data?.decisionRemark || null; ctx.data = { status: RS.REJECTED, decidedBy: user._id, decidedAt: now, decisionRemark }; return; }
     }
 
     throw Object.assign(new Error('Invalid action'), { code: 400 });

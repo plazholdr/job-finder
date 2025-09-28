@@ -46,10 +46,10 @@ export default function RegisterSidebar({ currentStep, steps }) {
       {/* Main content */}
       <div style={{ zIndex: 2, marginBottom: '48px' }}>
         <Title level={1} style={{ color: 'white', marginBottom: '8px', fontSize: '2.5rem', fontWeight: 'bold' }}>
-          Let's Get Your Account Set Up!
+          Let&apos;s Get Your Account Set Up!
         </Title>
         <Title level={2} style={{ color: 'white', marginBottom: '16px', fontSize: '2rem' }}>
-          
+
         </Title>
         <Paragraph style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '16px', marginBottom: '0px', lineHeight: '1.6' }}>
           Student/Intern registration — complete the steps below, then check your email for verification.

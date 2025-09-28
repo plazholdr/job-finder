@@ -29,6 +29,11 @@ export default function MyApplicationsPage(){
   const [withdrawing, setWithdrawing] = useState(false);
   const [currentId, setCurrentId] = useState(null);
   const [currentStatus, setCurrentStatus] = useState(null);
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [offerRecord, setOfferRecord] = useState(null);
+  const [offerLetterUrl, setOfferLetterUrl] = useState(null);
+  const [declineForm] = Form.useForm();
+
 
   async function load(){
     try {
@@ -87,6 +92,43 @@ export default function MyApplicationsPage(){
     } catch (e) { message.error(e.message || 'Failed to open PDF'); }
   }
 
+  function openOffer(record){
+    setOfferRecord(record);
+    setOfferOpen(true);
+    setOfferLetterUrl(null);
+    (async () => {
+      try {
+        const key = record?.offer?.letterKey;
+        if (!key) return;
+        const token = localStorage.getItem('jf_token');
+        const r = await fetch(`${API_BASE_URL}/upload/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (r.ok) { const j = await r.json(); setOfferLetterUrl(j.signedUrl || j.publicUrl || null); }
+      } catch {}
+    })();
+  }
+
+  async function acceptOffer(id){
+    try {
+      const token = localStorage.getItem('jf_token');
+      await fetch(`${API_BASE_URL}/applications/${id}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ action: 'acceptOffer' }) });
+      message.success('Offer accepted');
+      setOfferOpen(false); setOfferRecord(null); setOfferLetterUrl(null);
+      // Redirect to employment page to proceed with onboarding/actions
+      window.location.href = '/employment';
+    } catch (e) { message.error(e.message || 'Failed'); }
+  }
+
+  async function declineOffer(id){
+    try {
+      const v = await declineForm.validateFields();
+      const token = localStorage.getItem('jf_token');
+      await fetch(`${API_BASE_URL}/applications/${id}`, { method: 'PATCH', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ action: 'declineOffer', reason: v.reason || '' }) });
+      message.success('Offer declined');
+      setOfferOpen(false); setOfferRecord(null); setOfferLetterUrl(null); declineForm.resetFields();
+      load();
+    } catch (e) { if (e?.errorFields) return; message.error(e.message || 'Failed'); }
+  }
+
   const columns = [
     { title: 'Company', key: 'company', render: (_, r) => r.company?.name || r.companyName || r.companyId },
     { title: 'Application date', dataIndex: 'createdAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
@@ -96,8 +138,12 @@ export default function MyApplicationsPage(){
     { title: 'Action', key: 'action', render: (_, r) => {
       const canWithdraw = [0,1,2,3,4].includes(r.status);
       const canExtend = r.status === 0 && !r.extendedOnce;
+
+
+
       return (
         <Space>
+          {r.status === 3 && <Button size="small" type="primary" onClick={()=>openOffer(r)}>View offer</Button>}
           {canExtend && <Button size="small" onClick={()=>{ setCurrentId(r._id); setExtendOpen(true); }}>Extend validity</Button>}
           {canWithdraw && <Button danger size="small" onClick={()=>{ setCurrentId(r._id); setCurrentStatus(r.status); setWithdrawOpen(true); }}>Withdraw</Button>}
         </Space>
@@ -137,6 +183,36 @@ export default function MyApplicationsPage(){
           </Form.Item>
         </Form>
       </Modal>
+
+      <Modal title="Offer details" open={offerOpen} onCancel={()=>{ setOfferOpen(false); setOfferRecord(null); setOfferLetterUrl(null); }} footer={null}>
+        {offerRecord ? (
+          <Space direction="vertical" style={{ width:'100%' }}>
+            <Typography.Paragraph><b>Company:</b> {offerRecord.company?.name || offerRecord.companyName || '-'}</Typography.Paragraph>
+            <Typography.Paragraph><b>Title:</b> {offerRecord.offer?.title || '-'}</Typography.Paragraph>
+            <Typography.Paragraph><b>Notes:</b> {offerRecord.offer?.notes || '-'}</Typography.Paragraph>
+            <Typography.Paragraph><b>Offer valid until:</b> {offerRecord.offer?.validUntil ? new Date(offerRecord.offer.validUntil).toLocaleDateString() : '-'}</Typography.Paragraph>
+            <Typography.Paragraph>
+              <b>Letter of offer:</b> {offerLetterUrl ? <a href={offerLetterUrl} target="_blank" rel="noreferrer">View letter</a> : (offerRecord.offer?.letterKey ? 'Resolving…' : '-')}
+            </Typography.Paragraph>
+            <Space>
+              <Button type="primary" onClick={()=>acceptOffer(offerRecord._id)}>Accept offer</Button>
+              <Button danger onClick={()=>{ declineForm.resetFields(); Modal.confirm({
+                title:'Decline offer?',
+                content: (
+                  <Form form={declineForm} layout="vertical">
+                    <Form.Item label="Reason (optional)" name="reason">
+                      <Input.TextArea rows={3} placeholder="Why are you declining?" />
+                    </Form.Item>
+                  </Form>
+                ),
+                okText:'Decline', okButtonProps:{ danger:true },
+                onOk: () => declineOffer(offerRecord._id)
+              }); }}>Decline</Button>
+            </Space>
+          </Space>
+        ) : null}
+      </Modal>
+
     </Layout>
   );
 }

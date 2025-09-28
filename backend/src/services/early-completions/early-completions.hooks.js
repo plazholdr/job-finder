@@ -71,7 +71,8 @@ export default (app) => {
         return;
       }
       if (action === 'reject') {
-        ctx.data = { status: RS.REJECTED, decidedBy: user._id, decidedAt: now };
+        const decisionRemark = ctx.data?.decisionRemark || null;
+        ctx.data = { status: RS.REJECTED, decidedBy: user._id, decidedAt: now, decisionRemark };
         try {
           await app.service('notifications').create({ recipientUserId: emp.userId, recipientRole: 'student', type: 'early_completion_rejected', title: 'Early completion rejected', data: { employmentId: emp._id } });
         } catch (_) {}
