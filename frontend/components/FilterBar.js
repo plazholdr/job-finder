@@ -25,15 +25,17 @@ const FilterBar = ({
 
   // Handle filter selection
   const handleFilterSelect = (filterKey, value, isChecked) => {
+    console.log('🔧 FilterBar: Filter selected', { filterKey, value, isChecked });
     const currentValues = selectedFilters[filterKey] || [];
     let newValues;
-    
+
     if (isChecked) {
       newValues = [...currentValues, value];
     } else {
       newValues = currentValues.filter(v => v !== value);
     }
-    
+
+    console.log('🔧 FilterBar: Calling onFilterChange', { filterKey, newValues });
     onFilterChange(filterKey, newValues);
   };
 

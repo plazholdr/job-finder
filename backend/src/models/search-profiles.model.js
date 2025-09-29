@@ -6,19 +6,31 @@ const salaryRangeSchema = new mongoose.Schema({
 }, { _id: false });
 
 const filtersSchema = new mongoose.Schema({
-  // Intern search (used by companies)
-  fieldOfStudy: { type: String },
+  // Intern search (used by companies) - Updated to support arrays
+  fieldOfStudy: [{ type: String }], // Changed to array
+  educationLevel: [{ type: String }], // Added
+  university: [{ type: String }], // Added
+  workExperience: [{ type: String }], // Added
+  skills: [{ type: String }], // Added
+  preferredLocations: [{ type: String }], // Added
   preferredStartDate: { type: Date },
   preferredEndDate: { type: Date },
-  locations: [{ type: String }],
+  locations: [{ type: String }], // Legacy support
   salaryRange: { type: salaryRangeSchema },
 
-  // Company search (used by students)
+  // Company search (used by students) - Updated to support arrays
+  industry: [{ type: String }], // Added
+  jobType: [{ type: String }], // Added
+  experience: [{ type: String }], // Added
+  location: [{ type: String }], // Changed to array
+  salary: [{ type: String }], // Added
   keyword: { type: String },
   companyName: { type: String },
-  nature: { type: String },
-  location: { type: String },
-  sort: { type: String }
+  nature: { type: String }, // Legacy support
+  sort: { type: String },
+
+  // Store complete filter selections for future use
+  filterSelections: { type: mongoose.Schema.Types.Mixed }
 }, { _id: false, minimize: true });
 
 const searchProfileSchema = new mongoose.Schema({

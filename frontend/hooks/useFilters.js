@@ -11,8 +11,10 @@ export const useFilters = (initialFilters = {}, onFiltersChange) => {
 
   // Update a specific filter
   const updateFilter = useCallback((filterKey, value) => {
+    console.log('🔧 useFilters: updateFilter called', { filterKey, value });
     setFilters(prev => {
       const newFilters = { ...prev, [filterKey]: value };
+      console.log('🔧 useFilters: New filter state', newFilters);
       if (onFiltersChange) {
         onFiltersChange(newFilters);
       }

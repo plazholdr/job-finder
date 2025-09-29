@@ -70,13 +70,13 @@ class ProgrammeCandidatesService {
 
     // Education-based filters (using actual data structure)
     if (university && university.length > 0) {
-      and.push({ 'educations.institutionName': { $in: university } });
-      console.log('🏫 Added university filter:', { 'educations.institutionName': { $in: university } });
+      and.push({ 'internProfile.educations.institutionName': { $in: university } });
+      console.log('🏫 Added university filter:', { 'internProfile.educations.institutionName': { $in: university } });
     }
 
     if (programme) {
-      and.push({ 'educations.qualification': programme });
-      console.log('🎓 Added programme filter:', { 'educations.qualification': programme });
+      and.push({ 'internProfile.educations.qualification': programme });
+      console.log('🎓 Added programme filter:', { 'internProfile.educations.qualification': programme });
     }
 
     if (faculty || (fieldOfStudy && fieldOfStudy.length > 0)) {
@@ -84,29 +84,30 @@ class ProgrammeCandidatesService {
       console.log('🎓 Field of Study filter input:', fieldValue);
 
       if (fieldValue && fieldValue.length > 0) {
-        and.push({ 'educations.fieldOfStudy': { $in: fieldValue } });
-        console.log('📚 Added field of study filter:', { 'educations.fieldOfStudy': { $in: fieldValue } });
+        and.push({ 'internProfile.educations.fieldOfStudy': { $in: fieldValue } });
+        console.log('📚 Added field of study filter:', { 'internProfile.educations.fieldOfStudy': { $in: fieldValue } });
       }
     }
 
     if (level || (educationLevel && educationLevel.length > 0)) {
       const levelValue = educationLevel || [level];
       if (levelValue && levelValue.length > 0) {
-        and.push({ 'educations.level': { $in: levelValue } });
-        console.log('📜 Added education level filter:', { 'educations.level': { $in: levelValue } });
+        and.push({ 'internProfile.educations.level': { $in: levelValue } });
+        console.log('📜 Added education level filter:', { 'internProfile.educations.level': { $in: levelValue } });
       }
     }
 
     // Work experience filters
     if (workIndustry && workIndustry.length > 0) {
+      console.log('💼 Work Industry filter input:', workIndustry);
       and.push({ 'workExperiences.industry': { $in: workIndustry } });
       console.log('💼 Added work industry filter:', { 'workExperiences.industry': { $in: workIndustry } });
     }
 
     // Skills filters
     if (skills && skills.length > 0) {
-      and.push({ 'skills.name': { $in: skills } });
-      console.log('🛠️ Added skills filter:', { 'skills.name': { $in: skills } });
+      and.push({ 'skills': { $in: skills } });
+      console.log('🛠️ Added skills filter:', { 'skills': { $in: skills } });
     }
 
     // Preferences filters
@@ -115,23 +116,15 @@ class ProgrammeCandidatesService {
       console.log('📍 Added preferred location filter:', { 'preferences.locations': { $in: preferredLocation } });
     }
 
-    // Date filters (using internProfile for backward compatibility)
+    // Date filters
     if (startDate) {
-      and.push({
-        $or: [
-          { 'internProfile.preferences.preferredStartDate': { $gte: startDate } },
-          { 'preferences.preferredStartDate': { $gte: startDate } }
-        ]
-      });
+      and.push({ 'preferences.preferredStartDate': { $gte: startDate } });
+      console.log('📅 Added start date filter:', { 'preferences.preferredStartDate': { $gte: startDate } });
     }
 
     if (endDate) {
-      and.push({
-        $or: [
-          { 'internProfile.preferences.preferredEndDate': { $lte: endDate } },
-          { 'preferences.preferredEndDate': { $lte: endDate } }
-        ]
-      });
+      and.push({ 'preferences.preferredEndDate': { $lte: endDate } });
+      console.log('📅 Added end date filter:', { 'preferences.preferredEndDate': { $lte: endDate } });
     }
 
     // Salary filters
@@ -139,12 +132,8 @@ class ProgrammeCandidatesService {
       const cond = {};
       if (salaryMin != null) cond.$gte = salaryMin;
       if (salaryMax != null) cond.$lte = salaryMax;
-      and.push({
-        $or: [
-          { 'internProfile.preferences.salaryRange.min': cond },
-          { 'preferences.salaryRange.min': cond }
-        ]
-      });
+      and.push({ 'preferences.salaryRange.min': cond });
+      console.log('💰 Added salary filter:', { 'preferences.salaryRange.min': cond });
     }
 
     if (and.length) match.$and = and;
@@ -170,7 +159,21 @@ class ProgrammeCandidatesService {
       'internProfile.preferences': 1
     };
 
+    // Debug: Check work experience data in all students
+    const allStudentsWithWork = await Users.find({ role: 'student' }).select('workExperiences').lean();
+    console.log('🔍 Students with work experience data:');
+    allStudentsWithWork.forEach((student, index) => {
+      if (student.workExperiences && student.workExperiences.length > 0) {
+        console.log(`Student ${index + 1}:`, student.workExperiences.map(we => ({
+          company: we.companyName,
+          industry: we.industry
+        })));
+      }
+    });
+
+    // Debug: Check what the query is finding
     const candidates = await Users.find(match).select(projection).limit(100).lean();
+    console.log('📊 Database results count:', candidates.length);
     return { items: candidates };
   }
 
