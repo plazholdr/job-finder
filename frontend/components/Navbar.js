@@ -135,7 +135,7 @@ export default function Navbar() {
         <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', marginRight: 24 }}>
           <Image src={logoSrc} alt="Job Finder" width={128} height={32} priority />
         </Link>
-        <Menu theme={theme === 'dark' ? 'dark' : 'light'} mode="horizontal" selectable={false} style={{ flex: 1, background: 'transparent' }} items={menuItems} />
+        <Menu className="nav-menu" theme={theme === 'dark' ? 'dark' : 'light'} mode="horizontal" selectable={false} style={{ flex: 1, background: 'transparent' }} items={menuItems} />
         <Space>
           {authed && (
             <Dropdown
@@ -180,9 +180,9 @@ export default function Navbar() {
             </Dropdown>
           ) : (
             <>
-              <Link href="/login"><Button>Sign In</Button></Link>
-              <Link href="/register"><Button>Register</Button></Link>
-              <Link href="/register-company"><Button type="primary">Employer Register</Button></Link>
+              <Link href="/login" prefetch={false}><Button type="text" className="nav-text-btn">Sign in</Button></Link>
+              <Link href="/register" prefetch={false}><Button type="text" className="nav-text-btn">Register</Button></Link>
+              <Link href="/register-company" prefetch={false}><Button className="nav-outline-btn">Employer Register</Button></Link>
             </>
           )}
         </Space>

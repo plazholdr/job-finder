@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Layout, Typography, Form, Input, Button, message } from 'antd';
 import { API_BASE_URL } from '../../config';
+import RegistrationHeader from "../../components/RegistrationHeader";
 
 export default function RegisterCompanyPage() {
   const [form] = Form.useForm();
@@ -64,23 +65,26 @@ export default function RegisterCompanyPage() {
   }
 
   return (
-    <Layout
-      style={{
-        minHeight: '100vh',
-        backgroundImage: 'url(/images/company-registration.png)',
-        backgroundSize: '100vh',
-        backgroundPosition: 'left',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
-      <Layout.Content style={{ padding: 40, maxWidth: 520, margin: '0 auto', marginTop: '10vh', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', borderRadius: '8px', border: '1px solid #f0f0f0', maxHeight: '75vh', textAlign: 'center', backgroundColor: 'rgba(255, 255, 255, 0.95)', marginRight: '20vh' }}>
-        <Typography.Title level={3} style={{ color: 'blue'}}>Hire The Best People Anywhere</Typography.Title>
-        <Typography.Title level={3}>Register Your Company Admin Account</Typography.Title>
-        <Typography.Paragraph type="secondary">
-          Use your work email. After verifying your email, you&apos;ll complete your company information and submit verification.
-        </Typography.Paragraph>
-        <Form layout="vertical" form={form} onValuesChange={onValuesChange} onFinish={onFinish} style={{ marginTop: '5vh'}}>
-          <Form.Item name="username" label="Username (can be your email)" rules={[{ required: true }]}>
+    <>
+      <RegistrationHeader />
+      <Layout
+        style={{
+          minHeight: '100vh',
+          backgroundImage: 'url(/images/company-registration.png)',
+          backgroundSize: '100vh',
+          backgroundPosition: 'left',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <Layout.Content style={{ padding: 40, maxWidth: 520, margin: '0 auto', marginTop: '10vh', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', borderRadius: '8px', border: '1px solid #f0f0f0', maxHeight: '75vh', textAlign: 'center', backgroundColor: 'rgba(255, 255, 255, 0.95)', marginRight: '20vh' }}>
+          <Typography.Title level={3} style={{ color: 'blue'}}>Hire The Best People Anywhere</Typography.Title>
+          <Typography.Title level={3}>Register Your Company Admin Account</Typography.Title>
+          <Typography.Paragraph type="secondary">
+            Use your work email. After verifying your email, you&apos;ll complete your company information and submit verification.
+          </Typography.Paragraph>
+          <Form layout="vertical" form={form} onValuesChange={onValuesChange} onFinish={onFinish} style={{ marginTop: '5vh'}}>
+            <Form.Item name="username" label="Username (can be your email)" rules={[{ required: true }]}>
+
             <Input placeholder="Username or Email" />
           </Form.Item>
           <Form.Item name="password" label="Password" rules={[{ required: true, min: 6 }]}>
@@ -93,8 +97,9 @@ export default function RegisterCompanyPage() {
             <Button type="primary" htmlType="submit" loading={loading} block style={{ background: "linear-gradient(to right, #7d69ff, #917fff)"}}>Create account</Button>
           </Form.Item>
         </Form>
-      </Layout.Content>
-    </Layout>
+        </Layout.Content>
+      </Layout>
+    </>
   );
 }
 

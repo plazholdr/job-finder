@@ -175,3 +175,75 @@ html {
     padding: 16px;
   }
 }
+
+/* Navbar hover underline effect and remove default indicator */
+.nav-menu.ant-menu-horizontal {
+  border-bottom: none;
+}
+.nav-menu.ant-menu-horizontal > .ant-menu-item::after,
+.nav-menu.ant-menu-horizontal > .ant-menu-item:hover::after,
+.nav-menu.ant-menu-horizontal > .ant-menu-item-active::after,
+.nav-menu.ant-menu-horizontal > .ant-menu-item-selected::after {
+  border-bottom: none !important;
+  transform: none !important;
+}
+.nav-menu .ant-menu-item a {
+  position: relative;
+}
+.nav-menu .ant-menu-item a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 3px;
+  width: 0;
+  background-color: #7d69ff; /* brand purple */
+  transition: width 0.2s ease;
+}
+.nav-menu .ant-menu-item:hover a::after { width: 100%; }
+.nav-menu .ant-menu-item:hover a { color: #7d69ff; }
+
+/* Auth buttons in navbar */
+.nav-text-btn.ant-btn-text {
+  color: #1f2937; /* dark slate */
+  height: 40px;
+  padding: 0 8px;
+  font-weight: 500;
+  position: relative;
+  border-radius: 0;
+}
+/* Remove AntD hover background and add underline like menu */
+.nav-text-btn.ant-btn-text:not(:disabled):hover,
+.nav-text-btn.ant-btn-text:focus {
+  background: transparent !important;
+  color: #7d69ff; /* brand purple */
+  box-shadow: none;
+}
+.nav-text-btn.ant-btn-text::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px; /* match menu underline gap */
+  height: 3px;
+  width: 0;
+  background-color: #7d69ff;
+  transition: width 0.2s ease;
+}
+.nav-text-btn.ant-btn-text:hover::after { width: 100%; }
+
+.nav-outline-btn.ant-btn {
+  background: transparent;
+  border: 2px solid #27364a; /* neutral border at rest */
+  color: #1f2937; /* same as other nav text */
+  border-radius: 14px;
+  height: 40px;
+  padding: 0 16px;
+  font-weight: 600;
+}
+.nav-outline-btn.ant-btn:hover,
+.nav-outline-btn.ant-btn:focus {
+  background: rgba(125, 105, 255, 0.08);
+  color: #7d69ff; /* brand purple on hover */
+  border-color: #7d69ff;
+  box-shadow: none;
+}
