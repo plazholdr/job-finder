@@ -104,6 +104,8 @@ export default function Navbar() {
       { key: 'admin-dashboard', label: <Link href="/admin/dashboard" prefetch={false}>Dashboard</Link> },
       { key: 'admin-companies', label: <Link href="/admin/companies" prefetch={false}>Companies</Link> },
       { key: 'admin-renewals', label: <Link href="/admin/renewals" prefetch={false}>Renewal Requests</Link> },
+      { type: 'divider' },
+      { key: 'settings', label: <Link href="/settings" prefetch={false}>Settings</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
     ] : role === 'company' ? [
       { key: 'profile', label: <Link href="/company/profile" prefetch={false}>Profile</Link> },
@@ -111,6 +113,8 @@ export default function Navbar() {
       { key: 'employees', label: <Link href="/company/employees" prefetch={false}>Employees</Link> },
       { key: 'universities', label: <Link href="/company/universities" prefetch={false}>Universities & Programmes</Link> },
       { key: 'create-job', label: <Link href="/company/jobs/new" prefetch={false}>Create Job</Link> },
+      { type: 'divider' },
+      { key: 'settings', label: <Link href="/settings" prefetch={false}>Settings</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
     ] : [
       { key: 'profile', label: <Link href="/profile" prefetch={false}>Profile</Link> },
@@ -119,6 +123,8 @@ export default function Navbar() {
       { key: 'saved', label: <Link href="/saved-jobs" prefetch={false}>Saved Jobs</Link> },
       { key: 'liked', label: <Link href="/liked-jobs" prefetch={false}>Liked Jobs</Link> },
       { key: 'liked-companies', label: <Link href="/liked-companies" prefetch={false}>Liked Companies</Link> },
+      { type: 'divider' },
+      { key: 'settings', label: <Link href="/settings" prefetch={false}>Settings</Link> },
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
     ]
   };
@@ -131,8 +137,6 @@ export default function Navbar() {
         </Link>
         <Menu theme={theme === 'dark' ? 'dark' : 'light'} mode="horizontal" selectable={false} style={{ flex: 1, background: 'transparent' }} items={menuItems} />
         <Space>
-          <span style={{ color: token.colorText }}>Dark</span>
-          <Switch checked={theme === 'dark'} onChange={toggle} />
           {authed && (
             <Dropdown
               popupRender={() => (
