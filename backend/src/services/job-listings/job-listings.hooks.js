@@ -31,9 +31,59 @@ export default (app) => ({
     find: [ async (ctx) => {
       const user = ctx.params?.user;
       ctx.params.query = ctx.params.query || {};
+
       // Company sees own; admin sees all; students see ACTIVE only
       if (!user || user.role === 'student') {
         ctx.params.query.status = STATUS.ACTIVE; // public browse (but still auth in our app)
+
+        // Handle custom filters that need backend processing
+        const q = { ...(ctx.params.query || {}) };
+        console.log('🔍 Job Backend: Received query parameters:', q);
+
+        // Store keyword for comprehensive search in after hook (avoid FeathersJS validation issues)
+        if (q.keyword) {
+          ctx.params.keywordFilter = q.keyword;
+          console.log('🔍 Job Backend: Stored keyword for after hook search:', { keyword: q.keyword });
+        }
+
+        // Store industry filter for after hook (company population)
+        if (q.industry) {
+          ctx.params.industryFilter = Array.isArray(q.industry) ? q.industry : [q.industry];
+          console.log('🔍 Job Backend: Stored industry filter for after hook:', ctx.params.industryFilter);
+        }
+
+        // Handle start date filtering
+        if (q.startDate) {
+          const now = new Date();
+          let startDateQuery = {};
+
+          if (q.startDate === 'This Month') {
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            startDateQuery = { $gte: now, $lte: endOfMonth };
+          } else if (q.startDate === 'Next Month') {
+            const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+            startDateQuery = { $gte: nextMonth, $lte: endOfNextMonth };
+          } else if (q.startDate === 'Next 3 Months') {
+            const threeMonthsLater = new Date(now.getFullYear(), now.getMonth() + 3, 0);
+            startDateQuery = { $gte: now, $lte: threeMonthsLater };
+          } else if (q.startDate === 'Next 6 Months') {
+            const sixMonthsLater = new Date(now.getFullYear(), now.getMonth() + 6, 0);
+            startDateQuery = { $gte: now, $lte: sixMonthsLater };
+          }
+
+          if (Object.keys(startDateQuery).length > 0) {
+            ctx.params.query['project.startDate'] = startDateQuery;
+            console.log('🔍 Job Backend: Applied start date filter:', { startDate: q.startDate, query: startDateQuery });
+          }
+        }
+
+        // Remove custom params so they don't leak to the adapter
+        // Note: location, salaryRange filters are handled by FeathersJS directly
+        ['keyword', 'industry', 'startDate'].forEach(k => delete ctx.params.query[k]);
+
+        console.log('🔍 Job Backend: Final query after cleanup:', ctx.params.query);
+
       } else if (user.role === 'company') {
         const company = await getCompanyForUser(app, user._id);
         if (!company) throw new Error('Company profile not found');
@@ -164,7 +214,7 @@ export default (app) => ({
   },
   after: {
     all: [
-      // Populate company information
+      // Populate company information and handle industry filtering
       async (ctx) => {
         const populateCompany = async (job) => {
           if (job && job.companyId) {
@@ -178,15 +228,58 @@ export default (app) => ({
           return job;
         };
 
+        // Handle filtering after company population
+        const industryFilter = ctx.params.industryFilter;
+        const keywordFilter = ctx.params.keywordFilter;
+        let jobs = Array.isArray(ctx.result) ? ctx.result : (ctx.result.data || [ctx.result]);
+
+        // Populate companies for all jobs
+        jobs = await Promise.all(jobs.map(populateCompany));
+
+        // Filter by industry if specified
+        if (industryFilter && industryFilter.length > 0) {
+          console.log('🔍 Job Backend: Applying industry filter after population:', { industryFilter });
+          const beforeCount = jobs.length;
+          jobs = jobs.filter(job =>
+            job.company && job.company.industry &&
+            industryFilter.includes(job.company.industry)
+          );
+          console.log('🔍 Job Backend: Industry filter results:', { beforeCount, afterCount: jobs.length });
+        }
+
+        // Filter by keyword across title, description, and company name
+        if (keywordFilter) {
+          console.log('🔍 Job Backend: Applying comprehensive keyword filter after population:', { keywordFilter });
+          const beforeCount = jobs.length;
+          const keyword = keywordFilter.toLowerCase();
+
+          jobs = jobs.filter(job => {
+            // Search in job title
+            if (job.title && job.title.toLowerCase().includes(keyword)) return true;
+
+            // Search in job description
+            if (job.description && job.description.toLowerCase().includes(keyword)) return true;
+
+            // Search in company name
+            if (job.company && job.company.name && job.company.name.toLowerCase().includes(keyword)) return true;
+
+            return false;
+          });
+
+          console.log('🔍 Job Backend: Comprehensive keyword filter results:', { beforeCount, afterCount: jobs.length });
+        }
+
+        // Update the result with filtered and populated jobs
         if (Array.isArray(ctx.result?.data)) {
           // Handle paginated results
-          ctx.result.data = await Promise.all(ctx.result.data.map(populateCompany));
+          ctx.result.data = jobs;
+          ctx.result.total = jobs.length; // Update total count after filtering
         } else if (Array.isArray(ctx.result)) {
           // Handle non-paginated array results
-          ctx.result = await Promise.all(ctx.result.map(populateCompany));
-        } else if (ctx.result) {
+          ctx.result = jobs;
+        } else if (ctx.result && jobs.length > 0) {
           // Handle single result
-          ctx.result = await populateCompany(ctx.result);
+          ctx.result = jobs[0];
         }
       }
     ],

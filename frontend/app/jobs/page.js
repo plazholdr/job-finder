@@ -1,7 +1,7 @@
 "use client";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import JobsExplorer from "../../components/JobsExplorer";
+import JobsContent from "../../components/JobsContent";
 import { Layout, Typography, Button, Space } from "antd";
 import { Suspense } from "react";
 import * as React from "react";
@@ -20,7 +20,7 @@ export default function JobsPage() {
     })();
   }, []);
   return (
-    <Layout>
+    <Layout style={{ minHeight: '100vh' }}>
       <Navbar />
       <Layout.Content style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -30,7 +30,7 @@ export default function JobsPage() {
           )}
         </div>
         <Suspense fallback={null}>
-          <JobsExplorer />
+          <JobsContent />
         </Suspense>
       </Layout.Content>
       <Footer />

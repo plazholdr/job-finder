@@ -143,35 +143,55 @@ const FilterBar = ({
         popupRender={() => renderFilterContent(filter)}
       >
         <Button 
-          style={{ 
-            borderRadius: '25px', 
+          style={{
+            borderRadius: '25px',
             backgroundColor: isActive ? theme.activeColor : theme.inactiveColor,
             color: isActive ? theme.activeTextColor : theme.textColor,
             border: isActive ? `1px solid ${theme.activeColor}` : '1px solid #d9d9d9',
             fontWeight: '500',
             transition: 'all 0.3s ease',
             width: width,
+            minWidth: width,
+            maxWidth: width,
             textAlign: 'center',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            flexShrink: 0,
+            flexGrow: 0,
+            overflow: 'hidden'
           }}
         >
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {label}
+          <span style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            width: '100%',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap'
+          }}>
+            <span style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              flexShrink: 1
+            }}>
+              {label}
+            </span>
             {count > 0 && (
-              <span style={{ 
-                backgroundColor: 'rgba(255,255,255,0.2)', 
-                borderRadius: '10px', 
-                padding: '2px 6px', 
+              <span style={{
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                borderRadius: '10px',
+                padding: '2px 6px',
                 fontSize: '12px',
                 minWidth: '20px',
-                textAlign: 'center'
+                textAlign: 'center',
+                flexShrink: 0
               }}>
                 {count}
               </span>
             )}
-            ▼
+            <span style={{ flexShrink: 0 }}>▼</span>
           </span>
         </Button>
       </Dropdown>
@@ -193,14 +213,15 @@ const FilterBar = ({
 
         {/* Clear All Button */}
         {showClearAll && hasActiveFilters && (
-          <Button 
+          <Button
             onClick={handleClearAll}
-            style={{ 
+            style={{
               borderRadius: '25px',
               backgroundColor: '#ff4d4f',
               color: '#fff',
               border: 'none',
-              fontWeight: '500'
+              fontWeight: '500',
+              marginLeft: '410px'
             }}
           >
             Clear All
@@ -209,10 +230,10 @@ const FilterBar = ({
 
         {/* Save Profile Button */}
         {showSaveProfile && onSaveProfile && (
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             onClick={onSaveProfile}
-            style={{ 
+            style={{
               borderRadius: '25px',
               background: `linear-gradient(to right, ${theme.activeColor}, #917fff)`,
               border: 'none',

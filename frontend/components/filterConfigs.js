@@ -137,11 +137,12 @@ export const INTERN_SEARCH_FILTERS = [
   }
 ];
 
+// Job search filters for the /jobs page
 export const JOB_SEARCH_FILTERS = [
   {
     key: 'industry',
     label: 'Industry',
-    title: 'Industry',
+    title: 'Company Industry',
     type: 'checkbox',
     width: '120px',
     options: [
@@ -158,34 +159,6 @@ export const JOB_SEARCH_FILTERS = [
     ]
   },
   {
-    key: 'jobType',
-    label: 'Job Type',
-    title: 'Employment Type',
-    type: 'checkbox',
-    width: '110px',
-    options: [
-      'Full-time',
-      'Part-time',
-      'Contract',
-      'Internship',
-      'Remote'
-    ]
-  },
-  {
-    key: 'experience',
-    label: 'Experience',
-    title: 'Experience Level',
-    type: 'checkbox',
-    width: '130px',
-    options: [
-      'Entry Level',
-      '1-3 years',
-      '3-5 years',
-      '5-10 years',
-      '10+ years'
-    ]
-  },
-  {
     key: 'location',
     label: 'Location',
     title: 'Job Location',
@@ -196,8 +169,10 @@ export const JOB_SEARCH_FILTERS = [
       'Selangor',
       'Penang',
       'Johor',
-      'Remote',
-      'Hybrid'
+      'Perak',
+      'Sabah',
+      'Sarawak',
+      'Remote'
     ]
   },
   {
@@ -207,11 +182,25 @@ export const JOB_SEARCH_FILTERS = [
     type: 'checkbox',
     width: '100px',
     options: [
-      '2000 - 4000',
-      '4000 - 6000',
-      '6000 - 8000',
-      '8000 - 10000',
-      '10000+'
+      '1000 - 2000',
+      '2000 - 3000',
+      '3000 - 4000',
+      '4000 - 5000',
+      '5000+'
+    ]
+  },
+  {
+    key: 'startDate',
+    label: 'Start Date',
+    title: 'Internship Start Date',
+    type: 'checkbox',
+    width: '120px',
+    options: [
+      'This Month',
+      'Next Month',
+      'Next 3 Months',
+      'Next 6 Months',
+      'Flexible'
     ]
   }
 ];
@@ -231,7 +220,25 @@ export const COMPANY_SEARCH_FILTERS = [
       'Retail',
       'Consulting',
       'Education',
-      'Media'
+      'Media',
+      'Government',
+      'Non-profit'
+    ]
+  },
+  {
+    key: 'location',
+    label: 'Location',
+    title: 'Company Location',
+    type: 'checkbox',
+    width: '110px',
+    options: [
+      'Kuala Lumpur',
+      'Selangor',
+      'Penang',
+      'Johor',
+      'Perak',
+      'Sabah',
+      'Sarawak'
     ]
   },
   {

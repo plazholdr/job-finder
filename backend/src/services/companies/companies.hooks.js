@@ -22,15 +22,22 @@ export default (app) => ({
         }
         const q = { ...(context.params.query || {}) };
 
+        // Debug: Log all query parameters
+        console.log('🏢 Backend: Received query parameters:', q);
+
         // Custom params
         const keyword = (q.q || q.keyword || '').trim();
         const nature = q.nature || q.industry;
         const city = q.city || q.location;
+        const size = q.size;
         const salaryMin = q.salaryMin ? Number(q.salaryMin) : undefined;
         const salaryMax = q.salaryMax ? Number(q.salaryMax) : undefined;
         const latest = q.latest === 'true' || q.sort === 'latest';
         const sortBy = q.sortBy || q.sort;
         const recommended = q.recommended === 'true';
+
+        // Additional filters for student company search
+        const industryFilter = q.industry; // Direct industry filter from student search
 
         // Public (unauthenticated) and student users only see approved companies
         // Exceptions:
@@ -50,13 +57,44 @@ export default (app) => ({
 
         // Build Mongo query
         const query = {};
-        if (keyword) query.name = { $regex: keyword, $options: 'i' };
-        if (nature) query.industry = { $regex: String(nature), $options: 'i' };
+
+        // Handle industry filtering - support both legacy 'nature' and direct 'industry' filters
+        if (industryFilter) {
+          // For student search, use exact matching (FeathersJS doesn't allow $regex in query params)
+          if (typeof industryFilter === 'string') {
+            query.industry = industryFilter; // Exact match
+            console.log('🏢 Backend: Applied industry exact filter:', { industryFilter, query: query.industry });
+          } else if (Array.isArray(industryFilter)) {
+            // Multiple industries - use $in with exact match
+            query.industry = { $in: industryFilter };
+            console.log('🏢 Backend: Applied industry array filter:', { industryFilter, query: query.industry });
+          } else {
+            // Fallback for other cases
+            query.industry = industryFilter;
+            console.log('🏢 Backend: Applied industry direct filter:', { industryFilter, query: query.industry });
+          }
+        } else if (nature) {
+          // Legacy nature filter (exact match to avoid FeathersJS validation issues)
+          query.industry = nature;
+          console.log('🏢 Backend: Applied nature filter:', { nature, query: query.industry });
+        }
+
+        // Store city for filtering in after hook (avoid FeathersJS validation issues)
         if (city) {
-          query.$or = [
-            { 'address.city': { $regex: String(city), $options: 'i' } },
-            { 'address.fullAddress': { $regex: String(city), $options: 'i' } }
-          ];
+          context.params.cityFilter = city;
+          console.log('🏢 Backend: Stored city for after hook search:', { city });
+        }
+
+        // Handle company size filtering
+        if (size) {
+          query.size = size;
+          console.log('🏢 Backend: Applied size filter:', { size, query: query.size });
+        }
+
+        // Store keyword for comprehensive search in after hook (avoid FeathersJS validation issues)
+        if (keyword) {
+          context.params.keywordFilter = keyword;
+          console.log('🏢 Backend: Stored keyword for after hook search:', { keyword });
         }
         // Handle registrationNumber query for uniqueness checks
         if (q.registrationNumber) {
@@ -106,14 +144,27 @@ export default (app) => ({
             finalQuery.verifiedStatus = q.verifiedStatus;
           }
         }
+
+        console.log('🏢 Backend: Final MongoDB query:', finalQuery);
         context.params.query = {
           ...finalQuery,
           ...(Object.keys($sort).length ? { $sort } : {})
         };
 
+        console.log('🏢 Backend: Applied query to context:', context.params.query);
+
         // Remove custom params so they don't leak to the adapter
-        ['q','keyword','nature','industry','city','location','salaryMin','salaryMax','latest','sort','sortBy','recommended']
-          .forEach(k => delete context.params.query[k]);
+        // NOTE: Don't remove 'industry' if we built a query with it
+        const paramsToRemove = ['q','keyword','nature','city','location','size','salaryMin','salaryMax','latest','sort','sortBy','recommended'];
+
+        // Only remove 'industry' if we didn't build a query with it
+        if (!query.industry) {
+          paramsToRemove.push('industry');
+        }
+
+        paramsToRemove.forEach(k => delete context.params.query[k]);
+
+        console.log('🏢 Backend: Final query after cleanup:', context.params.query);
       }
     ],
     get: [ async (context) => {
@@ -189,6 +240,55 @@ export default (app) => ({
           context.result = context.result.map(doc => mapCompany(doc));
         } else if (context.result) {
           context.result = mapCompany(context.result);
+        }
+        return context;
+      },
+      // Handle keyword and city search after data retrieval (avoid FeathersJS validation issues)
+      async (context) => {
+        const keywordFilter = context.params.keywordFilter;
+        const cityFilter = context.params.cityFilter;
+
+        if (keywordFilter || cityFilter) {
+          console.log('🏢 Backend: Applying comprehensive filters after retrieval:', { keywordFilter, cityFilter });
+          let companies = Array.isArray(context.result) ? context.result : (context.result.data || [context.result]);
+          const beforeCount = companies.length;
+
+          companies = companies.filter(company => {
+            let matches = true;
+
+            // Apply keyword filter
+            if (keywordFilter) {
+              const keyword = keywordFilter.toLowerCase();
+              const keywordMatch = (
+                (company.name && company.name.toLowerCase().includes(keyword)) ||
+                (company.description && company.description.toLowerCase().includes(keyword)) ||
+                (company.industry && company.industry.toLowerCase().includes(keyword))
+              );
+              if (!keywordMatch) matches = false;
+            }
+
+            // Apply city filter
+            if (cityFilter && matches) {
+              const city = cityFilter.toLowerCase();
+              const cityMatch = (
+                (company.address?.city && company.address.city.toLowerCase().includes(city)) ||
+                (company.address?.fullAddress && company.address.fullAddress.toLowerCase().includes(city))
+              );
+              if (!cityMatch) matches = false;
+            }
+
+            return matches;
+          });
+
+          console.log('🏢 Backend: Comprehensive filter results:', { beforeCount, afterCount: companies.length });
+
+          // Update the result
+          if (Array.isArray(context.result)) {
+            context.result = companies;
+          } else if (context.result.data) {
+            context.result.data = companies;
+            context.result.total = companies.length;
+          }
         }
         return context;
       }

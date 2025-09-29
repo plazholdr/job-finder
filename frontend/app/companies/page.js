@@ -1,18 +1,18 @@
 "use client";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import CompaniesExplorer from "../../components/CompaniesExplorer";
+import CompaniesContent from "../../components/CompaniesContent";
 import { Layout, Typography } from "antd";
 import { Suspense } from "react";
 
 export default function CompaniesPage() {
   return (
-    <Layout>
+    <Layout style={{ minHeight: '100vh' }}>
       <Navbar />
       <Layout.Content style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
         <Typography.Title level={3} style={{ marginBottom: 16 }}>All Companies</Typography.Title>
         <Suspense fallback={null}>
-          <CompaniesExplorer />
+          <CompaniesContent />
         </Suspense>
       </Layout.Content>
       <Footer />

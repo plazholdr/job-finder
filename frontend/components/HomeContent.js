@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import Hero from "./Hero";
@@ -311,59 +312,36 @@ export default function HomeContent({ jobs = [], companies = [] }) {
   }, [role, studentPrefApplied, studentSearchProfileQuery.data]);
 
 
-  // Build filtered URLs for student job and company search
-  const filteredJobsUrl = useMemo(() => {
-    if (typeof window === 'undefined') {
-      return `${API_BASE_URL}/job-listings`;
-    }
-
-    const baseUrl = buildQuery(`${API_BASE_URL}/job-listings`, { q, location, salaryMin, salaryMax });
-    const url = new URLSearchParams(baseUrl.split('?')[1] || '');
-    const { industry, jobType, experience, location: filterLocation, salary } = studentFilters;
-
-    if (industry?.length > 0) {
-      industry.forEach(ind => url.append('industry', ind));
-    }
-    if (jobType?.length > 0) {
-      jobType.forEach(type => url.append('jobType', type));
-    }
-    if (experience?.length > 0) {
-      experience.forEach(exp => url.append('experience', exp));
-    }
-    if (filterLocation?.length > 0) {
-      filterLocation.forEach(loc => url.append('location', loc));
-    }
-    if (salary?.length > 0) {
-      salary.forEach(sal => {
-        if (sal.includes('-')) {
-          const [min, max] = sal.split('-').map(s => parseInt(s.trim()));
-          if (min) url.set('salaryMin', String(min));
-          if (max) url.set('salaryMax', String(max));
-        }
-      });
-    }
-
-    return `${API_BASE_URL}/job-listings?${url.toString()}`;
-  }, [q, location, salaryMin, salaryMax, studentFilters]);
+  // Build filtered URLs for student company search
 
   const filteredCompaniesUrl = useMemo(() => {
-    if (typeof window === 'undefined') {
-      return `${API_BASE_URL}/companies`;
+    const params = new URLSearchParams();
+    params.set("$limit", "8");
+    params.set("verifiedStatus", "1"); // Only show approved companies
+
+    // Add search query
+    if (q) {
+      params.set("name[$regex]", q);
+      params.set("name[$options]", "i");
     }
 
-    const baseUrl = buildQuery(`${API_BASE_URL}/companies`, { q, nature, city: companyCity, salaryMin, salaryMax, sort });
-    const url = new URLSearchParams(baseUrl.split('?')[1] || '');
+    // Add student filters - send as simple parameters, backend will handle regex
     const { industry, location: filterLocation } = studentFilters;
 
     if (industry?.length > 0) {
-      industry.forEach(ind => url.append('industry', ind));
+      // Send industry as simple parameter, backend will convert to regex
+      params.set("industry", industry[0]); // Take first industry
     }
     if (filterLocation?.length > 0) {
-      filterLocation.forEach(loc => url.append('city', loc));
+      // Send location as simple parameter
+      params.set("city", filterLocation[0]); // Take first location
     }
 
-    return `${API_BASE_URL}/companies?${url.toString()}`;
-  }, [q, nature, companyCity, salaryMin, salaryMax, sort, studentFilters]);
+    // Add cache-busting parameter
+    params.set("_t", Date.now().toString());
+
+    return `${API_BASE_URL}/companies?${params.toString()}`;
+  }, [q, studentFilters]);
 
   const jobsUrl = useMemo(() => buildQuery("/job-listings", { q, location, salaryMin, salaryMax }), [q, location, salaryMin, salaryMax]);
   const companiesUrl = useMemo(() => buildQuery("/companies", { q, nature, city: companyCity, salaryMin, salaryMax, sort }), [q, nature, companyCity, salaryMin, salaryMax, sort]);
@@ -404,28 +382,25 @@ export default function HomeContent({ jobs = [], companies = [] }) {
   });
 
   // Filtered queries for students
-  const filteredJobsQuery = useQuery({
-    queryKey: ["filtered-jobs", filteredJobsUrl, role],
-    queryFn: async () => {
-      const res = await fetch(filteredJobsUrl);
-      if (!res.ok) throw new Error("Filtered jobs fetch failed");
-      const data = await res.json();
-      return Array.isArray(data) ? data : (data?.data || []);
-    },
-    enabled: role === 'student',
-    initialData: jobs,
-  });
 
   const filteredCompaniesQuery = useQuery({
-    queryKey: ["filtered-companies", filteredCompaniesUrl, role],
+    queryKey: ["filtered-companies", filteredCompaniesUrl, role, studentFilters],
     queryFn: async () => {
-      const res = await fetch(filteredCompaniesUrl);
+      const res = await fetch(filteredCompaniesUrl, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        cache: 'no-cache'
+      });
       if (!res.ok) throw new Error("Filtered companies fetch failed");
       const data = await res.json();
       return Array.isArray(data) ? data : (data?.data || []);
     },
     enabled: role === 'student',
     initialData: companies,
+    staleTime: 0, // Always consider data stale
+    cacheTime: 0, // Don't cache the data
   });
 
   // Load student's saved search preferences (if signed in as student)
@@ -461,20 +436,34 @@ export default function HomeContent({ jobs = [], companies = [] }) {
 
   async function handleSaveSearchProfile() {
     try {
+      const {
+        industry,
+        jobType,
+        experience,
+        location,
+        salary
+      } = studentFilters;
+
       await apiAuth('/search-profiles', {
         method: 'POST',
         body: {
-          kind: 'company',
+          kind: 'job-search',
           filters: {
+            // Save student's search preferences for jobs and companies
+            industry: industry?.length > 0 ? industry : undefined,
+            jobType: jobType?.length > 0 ? jobType : undefined,
+            experience: experience?.length > 0 ? experience : undefined,
+            location: location?.length > 0 ? location : undefined,
+            salary: salary?.length > 0 ? salary : undefined,
+
+            // Legacy fields for backward compatibility
             keyword: q || undefined,
-            nature: nature || undefined,
-            location: companyCity || undefined,
             salaryRange: { min: salaryMin, max: salaryMax },
             sort
           }
         }
       });
-      message.success('Search profile saved');
+      message.success('Job search profile saved');
     } catch (e) {
       if (e.message?.includes('Not authenticated')) message.warning('Sign in to save your search profile');
       else message.error('Failed to save search profile');
@@ -580,28 +569,7 @@ export default function HomeContent({ jobs = [], companies = [] }) {
               }}
             />
 
-            {/* Jobs Section */}
-            <section id="jobs" style={{ marginBottom: 32 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Typography.Title level={3} style={{ margin: 0 }}>Featured Jobs</Typography.Title>
-                <Link href="/jobs">
-                  <Button type="link">View All Jobs →</Button>
-                </Link>
-              </div>
-              {filteredJobsQuery.isLoading ? (
-                <Skeleton active />
-              ) : filteredJobsQuery.data?.length ? (
-                <Row gutter={[16,16]}>
-                  {filteredJobsQuery.data.slice(0, 6).map((job) => (
-                    <Col xs={24} sm={12} md={8} key={job._id || job.id}>
-                      <JobCard job={job} />
-                    </Col>
-                  ))}
-                </Row>
-              ) : (
-                <Empty description="No jobs found" />
-              )}
-            </section>
+
 
             {/* Companies Section */}
             <section id="companies" style={{ marginBottom: 32 }}>
