@@ -26,7 +26,7 @@ export default function JobsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <Typography.Title level={3} style={{ margin: 0 }}>All Jobs</Typography.Title>
           {role === 'company' && (
-            <Button type="primary" href="/company/jobs/new">Create job listing</Button>
+            <Button type="primary" href="/company/jobs/new">Employer Register</Button>
           )}
         </div>
         <Suspense fallback={null}>

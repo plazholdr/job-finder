@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Layout, Row, Col, Typography } from "antd";
 import RegisterWizard from "../../components/RegisterWizard";
 import RegisterSidebar from "../../components/RegisterSidebar";
+import RegistrationHeader from "../../components/RegistrationHeader";
 
 const { Title, Text } = Typography;
 
@@ -20,8 +21,10 @@ export default function RegisterPage() {
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Row style={{ minHeight: '100vh' }}>
+    <>
+      <RegistrationHeader />
+      <Layout style={{ minHeight: '100vh' }}>
+        <Row style={{ minHeight: '100vh' }}>
         {/* Left side - Independent progress and content */}
         <Col xs={0} md={12} lg={12} xl={12}>
           <div style={{
@@ -142,6 +145,7 @@ export default function RegisterPage() {
         </Col>
       </Row>
     </Layout>
+    </>
   );
 }
 
