@@ -7,6 +7,28 @@ async function getJob(id) {
   return res.json();
 }
 
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  const job = await getJob(id);
+
+  if (!job) {
+    return {
+      title: "Job Not Found",
+      description: "The requested job listing could not be found."
+    };
+  }
+
+  return {
+    title: `${job.title} at ${job.company?.name || 'Company'}`,
+    description: job.description || `${job.title} position available at ${job.company?.name || 'our company'}. Apply now!`,
+    openGraph: {
+      title: `${job.title} at ${job.company?.name || 'Company'}`,
+      description: job.description || `${job.title} position available at ${job.company?.name || 'our company'}. Apply now!`,
+      type: 'website',
+    },
+  };
+}
+
 export default async function JobDetail({ params }) {
   const { id } = await params; // Next.js 15: await params
   const job = await getJob(id);

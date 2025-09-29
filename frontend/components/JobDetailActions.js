@@ -17,7 +17,7 @@ export default function JobDetailActions({ jobId }) {
 
   return (
     <Space>
-      <Button type="primary" onClick={goApply}>Apply</Button>
+      <Button type="primary" onClick={goApply} style={{ background: 'linear-gradient(to right, #7d69ff, #917fff)', border: 'none', borderRadius: '25px', fontSize: '16px', fontWeight: '600', padding: '8px 25px', height: 'auto', boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)" }}>Apply For Position</Button>
     </Space>
   );
 }
