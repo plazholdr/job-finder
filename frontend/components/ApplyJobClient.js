@@ -13,10 +13,12 @@ const { Title, Paragraph, Text } = Typography;
 export default function ApplyJobClient({ jobId }) {
   const [job, setJob] = useState(null);
   const [profile, setProfile] = useState(null); // { profile, internProfile }
+  const [userEmail, setUserEmail] = useState(''); // Email from root user object
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [formData, setFormData] = useState(null); // Store validated form data
   const [form] = Form.useForm();
   const { message } = App.useApp();
 
@@ -31,9 +33,10 @@ export default function ApplyJobClient({ jobId }) {
           return;
         }
 
-        const [jobRes, profRes] = await Promise.all([
+        const [jobRes, profRes, userRes] = await Promise.all([
           fetch(`${API_BASE_URL}/job-listings/${jobId}`),
-          fetch(`${API_BASE_URL}/student/internship/me`, { headers: { Authorization: `Bearer ${token}` } })
+          fetch(`${API_BASE_URL}/student/internship/me`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE_URL}/users/me`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
 
         if (!jobRes.ok) {
@@ -48,6 +51,12 @@ export default function ApplyJobClient({ jobId }) {
         } else {
           setError('Please complete your student profile before applying');
           return;
+        }
+
+        // Get email from root user object
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          setUserEmail(userData.email || '');
         }
 
         // Default validity = +14 days
@@ -65,7 +74,11 @@ export default function ApplyJobClient({ jobId }) {
 
   async function submit() {
     try {
-      const v = await form.validateFields();
+      // Use stored form data instead of re-validating
+      const v = formData || {};
+      console.log('📝 Using stored form data:', v);
+      console.log('📝 candidateStatement from stored data:', v.candidateStatement);
+
       setSubmitting(true);
       const token = localStorage.getItem('jf_token');
 
@@ -75,15 +88,26 @@ export default function ApplyJobClient({ jobId }) {
         return;
       }
 
-      const personalInfo = profile?.profile || {};
+      const personalInfo = {
+        ...(profile?.profile || {}),
+        email: userEmail // Ensure email is included from root user object
+      };
       const intern = profile?.internProfile || {};
       const internshipInfo = intern?.preferences || {};
       const courseInfo = Array.isArray(intern?.courses) ? intern.courses : [];
       const assignmentInfo = Array.isArray(intern?.assignments) ? intern.assignments : [];
 
+      const candidateStatementValue = v.candidateStatement ? String(v.candidateStatement).trim() : '';
+      console.log('📝 candidateStatement after processing:', candidateStatementValue);
+
+      if (!candidateStatementValue) {
+        message.error('Candidate statement is missing. Please go back and fill it in.');
+        return;
+      }
+
       const payload = {
         jobListingId: jobId,
-        candidateStatement: v.candidateStatement?.trim() || '',
+        candidateStatement: candidateStatementValue,
         validityUntil: v.validityUntil ? new Date(v.validityUntil) : undefined,
         form: {
           personalInfo,
@@ -93,10 +117,19 @@ export default function ApplyJobClient({ jobId }) {
         }
       };
 
+      console.log('📝 Full application payload:', JSON.stringify(payload, null, 2));
+      console.log('📝 Candidate statement in payload:', payload.candidateStatement);
+      console.log('📝 Payload has candidateStatement key?', 'candidateStatement' in payload);
+      console.log('📝 candidateStatement length:', payload.candidateStatement?.length);
+
+      const bodyString = JSON.stringify(payload);
+      console.log('📝 JSON body string:', bodyString);
+      console.log('📝 Body includes candidateStatement?', bodyString.includes('candidateStatement'));
+
       const res = await fetch(`${API_BASE_URL}/applications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload)
+        body: bodyString
       });
 
       if (!res.ok) {
@@ -184,7 +217,7 @@ export default function ApplyJobClient({ jobId }) {
               <Text strong>{[p.firstName, p.lastName].filter(Boolean).join(' ') || 'Not provided'}</Text>
             </Descriptions.Item>
             <Descriptions.Item label="Email">
-              <Text copyable>{p.email || 'Not provided'}</Text>
+              <Text copyable>{userEmail || p.email || 'Not provided'}</Text>
             </Descriptions.Item>
             <Descriptions.Item label="Phone">
               <Text>{p.phone || 'Not provided'}</Text>
@@ -337,7 +370,7 @@ export default function ApplyJobClient({ jobId }) {
     <Layout style={{ minHeight: '100vh' }}>
       <Navbar />
       <Layout.Content style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space direction="vertical" size="large" style={{ width: '100%', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', border: '1px solid #d9d9d9', padding: '8vh', borderRadius: '10px', backgroundColor: 'white' }}>
           {/* Header */}
           <div>
             <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
@@ -355,33 +388,9 @@ export default function ApplyJobClient({ jobId }) {
             current={step}
             items={[
               { title: 'Application Details', icon: <FileTextOutlined /> },
-              { title: 'Review & Submit', icon: <CheckCircleOutlined /> }
+              { title: 'Submit Application', icon: <CheckCircleOutlined /> }
             ]}
           />
-
-          {/* Job Summary Card */}
-          {job && (
-            <Card size="small" style={{ backgroundColor: '#f8f9fa' }}>
-              <Row gutter={[16, 8]}>
-                <Col span={24}>
-                  <Text strong style={{ fontSize: 16 }}>{job.title}</Text>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Text type="secondary">
-                    <CalendarOutlined /> {job.location?.city}{job.location?.state && `, ${job.location.state}`}
-                  </Text>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Text type="secondary">
-                    Duration: {job.project?.startDate && job.project?.endDate
-                      ? `${new Date(job.project.startDate).toLocaleDateString()} - ${new Date(job.project.endDate).toLocaleDateString()}`
-                      : 'Not specified'
-                    }
-                  </Text>
-                </Col>
-              </Row>
-            </Card>
-          )}
 
           {/* Step 1: Application Details */}
           {step === 0 && (
@@ -390,15 +399,20 @@ export default function ApplyJobClient({ jobId }) {
                 <FileTextOutlined /> Application Details
               </Title>
 
-              <Alert
-                message="Application Guidelines"
-                description="Your application will be reviewed by the company. Make sure to provide a compelling statement about why you're interested in this position."
-                type="info"
-                showIcon
-                style={{ marginBottom: 24 }}
-              />
+              <Text type="secondary" style={{ fontStyle:'italic' }}>
+                Your application will be reviewed by the company. Make sure to provide a compelling statement about why you're interested in this position.
+              </Text>
 
-              <Form layout="vertical" form={form} onFinish={() => setStep(1)}>
+              <Form layout="vertical" form={form} onFinish={async () => {
+                try {
+                  const values = await form.validateFields();
+                  console.log('📝 Form validated, storing values:', values);
+                  setFormData(values);
+                  setStep(1);
+                } catch (e) {
+                  console.error('Form validation failed:', e);
+                }
+              }} style={{marginTop: '3vh'}}>
                 <Form.Item
                   label="Candidate Statement"
                   name="candidateStatement"
@@ -407,7 +421,6 @@ export default function ApplyJobClient({ jobId }) {
                     { min: 50, message: 'Please write at least 50 characters' },
                     { max: 1000, message: 'Please keep it under 1000 characters' }
                   ]}
-                  extra="Tell the company why you are interested in this position and what makes you a good fit."
                 >
                   <Input.TextArea
                     rows={6}
@@ -432,8 +445,8 @@ export default function ApplyJobClient({ jobId }) {
 
                 <Form.Item style={{ textAlign: 'right', marginBottom: 0 }}>
                   <Space>
-                    <Button onClick={() => window.history.back()}>Cancel</Button>
-                    <Button type="primary" htmlType="submit" icon={<CheckCircleOutlined />}>
+                    <Button onClick={() => window.history.back()} style={{ background: '#fff', border: 'none', color: '#000', fontWeight: '500', borderRadius: '25px', fontSize: '16px', padding: '8px 25px', height: 'auto', boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)"}}>Cancel</Button>
+                    <Button type="primary" htmlType="submit" icon={<CheckCircleOutlined />} style={{ background: 'linear-gradient(to right, #7d69ff, #917fff)', border: 'none', borderRadius: '25px', fontSize: '16px', fontWeight: '600', padding: '8px 25px', height: 'auto', boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)"}}>
                       Review Application
                     </Button>
                   </Space>

@@ -152,14 +152,12 @@ export default function MyApplicationsPage(){
   ];
 
   return (
-    <Layout>
+    <Layout style={{ minHeight: '100vh' }}>
       <Navbar />
       <Layout.Content style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Title level={2} style={{ margin: 0 }}>My Applications</Title>
           <Card>
-            <Tabs activeKey={activeKey} onChange={setActiveKey} items={tabs} />
-            <Table rowKey="_id" columns={columns} dataSource={filtered} loading={loading} pagination={{ pageSize: 10 }} />
             <Tabs activeKey={activeKey} onChange={setActiveKey} items={tabs} />
             <Table rowKey="_id" columns={columns} dataSource={filtered} loading={loading} pagination={{ pageSize: 10 }} />
           </Card>

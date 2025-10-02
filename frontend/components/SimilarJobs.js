@@ -124,7 +124,7 @@ export default function SimilarJobs({ currentJob }) {
     <Card 
       title={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Similar Jobs</span>
+          <span>Find Similar Jobs!</span>
           <Link href="/jobs">
             <Text style={{ fontSize: 14, color: '#1890ff', cursor: 'pointer' }}>View all</Text>
           </Link>

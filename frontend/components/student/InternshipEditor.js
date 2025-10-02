@@ -38,7 +38,7 @@ export default function InternshipEditor() {
       });
     } catch (e) { message.error(e.message || 'Failed to load'); }
     finally { setLoading(false); }
-  })(); }, [form]);
+  })(); }, []); // Removed 'form' from dependencies - form instance is stable
 
   async function onSave(values) {
     try {

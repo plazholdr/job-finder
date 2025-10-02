@@ -1,19 +1,546 @@
 "use client";
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Layout, Card, Typography, Button, Space, Form, Input, Select, Upload, Checkbox, Avatar, message, Tabs, Tag, Progress, Row, Col } from 'antd';
+import { Layout, Card, Typography, Button, Space, Form, Input, Select, Upload, Checkbox, Avatar, message, Tabs, Tag, Progress, Row, Col, Modal, Steps, DatePicker } from 'antd';
 import dynamic from 'next/dynamic';
 const InternshipEditor = dynamic(() => import('./student/InternshipEditor'), { ssr: false, loading: () => <Card loading style={{ minHeight: 200 }} /> });
-import { UploadOutlined, EditOutlined, PhoneOutlined, MailOutlined, PlusOutlined, FileTextOutlined, WarningOutlined } from '@ant-design/icons';
+import { UploadOutlined, EditOutlined, PhoneOutlined, MailOutlined, PlusOutlined, FileTextOutlined, WarningOutlined, CalendarOutlined, EnvironmentOutlined, TrophyOutlined, BookOutlined } from '@ant-design/icons';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { API_BASE_URL } from '../config';
 
 const { Title, Text } = Typography;
 
+// Separate ViewLayout component to prevent re-creation on every render
+// Memoized to prevent re-renders when props haven't changed
+const ViewLayout = memo(function ViewLayout({ user, isOwner, fullName, onUploadAvatar, onUploadResume, setEditing }) {
+  const tabItems = [
+    {
+      key: 'summary',
+      label: 'Profile summary',
+      children: (
+        <div style={{ padding: '16px 0' }}>
+          {/* Job Preferences */}
+          <div>
+            <Title level={5} style={{ margin: 0, marginBottom: 16 }}>Job Preferences</Title>
+
+            {user?.internProfile?.preferences?.jobTypes && user.internProfile.preferences.jobTypes.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>Preferred Job Types</Text>
+                <Space wrap size="small">
+                  {user.internProfile.preferences.jobTypes.map((type, idx) => (
+                    <Tag key={idx} color="blue">{type}</Tag>
+                  ))}
+                </Space>
+              </div>
+            )}
+
+            {user?.internProfile?.preferences?.locations && user.internProfile.preferences.locations.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>Preferred Locations</Text>
+                <Space wrap size="small">
+                  {user.internProfile.preferences.locations.map((loc, idx) => (
+                    <Tag key={idx} color="green"><EnvironmentOutlined /> {loc}</Tag>
+                  ))}
+                </Space>
+              </div>
+            )}
+
+            {user?.internProfile?.preferences?.industries && user.internProfile.preferences.industries.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>Preferred Industries</Text>
+                <Space wrap size="small">
+                  {user.internProfile.preferences.industries.map((ind, idx) => (
+                    <Tag key={idx} color="purple">{ind}</Tag>
+                  ))}
+                </Space>
+              </div>
+            )}
+
+            {(!user?.internProfile?.preferences ||
+              (!user.internProfile.preferences.jobTypes?.length &&
+               !user.internProfile.preferences.locations?.length &&
+               !user.internProfile.preferences.industries?.length)) && (
+              <Text type="secondary">No job preferences set</Text>
+            )}
+          </div>
+
+          {/* Skills and Languages */}
+          <div style={{ marginTop: 32 }}>
+            <Title level={5} style={{ margin: 0, marginBottom: 16 }}>Skills & Languages</Title>
+
+            {user?.internProfile?.skills && user.internProfile.skills.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>Skills</Text>
+                <Space wrap size="small">
+                  {user.internProfile.skills.map((skill, idx) => (
+                    <Tag key={idx} color="blue" style={{ padding: '4px 12px', borderRadius: 16 }}>
+                      {skill}
+                    </Tag>
+                  ))}
+                </Space>
+              </div>
+            )}
+
+            {user?.internProfile?.languages && user.internProfile.languages.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>Languages</Text>
+                <Space wrap size="small">
+                  {user.internProfile.languages.map((lang, idx) => (
+                    <Tag key={idx} color="green" style={{ padding: '4px 12px', borderRadius: 16 }}>
+                      {lang}
+                    </Tag>
+                  ))}
+                </Space>
+              </div>
+            )}
+
+            {(!user?.internProfile?.skills?.length && !user?.internProfile?.languages?.length) && (
+              <Text type="secondary">No skills or languages added</Text>
+            )}
+          </div>
+
+          {/* Interests */}
+          <div style={{ marginTop: 32 }}>
+            <Title level={5} style={{ margin: 0, marginBottom: 16 }}>Interests</Title>
+            {user?.internProfile?.interests && user.internProfile.interests.length > 0 ? (
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                {user.internProfile.interests.map((interest, idx) => (
+                  <div key={idx} style={{ paddingLeft: 12, borderLeft: '2px solid #d9d9d9' }}>
+                    <Text strong style={{ display: 'block' }}>{interest.title}</Text>
+                    {interest.description && (
+                      <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                        {interest.description}
+                      </Text>
+                    )}
+                    {interest.socialLinks && interest.socialLinks.length > 0 && (
+                      <div style={{ marginTop: 4 }}>
+                        {interest.socialLinks.map((link, linkIdx) => (
+                          <a key={linkIdx} href={link} target="_blank" rel="noopener noreferrer" style={{ marginRight: 8 }}>
+                            <Button type="link" size="small">Link {linkIdx + 1}</Button>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </Space>
+            ) : (
+              <Text type="secondary">No interests added</Text>
+            )}
+          </div>
+
+          {/* Resume */}
+          <div style={{ marginTop: 32 }}>
+            <Title level={5} style={{ margin: 0, marginBottom: 16 }}>Resume</Title>
+            {user?.internProfile?.resume ? (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <FileTextOutlined />
+                  <Text strong>Resume.pdf</Text>
+                </div>
+                <Text type="secondary" style={{ fontSize: 12 }}>(*doc, docx, rtf, pdf Max file size is 6MB)</Text>
+                {isOwner && (
+                  <div style={{ marginTop: 8 }}>
+                    <Upload
+                      beforeUpload={onUploadResume}
+                      maxCount={1}
+                      accept=".pdf,.doc,.docx,.rtf"
+                      showUploadList={false}
+                    >
+                      <Button type="link" style={{ padding: 0 }}>Replace resume</Button>
+                    </Upload>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>No resume uploaded</Text>
+                {isOwner && (
+                  <Upload
+                    beforeUpload={onUploadResume}
+                    maxCount={1}
+                    accept=".pdf,.doc,.docx,.rtf"
+                    showUploadList={false}
+                  >
+                    <Button type="primary" icon={<UploadOutlined />}>Upload resume</Button>
+                  </Upload>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'education',
+      label: 'Education',
+      children: (
+        <div style={{ padding: '16px 0' }}>
+          <Title level={4} style={{ margin: 0, marginBottom: 16 }}>Education</Title>
+          {user?.internProfile?.educations && user.internProfile.educations.length > 0 ? (
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+              {user.internProfile.educations.map((edu, idx) => (
+                <Card key={idx} size="small" style={{ borderLeft: '3px solid #1890ff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <Text strong style={{ fontSize: 16, display: 'block' }}>
+                        {edu.qualification || edu.level}
+                      </Text>
+                      {edu.institutionName && (
+                        <Text style={{ color: '#1890ff', display: 'block', marginTop: 4 }}>
+                          {edu.institutionName}
+                        </Text>
+                      )}
+                      {edu.fieldOfStudy && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                          {edu.fieldOfStudy}
+                        </Text>
+                      )}
+                      {(edu.startDate || edu.endDate) && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                          <CalendarOutlined /> {edu.startDate ? new Date(edu.startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : ''}
+                          {edu.endDate ? ` - ${new Date(edu.endDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}` : ' - Present'}
+                        </Text>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </Space>
+          ) : (
+            <Text type="secondary">No education records added</Text>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'experience',
+      label: 'Work Experience',
+      children: (
+        <div style={{ padding: '16px 0' }}>
+          <Title level={4} style={{ margin: 0, marginBottom: 16 }}>Work Experience</Title>
+          {user?.internProfile?.workExperiences && user.internProfile.workExperiences.length > 0 ? (
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+              {user.internProfile.workExperiences.map((work, idx) => (
+                <Card key={idx} size="small" style={{ borderLeft: '3px solid #52c41a' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <Text strong style={{ fontSize: 16, display: 'block' }}>
+                        {work.jobTitle}
+                      </Text>
+                      {work.companyName && (
+                        <Text style={{ display: 'block', marginTop: 4 }}>
+                          {work.companyName}
+                        </Text>
+                      )}
+                      {work.employmentType && (
+                        <Tag color="blue" style={{ marginTop: 4 }}>{work.employmentType}</Tag>
+                      )}
+                      {work.industry && (
+                        <Tag color="purple" style={{ marginTop: 4 }}>{work.industry}</Tag>
+                      )}
+                      {(work.startDate || work.endDate) && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                          <CalendarOutlined /> {work.startDate ? new Date(work.startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : ''}
+                          {work.endDate ? ` - ${new Date(work.endDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}` : ' - Present'}
+                        </Text>
+                      )}
+                      {work.jobDescription && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                          {work.jobDescription}
+                        </Text>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </Space>
+          ) : (
+            <Text type="secondary">No work experience added</Text>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'certifications',
+      label: 'Certifications',
+      children: (
+        <div style={{ padding: '16px 0' }}>
+          <Title level={4} style={{ margin: 0, marginBottom: 16 }}>Certifications</Title>
+          {user?.internProfile?.certifications && user.internProfile.certifications.length > 0 ? (
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+              {user.internProfile.certifications.map((cert, idx) => (
+                <Card key={idx} size="small" style={{ borderLeft: '3px solid #faad14' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <Text strong style={{ fontSize: 16, display: 'block' }}>
+                        <TrophyOutlined /> {cert.title}
+                      </Text>
+                      {cert.issuer && (
+                        <Text style={{ display: 'block', marginTop: 4 }}>
+                          Issued by: {cert.issuer}
+                        </Text>
+                      )}
+                      {cert.acquiredDate && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                          <CalendarOutlined /> {new Date(cert.acquiredDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                        </Text>
+                      )}
+                      {cert.description && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                          {cert.description}
+                        </Text>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </Space>
+          ) : (
+            <Text type="secondary">No certifications added</Text>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'events',
+      label: 'Event Experience',
+      children: (
+        <div style={{ padding: '16px 0' }}>
+          <Title level={4} style={{ margin: 0, marginBottom: 16 }}>Event Experience</Title>
+          {user?.internProfile?.eventExperiences && user.internProfile.eventExperiences.length > 0 ? (
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+              {user.internProfile.eventExperiences.map((event, idx) => (
+                <Card key={idx} size="small" style={{ borderLeft: '3px solid #eb2f96' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <Text strong style={{ fontSize: 16, display: 'block' }}>
+                        {event.eventName}
+                      </Text>
+                      {event.position && (
+                        <Text style={{ display: 'block', marginTop: 4 }}>
+                          Position: {event.position}
+                        </Text>
+                      )}
+                      {event.location && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                          <EnvironmentOutlined /> {event.location}
+                        </Text>
+                      )}
+                      {(event.startDate || event.endDate) && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                          <CalendarOutlined /> {event.startDate ? new Date(event.startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : ''}
+                          {event.endDate ? ` - ${new Date(event.endDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}` : ''}
+                        </Text>
+                      )}
+                      {event.description && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                          {event.description}
+                        </Text>
+                      )}
+                      {event.socialLinks && event.socialLinks.length > 0 && (
+                        <div style={{ marginTop: 8 }}>
+                          {event.socialLinks.map((link, linkIdx) => (
+                            <a key={linkIdx} href={link} target="_blank" rel="noopener noreferrer" style={{ marginRight: 8 }}>
+                              <Button type="link" size="small">Link {linkIdx + 1}</Button>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </Space>
+          ) : (
+            <Text type="secondary">No event experience added</Text>
+          )}
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <Row gutter={24}>
+      {/* Left Sidebar */}
+      <Col xs={24} lg={8}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          {/* Profile Header */}
+          <Card style={{ textAlign: 'center', position: 'relative', boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)" }}>
+            {!isOwner && (
+              <div style={{ position: 'absolute', top: 16, right: 16 }}>
+                <Tag color="purple" style={{ borderRadius: 12 }}>Recruiter&apos;s view</Tag>
+              </div>
+            )}
+            <div style={{ position: 'relative', display: 'inline-block', marginBottom: 16 }}>
+              <Avatar size={80} src={user?.profile?.avatar}>
+                {fullName(user).charAt(0)}
+              </Avatar>
+              {isOwner && (
+                <Upload
+                  beforeUpload={onUploadAvatar}
+                  maxCount={1}
+                  accept="image/*"
+                  showUploadList={false}
+                >
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<EditOutlined />}
+                    style={{
+                      position: 'absolute',
+                      bottom: -5,
+                      right: -5,
+                      borderRadius: '50%',
+                      width: 28,
+                      height: 28,
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  />
+                </Upload>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+              <Title level={4} style={{ margin: 0 }}>{fullName(user)}</Title>
+              {isOwner && <Button type="text" icon={<EditOutlined />} size="small" onClick={() => setEditing(true)} />}
+            </div>
+            {user?.internProfile?.university && (
+              <Text style={{ fontSize: 16, fontWeight: 500, display: 'block', marginBottom: 4 }}>
+                {user.internProfile.university}
+              </Text>
+            )}
+            {user?.internProfile?.major && (
+              <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+                {user.internProfile.major}
+              </Text>
+            )}
+            {(user?.internProfile?.gpa || user?.internProfile?.graduationYear || user?.profile?.icPassportNumber) && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'left', marginBottom: 16 }}>
+                {user?.internProfile?.gpa && (
+                  <div>
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>GPA</Text>
+                    <Text strong>{user.internProfile.gpa}</Text>
+                  </div>
+                )}
+                {user?.internProfile?.graduationYear && (
+                  <div>
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Graduation</Text>
+                    <Text strong>{user.internProfile.graduationYear}</Text>
+                  </div>
+                )}
+                {user?.profile?.icPassportNumber && (
+                  <div>
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>IC/Passport</Text>
+                    <Text strong>{user.profile.icPassportNumber}</Text>
+                  </div>
+                )}
+              </div>
+            )}
+            {user?.updatedAt && (
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>
+                Profile last updated on: {new Date(user.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </Text>
+            )}
+            <div style={{ textAlign: 'left' }}>
+              {user?.profile?.phone && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <PhoneOutlined />
+                  <Text>{user.profile.phone}</Text>
+                </div>
+              )}
+              {user?.email && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <MailOutlined />
+                  <Text>{user.email}</Text>
+                </div>
+              )}
+              {isOwner && (
+                <Button
+                  type="primary"
+                  block
+                  icon={<EditOutlined />}
+                  onClick={() => setEditing(true)}
+                  style={{ marginTop: 8 }}
+                >
+                  Edit Profile
+                </Button>
+              )}
+            </div>
+          </Card>
+
+          {/* Profile Score */}
+          <Card style={{boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)"}}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ position: 'relative', display: 'inline-block', marginBottom: 16 }}>
+                <Progress
+                  type="circle"
+                  percent={76}
+                  size={80}
+                  strokeColor="#ff7a00"
+                  format={() => <span style={{ fontSize: 18, fontWeight: 'bold' }}>76%</span>}
+                />
+              </div>
+              <Title level={5} style={{ margin: 0, marginBottom: 8 }}>Profile score</Title>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Recruiters seek 100% profiles - complete yours to stand out!
+              </Text>
+            </div>
+          </Card>
+
+          {/* Pending Actions */}
+          <Card title="Pending action" style={{boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)"}}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <WarningOutlined style={{ color: '#faad14' }} />
+                  <Text>Update Resume</Text>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Tag color="green" size="small">+14%</Tag>
+                  <Button type="text" size="small">›</Button>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <WarningOutlined style={{ color: '#faad14' }} />
+                  <Text>Add Industry</Text>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Tag color="green" size="small">+10%</Tag>
+                  <Button type="text" size="small">›</Button>
+                </div>
+              </div>
+            </Space>
+          </Card>
+        </Space>
+      </Col>
+
+      {/* Right Content */}
+      <Col xs={24} lg={16}>
+        <Card style={{ minHeight: 600, boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)" }}>
+          <Tabs
+            key="profile-tabs"
+            defaultActiveKey="summary"
+            items={tabItems}
+            tabBarStyle={{ marginBottom: 0 }}
+          />
+        </Card>
+      </Col>
+    </Row>
+  );
+});
+
 export default function ProfilePageInner({ targetIdProp = null }) {
   const searchParams = useSearchParams();
-  const targetId = targetIdProp || searchParams?.get('id') || null; // if null, we'll use 'me'
+  // Memoize targetId to prevent it from changing on every render
+  const targetId = useMemo(() => {
+    const id = targetIdProp || searchParams?.get('id') || null;
+    return id;
+  }, [targetIdProp, searchParams]);
 
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null); // loaded target user (self or others)
@@ -23,12 +550,61 @@ export default function ProfilePageInner({ targetIdProp = null }) {
   const [form] = Form.useForm();
   const [updating, setUpdating] = useState(false);
 
-  const fullName = (u) => {
+  const fullName = useCallback((u) => {
     const p = u?.profile || {};
     return [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || 'Unnamed User';
-  };
+  }, []);
 
-  const load = useCallback(async () => {
+  // Load profile data - runs only when targetId changes
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('jf_token');
+        if (!token) {
+          message.info('Please sign in');
+          window.location.href = '/login';
+          return;
+        }
+        // Determine current user ID quickly by asking /users/me (password stripped)
+        const meRes = await fetch(`${API_BASE_URL}/users/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!meRes.ok) throw new Error('Failed to load profile');
+        const me = await meRes.json();
+        setMeId(me?._id);
+
+        // If a targetId is provided, load that; otherwise load self
+        const idToLoad = targetId || 'me';
+        const res = await fetch(`${API_BASE_URL}/users/${idToLoad}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) {
+          if (res.status === 404) { message.warning('Profile not found'); } else { throw new Error('Failed to load profile'); }
+          setUser(null);
+          return;
+        }
+        const u = await res.json();
+        setUser(u);
+
+        const owner = !targetId || (me?._id && String(me._id) === String(u?._id));
+        setIsOwner(!!owner);
+        setEditing(false); // default to view mode for everyone
+
+        form.setFieldsValue({
+          firstName: u?.profile?.firstName,
+          middleName: u?.profile?.middleName,
+          lastName: u?.profile?.lastName,
+          phone: u?.profile?.phone,
+          hidePhoneForCompanies: !!u?.profile?.hidePhoneForCompanies,
+          privacySetting: u?.privacySetting || 'full',
+        });
+      } catch (e) {
+        message.error(e.message || 'Failed to load');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [targetId]); // Only re-run when targetId changes
+
+  // Separate load function for manual reloading (after uploads, etc.)
+  async function load() {
     try {
       setLoading(true);
       const token = localStorage.getItem('jf_token');
@@ -37,13 +613,11 @@ export default function ProfilePageInner({ targetIdProp = null }) {
         window.location.href = '/login';
         return;
       }
-      // Determine current user ID quickly by asking /users/me (password stripped)
       const meRes = await fetch(`${API_BASE_URL}/users/me`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!meRes.ok) throw new Error('Failed to load profile');
       const me = await meRes.json();
       setMeId(me?._id);
 
-      // If a targetId is provided, load that; otherwise load self
       const idToLoad = targetId || 'me';
       const res = await fetch(`${API_BASE_URL}/users/${idToLoad}`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) {
@@ -56,7 +630,7 @@ export default function ProfilePageInner({ targetIdProp = null }) {
 
       const owner = !targetId || (me?._id && String(me._id) === String(u?._id));
       setIsOwner(!!owner);
-      setEditing(false); // default to view mode for everyone
+      setEditing(false);
 
       form.setFieldsValue({
         firstName: u?.profile?.firstName,
@@ -71,11 +645,9 @@ export default function ProfilePageInner({ targetIdProp = null }) {
     } finally {
       setLoading(false);
     }
-  }, [targetId, form]);
+  }
 
-  useEffect(() => { load(); }, [load]);
-
-  async function onUploadAvatar(file) {
+  const onUploadAvatar = useCallback(async (file) => {
     if (!isOwner) { message.info('You can only change your own avatar'); return false; }
     try {
       const token = localStorage.getItem('jf_token');
@@ -101,9 +673,9 @@ export default function ProfilePageInner({ targetIdProp = null }) {
       message.error(e.message || 'Avatar upload failed');
     }
     return false; // prevent antd from uploading automatically
-  }
+  }, [isOwner, targetId]);
 
-  async function onUploadResume(file) {
+  const onUploadResume = useCallback(async (file) => {
     if (!isOwner) { message.info('You can only change your own resume'); return false; }
     try {
       const token = localStorage.getItem('jf_token');
@@ -118,8 +690,7 @@ export default function ProfilePageInner({ targetIdProp = null }) {
         const res = await fetch(`${API_BASE_URL}/users/me`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
-            'profile.resume': url,
-            'profile.resumeName': file.name
+            'internProfile.resume': url
           })
         });
         if (!res.ok) throw new Error('Failed to save resume');
@@ -132,9 +703,9 @@ export default function ProfilePageInner({ targetIdProp = null }) {
       message.error(e.message || 'Resume upload failed');
     }
     return false; // prevent antd from uploading automatically
-  }
+  }, [isOwner, targetId]);
 
-  async function onFinish(values) {
+  const onFinish = useCallback(async (values) => {
     if (!isOwner) { message.info('You can only update your own profile'); return; }
     try {
       setUpdating(true);
@@ -163,342 +734,7 @@ export default function ProfilePageInner({ targetIdProp = null }) {
     } finally {
       setUpdating(false);
     }
-  }
-
-  // View layout sections
-  const ViewLayout = () => {
-    const tabItems = [
-      {
-        key: 'summary',
-        label: 'Profile summary',
-        children: (
-          <div style={{ padding: '16px 0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Title level={4} style={{ margin: 0 }}>Profile summary</Title>
-              {isOwner && <Button type="text" icon={<EditOutlined />} />}
-            </div>
-            <Text style={{ fontSize: 16, lineHeight: 1.6 }}>
-              {user?.profile?.bio || 'Experienced Professional having 4+ years of work experience currently living in Kuala Lumpur'}
-            </Text>
-
-            <div style={{ marginTop: 24 }}>
-              <Title level={5}>Resume</Title>
-              {user?.profile?.resume ? (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <FileTextOutlined />
-                    <Text strong>{user.profile.resumeName || 'Latest resume.pdf'}</Text>
-                    {isOwner && <Button type="text" icon={<EditOutlined />} size="small" />}
-                  </div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>(*doc, docx, rtf, pdf Max file size is 6MB)</Text>
-                  {isOwner && (
-                    <div style={{ marginTop: 8 }}>
-                      <Upload
-                        beforeUpload={onUploadResume}
-                        maxCount={1}
-                        accept=".pdf,.doc,.docx,.rtf"
-                        showUploadList={false}
-                      >
-                        <Button type="link" style={{ padding: 0 }}>Replace resume</Button>
-                      </Upload>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>No resume uploaded</Text>
-                  {isOwner && (
-                    <Upload
-                      beforeUpload={onUploadResume}
-                      maxCount={1}
-                      accept=".pdf,.doc,.docx,.rtf"
-                      showUploadList={false}
-                    >
-                      <Button type="primary" icon={<UploadOutlined />}>Upload resume</Button>
-                    </Upload>
-                  )}
-                </div>
-              )}</div>
-          </div>
-        )
-      },
-      {
-        key: 'experience',
-        label: 'Work experience',
-        children: (
-          <div style={{ padding: '16px 0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Title level={4} style={{ margin: 0 }}>Work experience</Title>
-              {isOwner && <Button type="text" icon={<PlusOutlined />} />}
-            </div>
-            {(user?.internProfile?.workExperiences || []).length === 0 ? (
-              <Text type="secondary">No work experience added</Text>
-            ) : (
-              <Space direction="vertical" style={{ width: '100%' }} size="large">
-                {(user?.internProfile?.workExperiences || []).map((w, idx) => (
-                  <div key={idx} style={{ borderLeft: '3px solid #1890ff', paddingLeft: 16, position: 'relative' }}>
-                    <div style={{ position: 'absolute', left: -6, top: 0, width: 12, height: 12, borderRadius: '50%', backgroundColor: '#1890ff' }}></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1 }}>
-                        <Text strong style={{ fontSize: 16 }}>{w?.jobTitle || 'STEM COACH'}</Text>
-                        <div style={{ marginTop: 4 }}>
-                          <Text style={{ fontSize: 14 }}>{w?.companyName || 'Realfun Academy Sdn Bhd'}</Text>
-                        </div>
-                        <div style={{ marginTop: 4 }}>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {w?.startDate ? new Date(w.startDate).toLocaleDateString() : 'Apr 2022'} - {w?.endDate ? new Date(w.endDate).toLocaleDateString() : 'Nov 2022'} (7 m) • Salary: MYR 250 (Monthly)
-                          </Text>
-                        </div>
-                      </div>
-                      {isOwner && <Button type="text" icon={<EditOutlined />} size="small" />}
-                    </div>
-                  </div>
-                ))}
-              </Space>
-            )}
-          </div>
-        )
-      },
-      {
-        key: 'skills',
-        label: 'Skills',
-        children: (
-          <div style={{ padding: '16px 0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Title level={4} style={{ margin: 0 }}>Skills</Title>
-              {isOwner && <Button type="text" icon={<EditOutlined />} />}
-            </div>
-            <Space wrap size="small">
-              {['Css', 'Java Script', 'Html', 'Php', 'Python', 'css', 'python', 'php', 'html', 'nodejs'].map((skill, idx) => (
-                <Tag key={idx} style={{ padding: '4px 12px', borderRadius: 16 }}>{skill}</Tag>
-              ))}
-              <Button type="dashed" size="small" style={{ borderRadius: 16 }}>+ 1 more</Button>
-            </Space>
-          </div>
-        )
-      },
-      {
-        key: 'education',
-        label: 'Education',
-        children: (
-          <div style={{ padding: '16px 0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Title level={4} style={{ margin: 0 }}>Education</Title>
-              {isOwner && <Button type="text" icon={<PlusOutlined />} />}
-            </div>
-            {(user?.internProfile?.educations || []).length === 0 ? (
-              <div>
-                <div style={{ marginBottom: 16 }}>
-                  <Text strong style={{ fontSize: 16 }}>Bachelor of Computer Science (BCS) • Software Engineering</Text>
-                  {isOwner && <Button type="text" icon={<EditOutlined />} size="small" style={{ marginLeft: 8 }} />}
-                </div>
-                <Text style={{ color: '#1890ff' }}>Management and Science University (MSU)</Text>
-                <div style={{ marginTop: 4 }}>
-                  <Text type="secondary">2026 • Part time</Text>
-                </div>
-              </div>
-            ) : (
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {(user?.internProfile?.educations || []).map((e, idx) => (
-                  <div key={idx}>
-                    <Text strong>{e?.qualification || e?.level}</Text>
-                    <div><Text>{e?.institutionName}</Text></div>
-                    <Text type="secondary">
-                      {e?.startDate ? new Date(e.startDate).toLocaleDateString() : ''}
-                      {e?.endDate ? ` - ${new Date(e.endDate).toLocaleDateString()}` : ''}
-                    </Text>
-                  </div>
-                ))}
-              </Space>
-            )}
-          </div>
-        )
-      },
-      {
-        key: 'preferences',
-        label: 'Job preferences',
-        children: (
-          <div style={{ padding: '16px 0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Title level={4} style={{ margin: 0 }}>Job preferences</Title>
-              {isOwner && <Button type="text" icon={<EditOutlined />} />}
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>Preferred Role</Text>
-              <Text>Software Developer, Database Architect</Text>
-            </div>
-            <div>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>Preferred Location</Text>
-              <Text>Malaysia, Kuala Lumpur</Text>
-            </div>
-          </div>
-        )
-      },
-      {
-        key: 'personal',
-        label: 'Personal details',
-        children: (
-          <div style={{ padding: '16px 0' }}>
-            <Title level={4}>Personal details</Title>
-            <Text type="secondary">Personal information for profile completion</Text>
-          </div>
-        )
-      },
-      {
-        key: 'internship',
-        label: 'Internship',
-        children: (
-          <div style={{ padding: '16px 0' }}>
-            <InternshipEditor />
-          </div>
-        )
-      }
-    ];
-
-    return (
-      <Row gutter={24}>
-        {/* Left Sidebar */}
-        <Col xs={24} lg={8}>
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            {/* Profile Header */}
-            <Card style={{ textAlign: 'center', position: 'relative' }}>
-              {!isOwner && (
-                <div style={{ position: 'absolute', top: 16, right: 16 }}>
-                  <Tag color="purple" style={{ borderRadius: 12 }}>👁️ Recruiter&apos;s view</Tag>
-                </div>
-              )}
-              <div style={{ position: 'relative', display: 'inline-block', marginBottom: 16 }}>
-                <Avatar size={80} src={user?.profile?.avatar}>
-                  {fullName(user).charAt(0)}
-                </Avatar>
-                {isOwner && (
-                  <Upload
-                    beforeUpload={onUploadAvatar}
-                    maxCount={1}
-                    accept="image/*"
-                    showUploadList={false}
-                  >
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<EditOutlined />}
-                      style={{
-                        position: 'absolute',
-                        bottom: -5,
-                        right: -5,
-                        borderRadius: '50%',
-                        width: 28,
-                        height: 28,
-                        padding: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    />
-                  </Upload>
-                )}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
-                <Title level={4} style={{ margin: 0 }}>{fullName(user)}</Title>
-                {isOwner && <Button type="text" icon={<EditOutlined />} size="small" onClick={() => setEditing(true)} />}
-              </div>
-              <Text style={{ fontSize: 16, fontWeight: 500, display: 'block', marginBottom: 4 }}>
-                {user?.internProfile?.jobTitle || 'Software Engineer'}
-              </Text>
-              <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-                {user?.internProfile?.company || 'Cognizant'}
-              </Text>
-              <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'left', marginBottom: 16 }}>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Total exp</Text>
-                  <Text strong>4 yrs 5 mos</Text>
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Salary</Text>
-                  <Text strong>MYR 7.3k</Text>
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>(Monthly)</Text>
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Notice period</Text>
-                  <Text strong>30 days</Text>
-                </div>
-              </div>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>
-                📅 Profile last updated on: 15 Sept, 2025
-              </Text>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <PhoneOutlined />
-                  <Text>{user?.profile?.phone || '+60 138373362'}</Text>
-                  {isOwner && <Button type="text" icon={<EditOutlined />} size="small" onClick={() => setEditing(true)} />}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <MailOutlined />
-                  <Text>{user?.email || '53845tianbelulok@gmail.com'}</Text>
-                </div>
-              </div>
-            </Card>
-
-            {/* Profile Score */}
-            <Card>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ position: 'relative', display: 'inline-block', marginBottom: 16 }}>
-                  <Progress
-                    type="circle"
-                    percent={76}
-                    size={80}
-                    strokeColor="#ff7a00"
-                    format={() => <span style={{ fontSize: 18, fontWeight: 'bold' }}>76%</span>}
-                  />
-                </div>
-                <Title level={5} style={{ margin: 0, marginBottom: 8 }}>Profile score</Title>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Recruiters seek 100% profiles - complete yours to stand out!
-                </Text>
-              </div>
-            </Card>
-
-            {/* Pending Actions */}
-            <Card title="Pending action">
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <WarningOutlined style={{ color: '#faad14' }} />
-                    <Text>Update Resume</Text>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Tag color="green" size="small">+14%</Tag>
-                    <Button type="text" size="small">›</Button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <WarningOutlined style={{ color: '#faad14' }} />
-                    <Text>Add Industry</Text>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Tag color="green" size="small">+10%</Tag>
-                    <Button type="text" size="small">›</Button>
-                  </div>
-                </div>
-              </Space>
-            </Card>
-          </Space>
-        </Col>
-
-        {/* Right Content */}
-        <Col xs={24} lg={16}>
-          <Card style={{ minHeight: 600 }}>
-            <Tabs
-              defaultActiveKey="summary"
-              items={tabItems}
-              tabBarStyle={{ marginBottom: 0 }}
-            />
-          </Card>
-        </Col>
-      </Row>
-    );
-  };
+  }, [isOwner, targetId]);
 
   return (
     <Layout>
@@ -508,7 +744,14 @@ export default function ProfilePageInner({ targetIdProp = null }) {
           <Card loading={loading} style={{ minHeight: 400 }} />
         ) : user ? (
           <>
-            {!editing && <ViewLayout />}
+            {!editing && <ViewLayout
+              user={user}
+              isOwner={isOwner}
+              fullName={fullName}
+              onUploadAvatar={onUploadAvatar}
+              onUploadResume={onUploadResume}
+              setEditing={setEditing}
+            />}
             {editing && (
               <Row gutter={24}>
                 <Col xs={24} lg={8}>

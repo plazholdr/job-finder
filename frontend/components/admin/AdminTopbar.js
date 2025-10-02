@@ -25,12 +25,15 @@ export default function AdminTopbar() {
       const njson = await nr.json();
       const items = Array.isArray(njson) ? njson : (njson?.data || []);
       setNotifs(items);
-    } catch (_) {}
+    } catch (_) {
+      setNotifs([]);
+    }
   }
 
   const markAllAsRead = async (ids) => {
     try {
       const jwt = localStorage.getItem('jf_token');
+      if (!Array.isArray(notifs)) return;
       const targets = Array.isArray(ids) && ids.length
         ? notifs.filter(n => ids.includes(n._id))
         : notifs.filter(n => !n.read && n._id);
@@ -73,7 +76,7 @@ export default function AdminTopbar() {
   };
 
   // Admin-only notifications filter
-  const adminNotifs = notifs.filter(n => {
+  const adminNotifs = Array.isArray(notifs) ? notifs.filter(n => {
     const t = (n.title || '').toLowerCase();
     const ty = (n.type || '').toLowerCase();
     const ch = (n.channel || '').toLowerCase();
@@ -82,8 +85,8 @@ export default function AdminTopbar() {
     if (aud === 'admin' || ch === 'admin' || ty === 'admin') return true;
     const hints = ['approval','renewal','monitoring','company','job','pending'];
     return hints.some(h => t.includes(h) || ty.includes(h));
-  });
-  const unreadCount = adminNotifs.filter(n => !n.read).length;
+  }) : [];
+  const unreadCount = Array.isArray(adminNotifs) ? adminNotifs.filter(n => !n.read).length : 0;
 
   return (
     <Layout.Header style={{ background: token.colorBgContainer, borderBottom: `1px solid ${token.colorBorder}`, padding: '0 16px' }}>

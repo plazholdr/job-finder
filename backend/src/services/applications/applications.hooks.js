@@ -161,11 +161,14 @@ export default (app) => {
     const defaultValidityDays = Number(process.env.APPLICATION_VALIDITY_DAYS || 14);
     const validity = ctx.data.validityUntil ? new Date(ctx.data.validityUntil) : new Date(now.getTime() + defaultValidityDays * 86400000);
 
+    console.log('📝 Backend: Received candidateStatement:', ctx.data.candidateStatement);
+    console.log('📝 Backend: Full ctx.data:', JSON.stringify(ctx.data, null, 2));
+
     ctx.data = {
       userId: user._id,
       companyId: job.companyId,
       jobListingId: job._id,
-      candidateStatement: ctx.data.candidateStatement,
+      candidateStatement: ctx.data.candidateStatement || '',
       form: ctx.data.form || {},
       attachments: ctx.data.attachments || [],
       pdfKey: ctx.data.pdfKey,
@@ -174,6 +177,8 @@ export default (app) => {
       submittedAt: now,
       history: [{ at: now, actorUserId: user._id, actorRole: 'student', action: 'apply', data: {} }]
     };
+
+    console.log('📝 Backend: Prepared ctx.data for save:', JSON.stringify(ctx.data, null, 2));
   }
 
   async function applyTransition(ctx) {

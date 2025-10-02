@@ -17,7 +17,7 @@ export default function Navbar() {
   const [role, setRole] = useState('');
   const [notifs, setNotifs] = useState([]);
   const [notifTab, setNotifTab] = useState('direct');
-  const unreadCount = notifs.filter(n => !n.read).length;
+  const unreadCount = Array.isArray(notifs) ? notifs.filter(n => !n.read).length : 0;
 
 
   const NotificationsDropdownContent = dynamic(() => import('./NotificationsDropdownContent'), { ssr: false, loading: () => <div style={{ padding: 12 }}>Loading...</div> });
@@ -30,12 +30,15 @@ export default function Navbar() {
       const njson = await nr.json();
       const items = Array.isArray(njson) ? njson : (njson?.data || []);
       setNotifs(items);
-    } catch (_) {}
+    } catch (_) {
+      setNotifs([]);
+    }
   };
 
   const markAllAsRead = async (ids) => {
     try {
       const token = localStorage.getItem('jf_token');
+      if (!Array.isArray(notifs)) return;
       const targets = Array.isArray(ids) && ids.length
         ? notifs.filter(n => ids.includes(n._id))
         : notifs.filter(n => !n.read && n._id);

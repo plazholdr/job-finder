@@ -10,8 +10,9 @@ export default function NotificationsDropdownContent({
   onItemClick,
   tokenColors,
 }) {
-  const directNotifs = notifs.filter(n => (n.channel || n.type || 'direct') !== 'watching');
-  const watchingNotifs = notifs.filter(n => (n.channel || n.type) === 'watching');
+  const safeNotifs = Array.isArray(notifs) ? notifs : [];
+  const directNotifs = safeNotifs.filter(n => (n.channel || n.type || 'direct') !== 'watching');
+  const watchingNotifs = safeNotifs.filter(n => (n.channel || n.type) === 'watching');
   const unreadTag = (n) => (!n.read ? <Tag color="blue">Unread</Tag> : null);
   const statusTag = (n) => {
     const s = (n?.status || n?.state || '').toString().toLowerCase();

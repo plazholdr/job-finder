@@ -113,7 +113,7 @@ export default function JobDetailClient({ job }) {
             </Card>
 
             {/* Main Content Card - directly below header */}
-            <Card style={{ border: '0.5px solid lightgray', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}>
+            <Card style={{ border: '0.5px solid lightgray' }}>
               {/* Job Overview Section */}
               <div style={{ marginBottom: 40 }}>
                 <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, display: 'inline-block' }}>
@@ -236,8 +236,8 @@ export default function JobDetailClient({ job }) {
 
             {/* Job Information Section */}
             <div style={{ marginBottom: 40 }}>
-              <Title level={3} style={{ color: '#1890ff', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid #1890ff', paddingBottom: 8, display: 'inline-block' }}>
-                Job Information
+              <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, display: 'inline-block' }}>
+                More Info
               </Title>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                 <div>
