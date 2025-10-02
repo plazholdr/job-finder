@@ -185,13 +185,13 @@ export default function CompanyProfilePage() {
         key: "overview",
         label: "Company overview",
         children: (
-          <div style={{ padding: "16px 0" }}>
+          <div style={{ padding: "24px" }}>
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: 16,
+                marginBottom: 24,
               }}
             >
               <Title level={4} style={{ margin: 0 }}>
@@ -199,7 +199,7 @@ export default function CompanyProfilePage() {
               </Title>
               <Button type="text" icon={<EditOutlined />} onClick={() => setEditing(true)} />
             </div>
-            <Text style={{ fontSize: 16, lineHeight: 1.6 }}>
+            <Text style={{ fontSize: 16, lineHeight: 1.8, color: '#595959' }}>
               {company?.description || "No description provided yet."}
             </Text>
           </div>
@@ -208,19 +208,27 @@ export default function CompanyProfilePage() {
     ];
 
     return (
-      <Row gutter={24}>
+      <Row gutter={[24, 24]}>
         {/* Left Sidebar */}
         <Col xs={24} lg={8}>
-          <Space direction="vertical" size="large" style={{ width: "100%" }}>
-            <Card style={{ textAlign: "center", position: "relative" }}>
+          <Space direction="vertical" size={16} style={{ width: "100%" }}>
+            {/* Profile Card */}
+            <Card
+              style={{
+                textAlign: "center",
+                position: "relative",
+                borderRadius: 8,
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
+              }}
+            >
               <div style={{ position: "absolute", top: 16, right: 16 }}>
-                <Tag color={statusColor} style={{ borderRadius: 12 }}>
+                <Tag color={statusColor} style={{ borderRadius: 12, padding: '2px 12px' }}>
                   {statusText}
                 </Tag>
               </div>
 
-              <div style={{ position: "relative", display: "inline-block", marginBottom: 16 }}>
-                <Avatar size={80} src={logoUrl}>
+              <div style={{ position: "relative", display: "inline-block", marginBottom: 16, marginTop: 8 }}>
+                <Avatar size={100} src={logoUrl} style={{ border: '3px solid #f0f0f0' }}>
                   {company?.name?.charAt(0) || "C"}
                 </Avatar>
                 <Upload beforeUpload={onUploadLogo} maxCount={1} accept="image/*" showUploadList={false}>
@@ -228,64 +236,78 @@ export default function CompanyProfilePage() {
                     type="primary"
                     size="small"
                     icon={<UploadOutlined />}
-                    style={{ position: "absolute", bottom: -5, right: -5, borderRadius: "50%" }}
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      right: 0,
+                      borderRadius: "50%",
+                      width: 32,
+                      height: 32,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
                   />
                 </Upload>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
-                <Title level={4} style={{ margin: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 4 }}>
+                <Title level={4} style={{ margin: 0, fontSize: 20 }}>
                   {company?.name}
                 </Title>
                 <Button type="text" icon={<EditOutlined />} size="small" onClick={() => setEditing(true)} />
               </div>
-              <Text style={{ fontSize: 16, fontWeight: 500, display: "block", marginBottom: 16 }}>
+
+              <Text style={{ fontSize: 14, color: '#8c8c8c', display: "block", marginBottom: 8 }}>
+                {company?.registrationNumber || "Company Registration"}
+              </Text>
+
+              <Text style={{ fontSize: 15, fontWeight: 500, display: "block", marginBottom: 16, color: '#262626' }}>
                 {company?.industry || "Company industry"}
               </Text>
             </Card>
 
-            {/* Company Details (moved from tabs) */}
-            <Card title="Company details">
-              <div style={{ marginBottom: 12 }}>
-                <Text strong>Industry:</Text> <Text>{company?.industry || "\u2014"}</Text>
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <GlobalOutlined />
-                <a
-                  href={company?.website || "#"}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ marginLeft: 8 }}
-                >
-                  {company?.website || "Website not set"}
-                </a>
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <MailOutlined />
-                <Text style={{ marginLeft: 8 }}>{company?.email || "\u2014"}</Text>
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <PhoneOutlined />
-                <Text style={{ marginLeft: 8 }}>{company?.phone || "\u2014"}</Text>
-              </div>
-              <div style={{ marginBottom: 0 }}>
-                <EnvironmentOutlined />
-                <Text style={{ marginLeft: 8 }}>
-                  {company?.address?.fullAddress || "Address not set"}
-                </Text>
-              </div>
-            </Card>
-
-            {/* Pending action */}
-            <Card title="Pending action">
-              <Space direction="vertical" style={{ width: "100%" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
-                  <Text>Upload company logo</Text>
-                  <Button type="text" size="small">›</Button>
+            {/* Company Details */}
+            <Card
+              title={<span style={{ fontSize: 16, fontWeight: 600 }}>Company details</span>}
+              style={{
+                borderRadius: 8,
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
+              }}
+            >
+              <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                <div>
+                  <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 13, color: '#8c8c8c' }}>Industry:</Text>
+                  <Text style={{ fontSize: 14, color: '#262626' }}>{company?.industry || "—"}</Text>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
-                  <Text>Add company website</Text>
-                  <Button type="text" size="small">›</Button>
+
+                <div>
+                  <GlobalOutlined style={{ color: '#8c8c8c', marginRight: 8 }} />
+                  <a
+                    href={company?.website || "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 14 }}
+                  >
+                    {company?.website || "Website not set"}
+                  </a>
+                </div>
+
+                <div>
+                  <MailOutlined style={{ color: '#8c8c8c', marginRight: 8 }} />
+                  <Text style={{ fontSize: 14, color: '#262626' }}>{company?.email || "—"}</Text>
+                </div>
+
+                <div>
+                  <PhoneOutlined style={{ color: '#8c8c8c', marginRight: 8 }} />
+                  <Text style={{ fontSize: 14, color: '#262626' }}>{company?.phone || "—"}</Text>
+                </div>
+
+                <div>
+                  <EnvironmentOutlined style={{ color: '#8c8c8c', marginRight: 8 }} />
+                  <Text style={{ fontSize: 14, color: '#262626' }}>
+                    {company?.address?.fullAddress || "Address not set"}
+                  </Text>
                 </div>
               </Space>
             </Card>
@@ -294,8 +316,24 @@ export default function CompanyProfilePage() {
 
         {/* Right Content */}
         <Col xs={24} lg={16}>
-          <Card style={{ minHeight: 600 }}>
-            <Tabs defaultActiveKey="overview" items={tabItems} tabBarStyle={{ marginBottom: 0 }} />
+          <Card
+            style={{
+              minHeight: 400,
+              borderRadius: 8,
+              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <Tabs
+              defaultActiveKey="overview"
+              items={tabItems}
+              tabBarStyle={{
+                marginBottom: 0,
+                paddingLeft: 24,
+                paddingRight: 24,
+                paddingTop: 16
+              }}
+            />
           </Card>
         </Col>
       </Row>
@@ -304,10 +342,17 @@ export default function CompanyProfilePage() {
 
   if (loading) {
     return (
-      <Layout>
+      <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
         <Navbar />
-        <Layout.Content style={{ maxWidth: 1400, margin: "24px auto", padding: "0 16px" }}>
-          <Card loading style={{ minHeight: 400 }} />
+        <Layout.Content style={{ maxWidth: 1200, margin: "32px auto", padding: "0 24px" }}>
+          <Row gutter={[24, 24]}>
+            <Col xs={24} lg={8}>
+              <Card loading style={{ minHeight: 300 }} />
+            </Col>
+            <Col xs={24} lg={16}>
+              <Card loading style={{ minHeight: 400 }} />
+            </Col>
+          </Row>
         </Layout.Content>
         <Footer />
       </Layout>
@@ -315,9 +360,9 @@ export default function CompanyProfilePage() {
   }
 
   return (
-    <Layout>
+    <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
       <Navbar />
-      <Layout.Content style={{ maxWidth: 1400, margin: "24px auto", padding: "0 16px" }}>
+      <Layout.Content style={{ maxWidth: 1200, margin: "32px auto", padding: "0 24px" }}>
         {!editing && <ViewLayout />}
         {editing && (
           <EditCompanyForm
