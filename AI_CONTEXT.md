@@ -574,3 +574,122 @@ Notes / Next Steps
 - Optional: Add a simple “Manage Search Profile” page under both user and company menus
 - Future: To support multiple saved profiles per kind, drop the unique index and add name + isDefault; update service and UI accordingly
 - Consider unifying Postman entries by also adding /search-profiles to the main Job Finder API collection
+
+
+
+Continuation (Student Profile Page - Complete Overhaul)
+
+Overview
+- Comprehensive student profile page implemented with view and edit capabilities
+- Multi-step wizard modal for editing all profile sections
+- Clean, view-only interface with centralized edit functionality
+- Full integration with backend user data structure
+
+Profile Page Architecture
+- Route: /profile (student's own profile) or /profile?id={userId} (view other profiles)
+- Component: frontend/components/ProfilePageInner.js (main profile component)
+- Edit Modal: frontend/components/EditProfileModal.js (wizard-based editing)
+- Layout: Left sidebar (profile card + stats) + Right content area (tabbed sections)
+
+Profile Data Structure (from backend/src/models/users.model.js)
+- Personal Info: profile.firstName, profile.middleName, profile.lastName, profile.phone, profile.icPassportNumber
+- Academic Info: internProfile.university, internProfile.major, internProfile.gpa, internProfile.graduationYear
+- Arrays in internProfile:
+  • educations[] - { level, institutionName, qualification, fieldOfStudy, startDate, endDate }
+  • workExperiences[] - { companyName, industry, jobTitle, employmentType, startDate, endDate, jobDescription }
+  • certifications[] - { title, issuer, acquiredDate, description }
+  • interests[] - { title, description, socialLinks[], thumbnailUrl }
+  • eventExperiences[] - { eventName, description, position, startDate, endDate, location, socialLinks[] }
+  • skills[] - Array of strings
+  • languages[] - Array of strings
+  • courses[] - { courseId, courseName, courseDescription }
+  • assignments[] - { title, natureOfAssignment, methodology, description }
+  • preferences - { jobTypes[], locations[], industries[], preferredDuration, preferredStartDate, preferredEndDate, salaryRange{min,max} }
+
+Profile Page Tabs
+1. Profile Summary
+   • Job Preferences (job types, locations, industries)
+   • Skills & Languages (tag display)
+   • Interests (with descriptions and social links)
+   • Resume (upload/download)
+2. Education - All education records with institution, qualification, field of study, dates
+3. Work Experience - All work experiences with company, job title, employment type, industry, dates, description
+4. Certifications - All certifications with title, issuer, acquired date, description
+5. Event Experience - All event experiences with event name, position, location, dates, description, social links
+6. Courses - All courses with course ID, name, description
+7. Assignments - All assignments with title, nature, methodology, description
+
+Edit Profile Modal (Wizard Format)
+- Component: frontend/components/EditProfileModal.js
+- 9-step wizard with Ant Design Steps component:
+  1. Personal Info - Name, phone, IC/Passport, university, major, GPA, graduation year
+  2. Education - Dynamic form list for adding/editing/removing education records
+  3. Work Experience - Dynamic form list for work experiences
+  4. Certifications - Dynamic form list for certifications
+  5. Skills & Languages - Tag-based Select inputs (mode="tags")
+  6. Interests - Dynamic form list for interests
+  7. Events - Dynamic form list for event experiences
+  8. Courses - Dynamic form list for courses
+  9. Assignments - Dynamic form list for assignments
+
+Edit Modal Features
+- Pre-populated with existing user data on open
+- Step-by-step navigation (Previous/Next buttons)
+- Form validation on each step
+- Dynamic form lists with Add/Remove functionality (Form.List)
+- Single save action at the end (saves all changes at once)
+- Auto-reload profile data after successful save
+- Proper error handling and user feedback
+
+Profile Page Features
+- Role-based visibility: owner sees "Edit Profile" button, others see view-only
+- Avatar upload with preview
+- Resume upload/download functionality
+- Profile completion score (Progress circle)
+- Last updated timestamp
+- Contact information (phone, email) with conditional rendering
+- Responsive layout with Ant Design Grid (Row/Col)
+- Clean UI without inline edit icons (centralized editing via modal)
+
+API Integration
+- GET /users/me - Fetch current user's profile
+- GET /users/{id} - Fetch specific user's profile (for viewing others)
+- PATCH /users/me - Update profile with dot notation for nested fields
+  • Example: { 'profile.firstName': 'John', 'internProfile.skills': ['JavaScript', 'React'] }
+- Avatar upload: multipart/form-data to /users/me with 'profile.avatar' field
+- Resume upload: multipart/form-data to /users/me with 'internProfile.resume' field
+
+Design Patterns and Best Practices
+- Memoized components to prevent infinite render loops (React.memo for ViewLayout)
+- useCallback for event handlers to prevent unnecessary re-renders
+- useMemo for computed values (targetId from searchParams)
+- Proper cleanup and state management
+- Ant Design components for consistent UI (Card, Tabs, Tag, Progress, Modal, Steps, Form)
+- Color-coded cards for different sections (blue=education, green=work, orange=certifications, pink=events, cyan=courses, purple=assignments)
+
+Known Issues Resolved
+- Fixed infinite loop caused by duplicate ViewLayout component definitions
+- Fixed onFinish callback calling non-existent load() function
+- Proper data mapping from backend schema to frontend display
+- Resume field corrected from profile.resume to internProfile.resume
+- All hardcoded placeholder data replaced with actual backend data
+
+Technical Implementation Notes
+- Bio field removed from profile display (not part of current data structure)
+- All edit/add icons removed from tabs for cleaner UI
+- Single "Edit Profile" button under email address in sidebar
+- Modal-based editing instead of inline editing for better UX
+- Form.List used for dynamic array fields (education, work experience, etc.)
+- Tag-based inputs for skills and languages (Select with mode="tags")
+- Date formatting using JavaScript Date.toLocaleDateString()
+- Conditional rendering for optional fields to avoid empty sections
+
+Future Enhancements (Optional)
+- Add date pickers for education/work experience start/end dates in edit modal
+- Add social links input for interests and event experiences
+- Add thumbnail upload for interests
+- Add portfolio, LinkedIn, GitHub fields to profile summary
+- Add bio field if required by business logic
+- Add validation for GPA format and graduation year range
+- Add confirmation modal when discarding changes in edit wizard
+- Add ability to reorder items in dynamic lists (drag and drop)

@@ -8,6 +8,7 @@ import { UploadOutlined, EditOutlined, PhoneOutlined, MailOutlined, PlusOutlined
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { API_BASE_URL } from '../config';
+import EditProfileModal from './EditProfileModal';
 
 const { Title, Text } = Typography;
 
@@ -358,6 +359,83 @@ const ViewLayout = memo(function ViewLayout({ user, isOwner, fullName, onUploadA
           )}
         </div>
       )
+    },
+    {
+      key: 'courses',
+      label: 'Courses',
+      children: (
+        <div style={{ padding: '16px 0' }}>
+          <Title level={4} style={{ margin: 0, marginBottom: 16 }}>Courses</Title>
+          {user?.internProfile?.courses && user.internProfile.courses.length > 0 ? (
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+              {user.internProfile.courses.map((course, idx) => (
+                <Card key={idx} size="small" style={{ borderLeft: '3px solid #13c2c2' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <Text strong style={{ fontSize: 16, display: 'block' }}>
+                        <BookOutlined /> {course.courseName}
+                      </Text>
+                      {course.courseId && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                          Course ID: {course.courseId}
+                        </Text>
+                      )}
+                      {course.courseDescription && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                          {course.courseDescription}
+                        </Text>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </Space>
+          ) : (
+            <Text type="secondary">No courses added</Text>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'assignments',
+      label: 'Assignments',
+      children: (
+        <div style={{ padding: '16px 0' }}>
+          <Title level={4} style={{ margin: 0, marginBottom: 16 }}>Assignments</Title>
+          {user?.internProfile?.assignments && user.internProfile.assignments.length > 0 ? (
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+              {user.internProfile.assignments.map((assignment, idx) => (
+                <Card key={idx} size="small" style={{ borderLeft: '3px solid #722ed1' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <Text strong style={{ fontSize: 16, display: 'block' }}>
+                        {assignment.title}
+                      </Text>
+                      {assignment.natureOfAssignment && (
+                        <div style={{ marginTop: 4 }}>
+                          <Tag color="purple">Nature: {assignment.natureOfAssignment}</Tag>
+                        </div>
+                      )}
+                      {assignment.methodology && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                          <strong>Methodology:</strong> {assignment.methodology}
+                        </Text>
+                      )}
+                      {assignment.description && (
+                        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                          {assignment.description}
+                        </Text>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </Space>
+          ) : (
+            <Text type="secondary">No assignments added</Text>
+          )}
+        </div>
+      )
     }
   ];
 
@@ -463,7 +541,7 @@ const ViewLayout = memo(function ViewLayout({ user, isOwner, fullName, onUploadA
                   type="primary"
                   block
                   icon={<EditOutlined />}
-                  onClick={() => setEditing(true)}
+                  onClick={() => setEditModalVisible(true)}
                   style={{ marginTop: 8 }}
                 >
                   Edit Profile
@@ -547,6 +625,7 @@ export default function ProfilePageInner({ targetIdProp = null }) {
   const [meId, setMeId] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [updating, setUpdating] = useState(false);
 
@@ -705,6 +784,22 @@ export default function ProfilePageInner({ targetIdProp = null }) {
     return false; // prevent antd from uploading automatically
   }, [isOwner, targetId]);
 
+  const reloadUserData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('jf_token');
+      const idToLoad = targetId || 'me';
+      const res = await fetch(`${API_BASE_URL}/users/${idToLoad}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUser(updatedUser);
+      }
+    } catch (e) {
+      console.error('Failed to reload user data:', e);
+    }
+  }, [targetId]);
+
   const onFinish = useCallback(async (values) => {
     if (!isOwner) { message.info('You can only update your own profile'); return; }
     try {
@@ -726,15 +821,16 @@ export default function ProfilePageInner({ targetIdProp = null }) {
         const txt = await res.text();
         throw new Error(txt || 'Failed to update');
       }
+
+      await reloadUserData();
       message.success('Profile updated');
-      await load();
       setEditing(false);
     } catch (e) {
       message.error(e.message || 'Update failed');
     } finally {
       setUpdating(false);
     }
-  }, [isOwner, targetId]);
+  }, [isOwner, reloadUserData]);
 
   return (
     <Layout>
@@ -857,6 +953,14 @@ export default function ProfilePageInner({ targetIdProp = null }) {
                 </Col>
               </Row>
             )}
+
+            {/* Edit Profile Modal */}
+            <EditProfileModal
+              visible={editModalVisible}
+              onClose={() => setEditModalVisible(false)}
+              user={user}
+              onSuccess={reloadUserData}
+            />
           </>
         ) : (
           <Card>
