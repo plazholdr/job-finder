@@ -95,6 +95,12 @@ export default function HomeContent({ jobs = [], companies = [] }) {
     console.log('🎯 Filter state changed:', selectedFilters);
   }, [selectedFilters]);
 
+  // Debug search query changes
+  useEffect(() => {
+    console.log('🔍 Search query (q) changed to:', q);
+    console.log('🔍 Current role:', role);
+  }, [q, role]);
+
   // Student filters for job and company search
   const {
     filters: studentFilters,
@@ -312,36 +318,28 @@ export default function HomeContent({ jobs = [], companies = [] }) {
   }, [role, studentPrefApplied, studentSearchProfileQuery.data]);
 
 
-  // Build filtered URLs for student company search
-
-  const filteredCompaniesUrl = useMemo(() => {
+  // Build filtered URL function for student company search
+  const buildFilteredCompaniesUrl = (searchQuery, filters) => {
     const params = new URLSearchParams();
-    params.set("$limit", "8");
+    params.set("$limit", "50"); // Get more results
     params.set("verifiedStatus", "1"); // Only show approved companies
 
-    // Add search query
-    if (q) {
-      params.set("name[$regex]", q);
-      params.set("name[$options]", "i");
+    // Add search query - use 'q' parameter which backend processes as keyword
+    if (searchQuery) {
+      params.set("q", searchQuery);
     }
 
-    // Add student filters - send as simple parameters, backend will handle regex
-    const { industry, location: filterLocation } = studentFilters;
-
-    if (industry?.length > 0) {
-      // Send industry as simple parameter, backend will convert to regex
-      params.set("industry", industry[0]); // Take first industry
+    // Add student filters
+    if (filters.industry?.length > 0) {
+      params.set("industry", filters.industry[0]);
     }
-    if (filterLocation?.length > 0) {
-      // Send location as simple parameter
-      params.set("city", filterLocation[0]); // Take first location
+    if (filters.location?.length > 0) {
+      params.set("city", filters.location[0]);
     }
 
-    // Add cache-busting parameter
-    params.set("_t", Date.now().toString());
-
-    return `${API_BASE_URL}/companies?${params.toString()}`;
-  }, [q, studentFilters]);
+    const finalUrl = `${API_BASE_URL}/companies?${params.toString()}`;
+    return finalUrl;
+  };
 
   const jobsUrl = useMemo(() => buildQuery("/job-listings", { q, location, salaryMin, salaryMax }), [q, location, salaryMin, salaryMax]);
   const companiesUrl = useMemo(() => buildQuery("/companies", { q, nature, city: companyCity, salaryMin, salaryMax, sort }), [q, nature, companyCity, salaryMin, salaryMax, sort]);
@@ -384,24 +382,25 @@ export default function HomeContent({ jobs = [], companies = [] }) {
   // Filtered queries for students
 
   const filteredCompaniesQuery = useQuery({
-    queryKey: ["filtered-companies", filteredCompaniesUrl, role, studentFilters],
+    queryKey: ["filtered-companies", q, studentFilters.industry, studentFilters.location],
     queryFn: async () => {
-      const res = await fetch(filteredCompaniesUrl, {
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        },
-        cache: 'no-cache'
-      });
+      const url = buildFilteredCompaniesUrl(q, studentFilters);
+      console.log('🔍 Fetching filtered companies from:', url);
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Filtered companies fetch failed");
       const data = await res.json();
-      return Array.isArray(data) ? data : (data?.data || []);
+      console.log('🔍 Filtered companies response:', data);
+      const result = Array.isArray(data) ? data : (data?.data || []);
+      console.log('🔍 Filtered companies result array:', result, 'Length:', result.length);
+      return result;
     },
     enabled: role === 'student',
-    initialData: companies,
-    staleTime: 0, // Always consider data stale
-    cacheTime: 0, // Don't cache the data
   });
+
+  // Debug: Log when query should be enabled
+  useEffect(() => {
+    console.log('🔍 filteredCompaniesQuery enabled?', role === 'student', 'role:', role);
+  }, [role]);
 
   // Load student's saved search preferences (if signed in as student)
   const profileQuery = useQuery({
@@ -474,7 +473,11 @@ export default function HomeContent({ jobs = [], companies = [] }) {
   return (
     <Layout>
       <Navbar />
-      <Hero onSearch={({ q: qq = "" }) => { setQ(qq); }} industryOptions={industriesQuery.data || []} />
+      <Hero onSearch={({ q: qq = "" }) => {
+        console.log('🔍 HomeContent: onSearch called with:', qq);
+        setQ(qq);
+        console.log('🔍 HomeContent: q state updated to:', qq);
+      }} industryOptions={industriesQuery.data || []} />
       <Layout.Content style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
         {role === 'company' ? (
           <>
@@ -552,7 +555,7 @@ export default function HomeContent({ jobs = [], companies = [] }) {
           </>
         ) : role === 'student' ? (
           <>
-            {/* Filter Bar for Students - Job and Company Search */}
+            {/* Filter Bar for Students - Company Search */}
             <FilterBar
               filterConfig={getFilterConfig('job-search')}
               selectedFilters={studentFilters}
@@ -569,16 +572,21 @@ export default function HomeContent({ jobs = [], companies = [] }) {
               }}
             />
 
-
-
             {/* Companies Section */}
             <section id="companies" style={{ marginBottom: 32 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Typography.Title level={3} style={{ margin: 0 }}>Featured Companies</Typography.Title>
+                <Typography.Title level={3} style={{ margin: 0 }}>
+                  {q || (studentFilters.industry?.length > 0) || (studentFilters.location?.length > 0) ? 'Search Results' : 'Featured Companies'}
+                </Typography.Title>
                 <Link href="/companies">
                   <Button type="link">View All Companies →</Button>
                 </Link>
               </div>
+              {(() => {
+                console.log('🔍 RENDER - q:', q, 'data length:', filteredCompaniesQuery.data?.length, 'isLoading:', filteredCompaniesQuery.isLoading);
+                console.log('🔍 RENDER - Companies:', filteredCompaniesQuery.data?.map(c => c.name));
+                return null;
+              })()}
               {filteredCompaniesQuery.isLoading ? (
                 <Skeleton active />
               ) : filteredCompaniesQuery.data?.length ? (
@@ -590,7 +598,7 @@ export default function HomeContent({ jobs = [], companies = [] }) {
                   ))}
                 </Row>
               ) : (
-                <Empty description="No companies found" />
+                <Empty description={q || (studentFilters.industry?.length > 0) || (studentFilters.location?.length > 0) ? "No companies match your search" : "No companies found"} />
               )}
             </section>
           </>

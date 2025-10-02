@@ -51,14 +51,21 @@ export default function CompanyInternshipsList({ company, jobs }) {
 
   if (records.length === 0) {
     return (
-      <Card title={<Title level={4} style={{ margin: 0 }}>Internship Opportunities (0)</Title>}>
+      <Card
+        title={<Title level={4} style={{ margin: 0 }}>Internship Opportunities</Title>}
+        style={{ minHeight: '600px', display: 'flex', flexDirection: 'column' }}
+        bodyStyle={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
         <Empty description="No internship opportunities available at the moment" style={{ padding: '40px 0' }} />
       </Card>
     );
   }
 
   return (
-    <Card title={<Title level={4} style={{ margin: 0 }}>Internship Opportunities ({records.length})</Title>}>
+    <Card
+      title={<Title level={4} style={{ margin: 0 }}>Internship Opportunities</Title>}
+      style={{ minHeight: '600px' }}
+    >
       <List
         itemLayout="vertical"
         dataSource={records}
@@ -70,11 +77,11 @@ export default function CompanyInternshipsList({ company, jobs }) {
                 {/* Job Title */}
                 <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
                   { (item._id || item.id) ? (
-                    <Link href={`/jobs/${item._id || item.id}`} style={{ color: '#1677ff' }} aria-label={`View ${item.title || 'job'}`}>
+                    <Link href={`/jobs/${item._id || item.id}`} style={{ color: 'black' }} aria-label={`View ${item.title || 'job'}`}>
                       {item.title || 'Internship Position'}
                     </Link>
                   ) : (
-                    item.title || 'Internship Position'
+                    <span style={{ color: 'black' }}>{item.title || 'Internship Position'}</span>
                   )}
                 </Title>
 

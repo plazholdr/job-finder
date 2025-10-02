@@ -259,7 +259,17 @@ export default (app) => ({
           if (job && job.companyId) {
             try {
               const company = await app.service('companies').get(job.companyId);
-              return { ...job, company: { _id: company._id, name: company.name, industry: company.industry } };
+              return {
+                ...job,
+                company: {
+                  _id: company._id,
+                  name: company.name,
+                  industry: company.industry,
+                  logo: company.logo,
+                  logoUrl: company.logoUrl,
+                  logoKey: company.logoKey
+                }
+              };
             } catch (err) {
               return job; // Return original job if company not found
             }

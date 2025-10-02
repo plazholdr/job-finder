@@ -11,7 +11,13 @@ export default function Hero({ onSearch, industryOptions = [] }) {
   const bg = theme === 'dark' ? 'linear-gradient(180deg,#0b1220 0%, #0d1325 100%)' : 'linear-gradient(135deg,#f0f5ff,#fff)';
 
   function handleSubmit() {
-    if (typeof onSearch === 'function') onSearch({ q });
+    console.log('🔍 Hero: Search submitted with query:', q);
+    if (typeof onSearch === 'function') {
+      console.log('🔍 Hero: Calling onSearch callback');
+      onSearch({ q });
+    } else {
+      console.log('⚠️ Hero: onSearch is not a function');
+    }
   }
 
   return (
@@ -61,6 +67,7 @@ export default function Hero({ onSearch, industryOptions = [] }) {
                     placeholder="Search skills, company or job title"
                     value={q}
                     onChange={(e)=>setQ(e.target.value)}
+                    onPressEnter={handleSubmit}
                     style={{
                       borderRadius: '25px',
                       padding: '12px 20px',
