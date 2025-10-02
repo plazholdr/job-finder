@@ -107,7 +107,7 @@ function LoginInner() {
             >
               {/* Replace with your actual image path */}
               <Image
-                src="/images/login_page/login_image.png"
+                src="/images/login-image.png"
                 alt="Login illustration"
                 width={800}
                 height={800}
