@@ -14,6 +14,7 @@ export default function Navbar() {
   const [authed, setAuthed] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarSignedUrl, setAvatarSignedUrl] = useState('');
   const [role, setRole] = useState('');
   const [notifs, setNotifs] = useState([]);
   const [notifTab, setNotifTab] = useState('direct');
@@ -69,6 +70,17 @@ export default function Navbar() {
           setDisplayName(name);
           setAvatarUrl(data?.profile?.avatar || '');
           setRole('student');
+
+          // Generate signed URL for avatar
+          if (data?.profile?.avatar) {
+            try {
+              const signedRes = await fetch(`${API_BASE_URL}/signed-url?url=${encodeURIComponent(data.profile.avatar)}`);
+              if (signedRes.ok) {
+                const signedData = await signedRes.json();
+                setAvatarSignedUrl(signedData.signedUrl);
+              }
+            } catch (_) {}
+          }
         } else {
           // If not a student, detect admin; otherwise default to company
           try {
@@ -169,7 +181,7 @@ export default function Navbar() {
           {authed ? (
             <Dropdown menu={userMenu} placement="bottomRight">
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <Avatar size={28} src={avatarUrl || undefined} style={{ backgroundColor: token.colorPrimary }}>
+                <Avatar size={28} src={avatarSignedUrl || avatarUrl || undefined} style={{ backgroundColor: token.colorPrimary }}>
                   {(displayName || 'U').charAt(0).toUpperCase()}
                 </Avatar>
                 <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>

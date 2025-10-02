@@ -1,47 +1,59 @@
 "use client";
-import { Card, Typography, Space, Tag, Button } from 'antd';
+import { Card, Typography, Space, Tag, Button, Avatar } from 'antd';
 import { GlobalOutlined, EnvironmentOutlined } from '@ant-design/icons';
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 
 const { Title, Text, Paragraph } = Typography;
 
 export default function CompanyHeader({ company, jobsCount }) {
-  const logoUrl = company.logoKey ? `${process.env.NEXT_PUBLIC_STORAGE_URL}/${company.logoKey}` : null;
+  const [logoSignedUrl, setLogoSignedUrl] = useState(null);
+
+  // Generate signed URL for logo display
+  useEffect(() => {
+    async function loadLogo() {
+      // Construct URL from logoKey if available, otherwise use logo/logoUrl
+      let logoUrl = company.logo || company.logoUrl;
+      if (!logoUrl && company.logoKey) {
+        logoUrl = `${process.env.NEXT_PUBLIC_STORAGE_URL || 'https://ap-southeast-mys1.oss.ips1cloud.com/job-finder-bucket'}/${company.logoKey}`;
+      }
+
+      if (logoUrl) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/signed-url?url=${encodeURIComponent(logoUrl)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setLogoSignedUrl(data.signedUrl);
+          } else {
+            setLogoSignedUrl(logoUrl);
+          }
+        } catch (e) {
+          setLogoSignedUrl(logoUrl);
+        }
+      }
+    }
+    loadLogo();
+  }, [company.logo, company.logoUrl, company.logoKey]);
 
   return (
     <Card className="company-header-card">
       <Space align="start" size="large" style={{ width: '100%' }}>
         {/* Company Logo */}
         <div style={{ flexShrink: 0 }}>
-          {logoUrl ? (
-            <Image
-              src={logoUrl}
-              alt={`${company.name} logo`}
-              width={80}
-              height={80}
-              style={{
-                objectFit: 'contain',
-                borderRadius: 8,
-                border: '1px solid #f0f0f0'
-              }}
-            />
-          ) : (
-            <div style={{
-              width: 80,
-              height: 80,
-              background: '#f8f9fa',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+          <Avatar
+            src={logoSignedUrl}
+            shape="square"
+            size={80}
+            style={{
+              backgroundColor: '#f8f9fa',
               border: '1px solid #e9ecef',
               fontSize: '24px',
               fontWeight: 'bold',
               color: '#6c757d'
-            }}>
-              {company.name?.charAt(0)?.toUpperCase() || 'C'}
-            </div>
-          )}
+            }}
+          >
+            {company.name?.charAt(0)?.toUpperCase() || 'C'}
+          </Avatar>
         </div>
 
         {/* Company Info */}

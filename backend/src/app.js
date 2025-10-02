@@ -107,6 +107,33 @@ app.post('/upload',
   }
 );
 
+// Add endpoint to generate signed URL from public URL
+app.get('/signed-url', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) {
+      return res.status(400).json({ error: 'URL parameter is required' });
+    }
+
+    // Extract the key from the URL
+    // URL format: https://endpoint/bucket/key
+    const urlParts = url.split(`${process.env.S3_BUCKET}/`);
+    if (urlParts.length < 2) {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+
+    const key = urlParts[1].split('?')[0]; // Remove query params if any
+
+    // Generate signed URL
+    const signedUrl = await storageUtils.getSignedUrl(key, 3600); // 1 hour expiry
+
+    res.json({ signedUrl, key });
+  } catch (error) {
+    console.error('Signed URL generation error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Configure channels
 app.configure(channels);
 

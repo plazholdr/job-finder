@@ -8,6 +8,46 @@ import { API_BASE_URL } from '../config';
 
 const { Title, Text } = Typography;
 
+// Component to handle signed URL for each company
+function CompanyListItem({ company }) {
+  const [logoSignedUrl, setLogoSignedUrl] = useState(null);
+
+  useEffect(() => {
+    async function loadLogo() {
+      // Construct URL from logoKey if available, otherwise use logo/logoUrl
+      let logoUrl = company.logo || company.logoUrl;
+      if (!logoUrl && company.logoKey) {
+        logoUrl = `${process.env.NEXT_PUBLIC_STORAGE_URL || 'https://ap-southeast-mys1.oss.ips1cloud.com/job-finder-bucket'}/${company.logoKey}`;
+      }
+
+      if (logoUrl) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/signed-url?url=${encodeURIComponent(logoUrl)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setLogoSignedUrl(data.signedUrl);
+          } else {
+            setLogoSignedUrl(logoUrl);
+          }
+        } catch (e) {
+          setLogoSignedUrl(logoUrl);
+        }
+      }
+    }
+    loadLogo();
+  }, [company.logo, company.logoUrl, company.logoKey]);
+
+  return (
+    <List.Item actions={[<Button key="view" type="link" href={`/companies/${company._id}`}>View</Button>]}>
+      <List.Item.Meta
+        avatar={<Avatar src={logoSignedUrl} shape="square">{company.name?.charAt(0)?.toUpperCase()}</Avatar>}
+        title={company.name}
+        description={<Text type="secondary">{company.tagline || company.description || ''}</Text>}
+      />
+    </List.Item>
+  );
+}
+
 export default function LikedCompaniesClient(){
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,15 +87,7 @@ export default function LikedCompaniesClient(){
               loading={loading}
               dataSource={items}
               rowKey={c => c._id}
-              renderItem={(c) => (
-                <List.Item actions={[<Button key="view" type="link" href={`/companies/${c._id}`}>View</Button>] }>
-                  <List.Item.Meta
-                    avatar={<Avatar src={c.logoUrl} shape="square" />}
-                    title={c.name}
-                    description={<Text type="secondary">{c.tagline || c.description || ''}</Text>}
-                  />
-                </List.Item>
-              )}
+              renderItem={(c) => <CompanyListItem company={c} />}
             />
           </Card>
         </Space>

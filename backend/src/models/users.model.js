@@ -64,6 +64,7 @@ const userSchema = new mongoose.Schema({
     skills: [String],
     languages: [String],
     resume: String,
+    resumeOriginalName: String, // Original filename of resume
     portfolio: String,
     linkedIn: String,
     github: String,
@@ -86,7 +87,9 @@ const userSchema = new mongoose.Schema({
         title: { type: String },
         issuer: { type: String },
         acquiredDate: { type: Date },
-        description: { type: String }
+        description: { type: String },
+        fileUrl: { type: String }, // Certificate document URL
+        fileOriginalName: { type: String } // Original filename
       }
     ],
 

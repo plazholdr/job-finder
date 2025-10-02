@@ -111,6 +111,7 @@ export default function CompanyProfilePage() {
       });
       if (!up.ok) throw new Error("Upload failed");
       const data = await up.json();
+      // Use public URL instead of signedUrl (signedUrl expires after 1 hour)
       const url = data?.files?.logo?.[0]?.url || data?.files?.logo?.[0]?.signedUrl;
       const key = data?.files?.logo?.[0]?.key;
       if (url || key) {

@@ -145,7 +145,7 @@ export default function MyApplicationsPage(){
         <Space>
           {r.status === 3 && <Button size="small" type="primary" onClick={()=>openOffer(r)}>View offer</Button>}
           {canExtend && <Button size="small" onClick={()=>{ setCurrentId(r._id); setExtendOpen(true); }}>Extend validity</Button>}
-          {canWithdraw && <Button danger size="small" onClick={()=>{ setCurrentId(r._id); setCurrentStatus(r.status); setWithdrawOpen(true); }}>Withdraw</Button>}
+          {canWithdraw && <Button danger size="small" style={{ }} onClick={()=>{ setCurrentId(r._id); setCurrentStatus(r.status); setWithdrawOpen(true); }}>Withdraw</Button>}
         </Space>
       );
     } }

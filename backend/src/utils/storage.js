@@ -110,6 +110,7 @@ const storageUtils = {
       Key: key,
       Body: fileBuffer,
       ContentType: contentType,
+      ACL: 'public-read', // Make uploaded files publicly readable
       Metadata: {
         originalName: fileName,
         uploadedAt: new Date().toISOString()
