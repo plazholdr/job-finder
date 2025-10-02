@@ -5,6 +5,7 @@ import { SaveOutlined, CheckOutlined, LikeOutlined, BankOutlined, EnvironmentOut
 import { useRouter } from 'next/navigation';
 import { apiAuth, getToken } from '../lib/api';
 import AuthPromptModal from './AuthPromptModal';
+import { API_BASE_URL } from '../config';
 
 export default function JobCard({ job, companyView = false }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -14,6 +15,7 @@ export default function JobCard({ job, companyView = false }) {
   const [liked, setLiked] = useState(false);
   const [likedId, setLikedId] = useState(null);
   const [authModalConfig, setAuthModalConfig] = useState({});
+  const [logoSignedUrl, setLogoSignedUrl] = useState(null);
   const router = useRouter();
   const companyName = job.company?.name || job.companyName || 'Company';
 
@@ -56,6 +58,31 @@ export default function JobCard({ job, companyView = false }) {
       router.push(`/jobs/${job._id}`);
     }
   }
+
+  // Load company logo with signed URL
+  useEffect(() => {
+    async function loadLogo() {
+      let logoUrl = job.company?.logo || job.company?.logoUrl || job.companyLogo;
+      if (!logoUrl && job.company?.logoKey) {
+        logoUrl = `${process.env.NEXT_PUBLIC_STORAGE_URL || 'https://ap-southeast-mys1.oss.ips1cloud.com/job-finder-bucket'}/${job.company.logoKey}`;
+      }
+
+      if (logoUrl) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/signed-url?url=${encodeURIComponent(logoUrl)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setLogoSignedUrl(data.signedUrl);
+          } else {
+            setLogoSignedUrl(logoUrl);
+          }
+        } catch (e) {
+          setLogoSignedUrl(logoUrl);
+        }
+      }
+    }
+    loadLogo();
+  }, [job.company?.logo, job.company?.logoUrl, job.company?.logoKey, job.companyLogo]);
 
   useEffect(() => {
     // Preload saved and liked state for this job
@@ -251,10 +278,10 @@ export default function JobCard({ job, companyView = false }) {
         {/* Company Logo */}
         <Avatar
           size={48}
-          src={job.company?.logo || job.companyLogo}
+          src={logoSignedUrl}
           icon={<BankOutlined />}
           style={{
-            backgroundColor: job.company?.logo || job.companyLogo ? 'transparent' : '#f0f0f0',
+            backgroundColor: logoSignedUrl ? 'transparent' : '#f0f0f0',
             color: '#999',
             border: '1px solid #d9d9d9'
           }}

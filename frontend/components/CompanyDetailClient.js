@@ -104,11 +104,6 @@ export default function CompanyDetailClient({ company, jobs }) {
                             {company.size}
                           </Tag>
                         )}
-                        {Array.isArray(jobs) && jobs.length > 0 && (
-                          <Tag color="green" style={{ fontSize: '14px', padding: '4px 8px' }}>
-                            {jobs.length} Internship{jobs.length !== 1 ? 's' : ''}
-                          </Tag>
-                        )}
                       </Space>
 
                       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
