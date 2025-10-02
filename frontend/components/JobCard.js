@@ -20,10 +20,24 @@ export default function JobCard({ job, companyView = false }) {
   const statusLabel = (s) => {
     switch (s) {
       case 0: return 'Draft';
-      case 1: return 'Pending';
+      case 1: return 'Pending Final Approval';
       case 2: return 'Active';
-      case 3: return 'Past';
+      case 3: return 'Closed';
+      case 4: return 'Pending Pre-Approval';
+      case 5: return 'Pre-Approved';
       default: return '';
+    }
+  };
+
+  const statusColor = (s) => {
+    switch (s) {
+      case 0: return 'default';
+      case 1: return 'orange';
+      case 2: return 'green';
+      case 3: return 'red';
+      case 4: return 'blue';
+      case 5: return 'cyan';
+      default: return 'default';
     }
   };
 
@@ -160,7 +174,22 @@ export default function JobCard({ job, companyView = false }) {
       {/* Status/expiry notice for company view */}
       {companyView && (
         <div style={{ marginBottom: 8 }}>
-          {job.status === 3 && (<Tag>{statusLabel(job.status)}</Tag>)}
+          {/* Show status tag for all non-active statuses */}
+          {job.status !== 2 && (
+            <Tag color={statusColor(job.status)}>{statusLabel(job.status)}</Tag>
+          )}
+
+          {/* Show rejection reason if exists */}
+          {job.status === 0 && (job.preApprovalRejectionReason || job.rejectionReason) && (
+            <div style={{ padding: '8px 12px', border: '1px solid #ff4d4f', borderRadius: 6, background: '#fff1f0', marginTop: 8 }}>
+              <Typography.Text type="danger" strong>Rejection Reason:</Typography.Text>
+              <Typography.Paragraph style={{ margin: '4px 0 0 0' }}>
+                {job.preApprovalRejectionReason || job.rejectionReason}
+              </Typography.Paragraph>
+            </div>
+          )}
+
+          {/* Expiry notice for active jobs */}
           {job.status === 2 && daysLeft != null && daysLeft <= 7 && (
             <div style={{ padding: '8px 12px', border: '1px dashed #d9d9d9', borderRadius: 6, background: '#fafafa' }}>
               <Space wrap>

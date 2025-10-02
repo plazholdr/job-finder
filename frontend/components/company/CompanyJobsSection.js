@@ -41,9 +41,11 @@ export default function CompanyJobsSection({ companyId }) {
   }, [companyId, page]);
 
   const draftJobs = jobs.filter(j => j.status === 0);
-  const pendingJobs = jobs.filter(j => j.status === 1);
+  const pendingPreApprovalJobs = jobs.filter(j => j.status === 4);
+  const preApprovedJobs = jobs.filter(j => j.status === 5);
+  const pendingFinalApprovalJobs = jobs.filter(j => j.status === 1);
   const activeJobs = jobs.filter(j => j.status === 2);
-  const pastJobs = jobs.filter(j => j.status === 3);
+  const closedJobs = jobs.filter(j => j.status === 3);
 
   const renderJobs = (list) => (
     jobsView === "grid" ? (
@@ -98,9 +100,11 @@ export default function CompanyJobsSection({ companyId }) {
             onChange={setActiveTab}
             items={[
               { key: 'draft', label: `Draft (${draftJobs.length})`, children: renderJobs(draftJobs) },
-              { key: 'pending', label: `Pending (${pendingJobs.length})`, children: renderJobs(pendingJobs) },
+              { key: 'pending_pre_approval', label: `Pending Pre-Approval (${pendingPreApprovalJobs.length})`, children: renderJobs(pendingPreApprovalJobs) },
+              { key: 'pre_approved', label: `Pre-Approved (${preApprovedJobs.length})`, children: renderJobs(preApprovedJobs) },
+              { key: 'pending_final_approval', label: `Pending Final Approval (${pendingFinalApprovalJobs.length})`, children: renderJobs(pendingFinalApprovalJobs) },
               { key: 'active', label: `Active (${activeJobs.length})`, children: renderJobs(activeJobs) },
-              { key: 'past', label: `Past (${pastJobs.length})`, children: renderJobs(pastJobs) },
+              { key: 'closed', label: `Closed (${closedJobs.length})`, children: renderJobs(closedJobs) },
             ]}
           />
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>

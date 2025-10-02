@@ -29,7 +29,7 @@ const onboardingDocSchema = new mongoose.Schema({
 
 const jobListingSchema = new mongoose.Schema({
   companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true, index: true },
-  title: { type: String, required: true },
+  title: String, // Required for submission, but optional for drafts
   position: { type: String, default: 'intern' },
   description: String,
   quantityAvailable: { type: Number, default: 1 },
@@ -49,14 +49,18 @@ const jobListingSchema = new mongoose.Schema({
   lastExpiryReminderAt: Date,
 
   // Status enum stored as integer (see constants/enums)
-  status: { type: Number, enum: [0,1,2,3], default: 0, index: true },
+  // 0=DRAFT, 1=PENDING_APPROVAL, 2=ACTIVE, 3=CLOSED, 4=PENDING_PRE_APPROVAL, 5=PRE_APPROVED
+  status: { type: Number, enum: [0,1,2,3,4,5], default: 0, index: true },
   renewal: { type: Boolean, default: false },
   renewalRequestedAt: Date,
 
-  submittedAt: Date,
-  approvedAt: Date,
+  submittedAt: Date,              // When submitted for pre-approval (first time)
+  preApprovedAt: Date,            // When pre-approval was granted
+  finalSubmittedAt: Date,         // When submitted for final approval
+  approvedAt: Date,               // When final approval was granted (becomes ACTIVE)
   closedAt: Date,
   rejectionReason: String,
+  preApprovalRejectionReason: String,
 
   // Audit
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }

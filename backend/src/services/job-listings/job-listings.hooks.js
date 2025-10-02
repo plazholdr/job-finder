@@ -2,6 +2,7 @@ import { hooks as authHooks } from '@feathersjs/authentication';
 import { iff, isProvider } from 'feathers-hooks-common';
 import mongoose from 'mongoose';
 import { getCompanyForUser, isCompanyVerified } from '../../utils/access.js';
+import { JobListingStatus } from '../../constants/enums.js';
 
 const { authenticate } = authHooks;
 
@@ -16,7 +17,8 @@ function onlyRoles(...roles) {
   };
 }
 
-const STATUS = Object.freeze({ DRAFT: 0, PENDING: 1, ACTIVE: 2, CLOSED: 3 });
+// Use centralized status constants
+const STATUS = JobListingStatus;
 
 function computeExpiry(publishAt) {
   const base = publishAt ? new Date(publishAt) : new Date();
@@ -28,12 +30,27 @@ function computeExpiry(publishAt) {
 export default (app) => ({
   before: {
     all: [],
-    find: [ async (ctx) => {
-      const user = ctx.params?.user;
-      ctx.params.query = ctx.params.query || {};
+    find: [
+      // Try to authenticate if token is present, but don't fail if not
+      async (ctx) => {
+        try {
+          if (ctx.params.headers?.authorization || ctx.params.authentication) {
+            await authenticate('jwt')(ctx);
+          }
+        } catch (err) {
+          // Authentication failed or no token - continue as unauthenticated
+          console.log('🔍 Job Backend FIND: Authentication failed or no token, continuing as unauthenticated');
+        }
+        return ctx;
+      },
+      async (ctx) => {
+        const user = ctx.params?.user;
+        ctx.params.query = ctx.params.query || {};
 
-      // Company sees own; admin sees all; students see ACTIVE only
-      if (!user || user.role === 'student') {
+        console.log('🔍 Job Backend FIND: User:', user ? `${user.email} (${user.role})` : 'NOT AUTHENTICATED');
+
+        // Company sees own jobs (all statuses); admin sees all; students/unauthenticated see ACTIVE only
+        if (!user || user.role === 'student') {
         ctx.params.query.status = STATUS.ACTIVE; // public browse (but still auth in our app)
 
         // Handle custom filters that need backend processing
@@ -87,8 +104,11 @@ export default (app) => ({
       } else if (user.role === 'company') {
         const company = await getCompanyForUser(app, user._id);
         if (!company) throw new Error('Company profile not found');
+        console.log('🔍 Job Backend FIND: Company user, filtering by companyId:', company._id);
         ctx.params.query.companyId = company._id;
       }
+
+      console.log('🔍 Job Backend FIND: Final query:', ctx.params.query);
     } ],
     get: [ async (ctx) => {
       const user = ctx.params?.user;
@@ -123,10 +143,17 @@ export default (app) => ({
         d.companyId = companyId;
         d.createdBy = user._id;
 
-        // Allow client to save as draft or submit
-        const submit = !!d.submitForApproval;
+        // Simple approval workflow:
+        // submitForApproval → PENDING (for admin approval)
+        // otherwise → DRAFT
+        const submitForApproval = !!d.submitForApproval;
         delete d.submitForApproval;
-        if (submit) {
+
+        if (submitForApproval) {
+          // Validate required fields for submission
+          if (!d.title || !d.title.trim()) {
+            throw new Error('Title is required for submission');
+          }
           d.status = STATUS.PENDING;
           d.submittedAt = new Date();
         } else {
@@ -158,7 +185,7 @@ export default (app) => ({
 
         // Company actions
         if (user.role === 'company') {
-          // While pending, restrict company edits to PIC details only
+          // While pending approval, restrict company edits to PIC details only
           if (current.status === STATUS.PENDING) {
             const pic = d.pic || {};
             ctx.params._picUpdatedDuringPending = true;
@@ -166,10 +193,17 @@ export default (app) => ({
             return;
           }
 
-          if (d.submitForApproval) {
+          // Submit for approval - from DRAFT
+          if (d.submitForApproval && current.status === STATUS.DRAFT) {
+            // Validate required fields for submission
+            const title = d.title !== undefined ? d.title : current.title;
+            if (!title || !title.trim()) {
+              throw new Error('Title is required for submission');
+            }
             d.status = STATUS.PENDING;
             d.submittedAt = new Date();
           }
+
           if (d.close === true && current.status === STATUS.ACTIVE) {
             d.status = STATUS.CLOSED;
             d.closedAt = new Date();
@@ -185,6 +219,7 @@ export default (app) => ({
 
         // Admin actions
         if (user.role === 'admin') {
+          // Approve - PENDING → ACTIVE
           if (d.approve === true && current.status === STATUS.PENDING) {
             d.status = STATUS.ACTIVE;
             d.approvedAt = new Date();
@@ -192,9 +227,13 @@ export default (app) => ({
             const pub = d.publishAt || current.publishAt || new Date();
             d.expiresAt = computeExpiry(pub);
           }
+
+          // Reject - PENDING → DRAFT
           if (d.reject === true && current.status === STATUS.PENDING) {
             d.status = STATUS.DRAFT;
+            if (d.rejectionReason) d.rejectionReason = d.rejectionReason;
           }
+
           // Approve renewal if requested
           if (d.approveRenewal === true && current.renewal === true && current.status === STATUS.ACTIVE) {
             const base = current.expiresAt && new Date(current.expiresAt) > new Date() ? new Date(current.expiresAt) : new Date();
@@ -284,15 +323,24 @@ export default (app) => ({
       }
     ],
     create: [ async (ctx) => {
-      // Notify admins when a listing is submitted for approval
+      // Notify admins when a listing is submitted for pre-approval or final approval
       try {
-        if (ctx.result.status === STATUS.PENDING) {
+        if (ctx.result.status === STATUS.PENDING_PRE_APPROVAL) {
+          const admins = await app.service('users').find({ paginate: false, query: { role: 'admin' } });
+          await Promise.all((admins || []).map(a => app.service('notifications').create({
+            recipientUserId: a._id,
+            recipientRole: 'admin',
+            type: 'job_pre_approval_submitted',
+            title: 'New job listing submitted for pre-approval',
+            body: `${ctx.result.title}`
+          })));
+        } else if (ctx.result.status === STATUS.PENDING) {
           const admins = await app.service('users').find({ paginate: false, query: { role: 'admin' } });
           await Promise.all((admins || []).map(a => app.service('notifications').create({
             recipientUserId: a._id,
             recipientRole: 'admin',
             type: 'job_submitted',
-            title: 'New job listing submitted',
+            title: 'Job listing submitted for final approval',
             body: `${ctx.result.title}`
           })));
         }
@@ -314,9 +362,26 @@ export default (app) => ({
           });
         } catch (_) {}
       };
+      // Pre-approval granted (PENDING_PRE_APPROVAL → PRE_APPROVED)
+      if (prev.status === STATUS.PENDING_PRE_APPROVAL && next.status === STATUS.PRE_APPROVED) {
+        await notifyCompany('Job pre-approved', 'Your job listing has been pre-approved. You can now submit it for final approval.');
+      }
+
+      // Pre-approval rejected (PENDING_PRE_APPROVAL → DRAFT)
+      if (prev.status === STATUS.PENDING_PRE_APPROVAL && next.status === STATUS.DRAFT) {
+        await notifyCompany('Job pre-approval rejected', 'Your job listing pre-approval was rejected. Please review and resubmit.');
+      }
+
+      // Final approval granted (PENDING → ACTIVE)
       if (prev.status === STATUS.PENDING && next.status === STATUS.ACTIVE) {
         await notifyCompany('Job approved', 'Your job listing has been approved and is now active.');
       }
+
+      // Final approval rejected (PENDING → PRE_APPROVED)
+      if (prev.status === STATUS.PENDING && next.status === STATUS.PRE_APPROVED) {
+        await notifyCompany('Job final approval rejected', 'Your job listing final approval was rejected. Please review and resubmit.');
+      }
+
       // PIC updated while pending: notify admins
       if (ctx.params._picUpdatedDuringPending) {
         try {
@@ -329,9 +394,6 @@ export default (app) => ({
             body: `${next.title}`
           })));
         } catch (_) {}
-      }
-      if (prev.status === STATUS.PENDING && next.status === STATUS.DRAFT) {
-        await notifyCompany('Job rejected', 'Your job listing was rejected. Please review and resubmit.');
       }
       if (prev.status === STATUS.ACTIVE && next.status === STATUS.CLOSED) {
         await notifyCompany('Job closed', 'Your job listing has been closed.');

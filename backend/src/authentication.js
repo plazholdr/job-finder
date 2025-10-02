@@ -4,17 +4,33 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import CompanyVerifications from './models/company-verifications.model.js';
 
+// Custom LocalStrategy that ensures internal calls don't have provider set
+class CustomLocalStrategy extends LocalStrategy {
+  async findEntity(username, params) {
+    console.log('CustomLocalStrategy.findEntity called with:', { username, provider: params.provider });
+    // Ensure this is treated as an internal call by removing provider
+    const internalParams = { ...params, provider: undefined };
+    console.log('CustomLocalStrategy calling super.findEntity with provider:', internalParams.provider);
+    const result = await super.findEntity(username, internalParams);
+    console.log('CustomLocalStrategy.findEntity result:', !!result);
+    return result;
+  }
+}
+
 export default (app) => {
   // Ensure strategies are allowed; prefer config but fall back to explicit
   const baseConfig = app.get('authentication') || {};
   const mergedConfig = {
     ...baseConfig,
+    entity: 'user',
+    service: 'users',
     authStrategies: Array.isArray(baseConfig.authStrategies) && baseConfig.authStrategies.length
       ? baseConfig.authStrategies
       : ['jwt', 'local'],
     local: {
       usernameField: 'email',
       passwordField: 'password',
+      entityUsernameField: 'email',
       ...(baseConfig.local || {})
     }
   };
@@ -25,7 +41,7 @@ export default (app) => {
 
   // Register stock strategies
   authentication.register('jwt', new JWTStrategy());
-  authentication.register('local', new LocalStrategy());
+  authentication.register('local', new CustomLocalStrategy());
 
   // Mount service
   app.use('/authentication', authentication);
@@ -60,19 +76,7 @@ export default (app) => {
           if (ctx.data.username && !ctx.data.email) ctx.data.email = ctx.data.username;
           if (ctx.data.email) ctx.data.email = String(ctx.data.email).toLowerCase();
 
-          // Debug: verify lookup and password compare internally to help diagnose login failures
-          // if (ctx.data.strategy === 'local' && ctx.data.email && ctx.data.password) {
-          //   try {
-          //     const users = app.service('users');
-          //     const found = await users.find({ paginate: false, query: { email: ctx.data.email } });
-          //     const entity = Array.isArray(found) ? found[0] : found?.data?.[0];
-          //     const hasPwd = !!(entity && entity.password);
-          //     const cmp = hasPwd ? await bcrypt.compare(ctx.data.password, entity.password) : false;
-          //     console.log('Auth debug:', { email: ctx.data.email, found: !!entity, hasPwd, cmp });
-          //   } catch (e) {
-          //     console.log('Auth debug error:', e.message);
-          //   }
-          // }
+
         }
         return ctx;
       } ]

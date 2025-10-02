@@ -112,6 +112,7 @@ export default function Navbar() {
       { key: 'logout', label: 'Logout', onClick: () => { localStorage.removeItem('jf_token'); window.location.reload(); } },
     ] : role === 'company' ? [
       { key: 'profile', label: <Link href="/company/profile" prefetch={false}>Profile</Link> },
+      { key: 'jobs', label: <Link href="/company/jobs" prefetch={false}>Job Management</Link> },
       { key: 'applications', label: <Link href="/company/applications" prefetch={false}>Applications</Link> },
       { key: 'employees', label: <Link href="/company/employees" prefetch={false}>Employees</Link> },
       { key: 'universities', label: <Link href="/company/universities" prefetch={false}>Universities & Programmes</Link> },

@@ -31,7 +31,6 @@ import Navbar from "../../../components/Navbar";
 import Footer from "../../../components/Footer";
 import { API_BASE_URL } from "../../../config";
 import dynamic from "next/dynamic";
-const CompanyJobsSection = dynamic(() => import("../../../components/company/CompanyJobsSection"), { ssr: false, loading: () => <Card title="Job listings"><Skeleton active /></Card> });
 const EditCompanyForm = dynamic(() => import("../../../components/company/EditCompanyForm"), { ssr: false, loading: () => <Card loading style={{ minHeight: 300 }} /> });
 
 
@@ -294,13 +293,9 @@ export default function CompanyProfilePage() {
 
         {/* Right Content */}
         <Col xs={24} lg={16}>
-          <Space direction="vertical" size="large" style={{ width: "100%" }}>
-            <Card style={{ minHeight: 600 }}>
-              <Tabs defaultActiveKey="overview" items={tabItems} tabBarStyle={{ marginBottom: 0 }} />
-            </Card>
-
-            <CompanyJobsSection companyId={company?._id} />
-          </Space>
+          <Card style={{ minHeight: 600 }}>
+            <Tabs defaultActiveKey="overview" items={tabItems} tabBarStyle={{ marginBottom: 0 }} />
+          </Card>
         </Col>
       </Row>
     );

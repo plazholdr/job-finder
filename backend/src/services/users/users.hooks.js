@@ -103,6 +103,10 @@ export default {
   before: {
     all: [],
     find: [
+      (context) => {
+        console.log('🔍 Users.find hook - provider:', context.params.provider, 'query:', JSON.stringify(context.params.query));
+        return context;
+      },
       iff(isProvider('external'), authenticate('jwt')),
       iff(isProvider('external'), requireVerifiedCompany),
       iff(isProvider('external'), mapStudentFilters)

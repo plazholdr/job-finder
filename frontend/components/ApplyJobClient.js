@@ -400,7 +400,7 @@ export default function ApplyJobClient({ jobId }) {
               </Title>
 
               <Text type="secondary" style={{ fontStyle:'italic' }}>
-                Your application will be reviewed by the company. Make sure to provide a compelling statement about why you're interested in this position.
+                Your application will be reviewed by the company. Make sure to provide a compelling statement about why you&apos;re interested in this position.
               </Text>
 
               <Form layout="vertical" form={form} onFinish={async () => {

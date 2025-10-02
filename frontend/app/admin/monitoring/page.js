@@ -2,15 +2,16 @@
 
 import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Table, Card, Space, Segmented, Typography, Tag, Button, message, DatePicker } from 'antd';
+import { Table, Card, Space, Segmented, Typography, Tag, Button, message, DatePicker, Modal, Form, Input, Drawer } from 'antd';
+import { CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
 import { API_BASE_URL } from '../../../config';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 function MonitoringClient() {
   const search = useSearchParams();
   const router = useRouter();
-  const type = search?.get('type') || 'pending_jobs';
+  const type = search?.get('type') || 'pending_pre_approval';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -18,6 +19,11 @@ function MonitoringClient() {
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [range, setRange] = useState([]); // [startDayjs, endDayjs]
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectingJob, setRejectingJob] = useState(null);
+  const [rejectForm] = Form.useForm();
+  const [viewDrawerOpen, setViewDrawerOpen] = useState(false);
+  const [viewingJob, setViewingJob] = useState(null);
 
   useEffect(() => { setPage(1); load(); }, [type, q, page, pageSize, JSON.stringify(range?.map?.(d=>d?.toISOString?.()||''))]);
 
@@ -54,6 +60,92 @@ function MonitoringClient() {
     router.replace(`/admin/monitoring?${qs.toString()}`);
   }
 
+  async function approvePreApproval(jobId) {
+    try {
+      const token = localStorage.getItem('jf_token');
+      const res = await fetch(`${API_BASE_URL}/job-listings/${jobId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ approvePreApproval: true })
+      });
+      if (!res.ok) throw new Error('Failed to approve pre-approval');
+      message.success('Pre-approval granted');
+      load();
+    } catch (e) {
+      message.error(e.message || 'Failed to approve');
+    }
+  }
+
+  async function rejectPreApproval(jobId, reason) {
+    try {
+      const token = localStorage.getItem('jf_token');
+      const res = await fetch(`${API_BASE_URL}/job-listings/${jobId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ rejectPreApproval: true, rejectionReason: reason })
+      });
+      if (!res.ok) throw new Error('Failed to reject pre-approval');
+      message.success('Pre-approval rejected');
+      load();
+    } catch (e) {
+      message.error(e.message || 'Failed to reject');
+    }
+  }
+
+  async function approveFinalApproval(jobId) {
+    try {
+      const token = localStorage.getItem('jf_token');
+      const res = await fetch(`${API_BASE_URL}/job-listings/${jobId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ approve: true })
+      });
+      if (!res.ok) throw new Error('Failed to approve');
+      message.success('Job listing approved and activated');
+      load();
+    } catch (e) {
+      message.error(e.message || 'Failed to approve');
+    }
+  }
+
+  async function rejectFinalApproval(jobId, reason) {
+    try {
+      const token = localStorage.getItem('jf_token');
+      const res = await fetch(`${API_BASE_URL}/job-listings/${jobId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ reject: true, rejectionReason: reason })
+      });
+      if (!res.ok) throw new Error('Failed to reject');
+      message.success('Final approval rejected');
+      load();
+    } catch (e) {
+      message.error(e.message || 'Failed to reject');
+    }
+  }
+
+  function openRejectModal(job, isPreApproval) {
+    setRejectingJob({ ...job, isPreApproval });
+    setRejectModalOpen(true);
+  }
+
+  async function handleReject() {
+    try {
+      const values = await rejectForm.validateFields();
+      if (rejectingJob.isPreApproval) {
+        await rejectPreApproval(rejectingJob._id, values.rejectionReason);
+      } else {
+        await rejectFinalApproval(rejectingJob._id, values.rejectionReason);
+      }
+      setRejectModalOpen(false);
+      rejectForm.resetFields();
+      setRejectingJob(null);
+    } catch (e) {
+      if (e.errorFields) return; // Validation error
+      message.error(e.message || 'Failed to reject');
+    }
+  }
+
   const baseCols = [
     { title: 'Title', dataIndex: 'title', key: 'title' },
     { title: 'Company', key: 'company', render: (_, r) => r.company?.name || r.companyName || '-' },
@@ -62,12 +154,40 @@ function MonitoringClient() {
   const expiringColumns = [
     ...baseCols,
     { title: 'Expires', dataIndex: 'expiresAt', key: 'expiresAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (s) => <Tag color={s===2?'green':s===1?'orange':s===3?'red':'default'}>{s===2?'Active':s===1?'Pending':s===3?'Past':'Draft'}</Tag> },
+    { title: 'Status', dataIndex: 'status', key: 'status', render: (s) => {
+      if (s === 0) return <Tag>Draft</Tag>;
+      if (s === 1) return <Tag color="orange">Pending Final Approval</Tag>;
+      if (s === 2) return <Tag color="green">Active</Tag>;
+      if (s === 3) return <Tag color="red">Closed</Tag>;
+      if (s === 4) return <Tag color="blue">Pending Pre-Approval</Tag>;
+      if (s === 5) return <Tag color="cyan">Pre-Approved</Tag>;
+      return <Tag>Unknown</Tag>;
+    }},
   ];
 
-  const pendingJobColumns = [
+  const pendingPreApprovalColumns = [
     ...baseCols,
     { title: 'Submitted', dataIndex: 'submittedAt', key: 'submittedAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
+    { title: 'Actions', key: 'actions', render: (_, record) => (
+      <Space>
+        <Button size="small" icon={<EyeOutlined />} onClick={() => { setViewingJob(record); setViewDrawerOpen(true); }}>View</Button>
+        <Button type="primary" size="small" icon={<CheckOutlined />} onClick={() => approvePreApproval(record._id)}>Approve</Button>
+        <Button danger size="small" icon={<CloseOutlined />} onClick={() => openRejectModal(record, true)}>Reject</Button>
+      </Space>
+    )}
+  ];
+
+  const pendingFinalApprovalColumns = [
+    ...baseCols,
+    { title: 'Submitted', dataIndex: 'finalSubmittedAt', key: 'finalSubmittedAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
+    { title: 'Pre-Approved', dataIndex: 'preApprovedAt', key: 'preApprovedAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
+    { title: 'Actions', key: 'actions', render: (_, record) => (
+      <Space>
+        <Button size="small" icon={<EyeOutlined />} onClick={() => { setViewingJob(record); setViewDrawerOpen(true); }}>View</Button>
+        <Button type="primary" size="small" icon={<CheckOutlined />} onClick={() => approveFinalApproval(record._id)}>Approve</Button>
+        <Button danger size="small" icon={<CloseOutlined />} onClick={() => openRejectModal(record, false)}>Reject</Button>
+      </Space>
+    )}
   ];
 
   const pendingCompanyColumns = [
@@ -84,7 +204,9 @@ function MonitoringClient() {
       { title: 'Expires', dataIndex: 'expiresAt', key: 'expiresAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
       { title: 'Requested', dataIndex: 'renewalRequestedAt', key: 'renewalRequestedAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
     ];
-    return pendingJobColumns; // pending_jobs
+    if (type === 'pending_pre_approval') return pendingPreApprovalColumns;
+    if (type === 'pending_final_approval') return pendingFinalApprovalColumns;
+    return pendingPreApprovalColumns; // default
   }, [type]);
 
   function toCSV(t, rows){
@@ -107,7 +229,8 @@ function MonitoringClient() {
         <Space wrap>
           <Segmented
             options={[
-              { label: 'Pending Jobs', value: 'pending_jobs' },
+              { label: 'Pending Pre-Approval', value: 'pending_pre_approval' },
+              { label: 'Pending Final Approval', value: 'pending_final_approval' },
               { label: 'Pending Companies', value: 'pending_companies' },
               { label: 'Expiring Jobs', value: 'expiring_jobs' },
               { label: 'Renewal Requests', value: 'renewal_requests' },
@@ -154,6 +277,113 @@ function MonitoringClient() {
           pagination={{ current: page, pageSize, total, showSizeChanger: true, onChange: (p, s) => { setPage(p); setPageSize(s); } }}
         />
       </Card>
+
+      {/* Rejection Modal */}
+      <Modal
+        title={`Reject ${rejectingJob?.isPreApproval ? 'Pre-Approval' : 'Final Approval'}`}
+        open={rejectModalOpen}
+        onCancel={() => {
+          setRejectModalOpen(false);
+          rejectForm.resetFields();
+          setRejectingJob(null);
+        }}
+        onOk={handleReject}
+        okText="Reject"
+        okButtonProps={{ danger: true }}
+      >
+        <Form form={rejectForm} layout="vertical">
+          <Form.Item
+            label="Rejection Reason"
+            name="rejectionReason"
+            rules={[{ required: true, message: 'Please provide a rejection reason' }]}
+          >
+            <Input.TextArea rows={4} placeholder="Explain why this job listing is rejected" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* View Drawer */}
+      <Drawer
+        title="Job Listing Details"
+        open={viewDrawerOpen}
+        onClose={() => {
+          setViewDrawerOpen(false);
+          setViewingJob(null);
+        }}
+        width={600}
+      >
+        {viewingJob && (
+          <Space direction="vertical" style={{ width: '100%' }} size="large">
+            <div>
+              <Text strong>Title:</Text>
+              <div>{viewingJob.title}</div>
+            </div>
+            <div>
+              <Text strong>Company:</Text>
+              <div>{viewingJob.company?.name || viewingJob.companyName || '-'}</div>
+            </div>
+            <div>
+              <Text strong>Description:</Text>
+              <div>{viewingJob.description || '-'}</div>
+            </div>
+            <div>
+              <Text strong>Position:</Text>
+              <div>{viewingJob.position || '-'}</div>
+            </div>
+            <div>
+              <Text strong>Profession:</Text>
+              <div>{viewingJob.profession || '-'}</div>
+            </div>
+            <div>
+              <Text strong>Location:</Text>
+              <div>{viewingJob.location || '-'}</div>
+            </div>
+            <div>
+              <Text strong>Salary Range:</Text>
+              <div>
+                {viewingJob.salaryRange?.min && viewingJob.salaryRange?.max
+                  ? `RM ${viewingJob.salaryRange.min} - RM ${viewingJob.salaryRange.max}`
+                  : '-'}
+              </div>
+            </div>
+            <div>
+              <Text strong>Internship Period:</Text>
+              <div>
+                {viewingJob.internshipDates?.start && viewingJob.internshipDates?.end
+                  ? `${new Date(viewingJob.internshipDates.start).toLocaleDateString()} - ${new Date(viewingJob.internshipDates.end).toLocaleDateString()}`
+                  : '-'}
+              </div>
+            </div>
+            <div>
+              <Text strong>Status:</Text>
+              <div>
+                {viewingJob.status === 0 && <Tag>Draft</Tag>}
+                {viewingJob.status === 1 && <Tag color="orange">Pending Final Approval</Tag>}
+                {viewingJob.status === 2 && <Tag color="green">Active</Tag>}
+                {viewingJob.status === 3 && <Tag color="red">Closed</Tag>}
+                {viewingJob.status === 4 && <Tag color="blue">Pending Pre-Approval</Tag>}
+                {viewingJob.status === 5 && <Tag color="cyan">Pre-Approved</Tag>}
+              </div>
+            </div>
+            <div>
+              <Text strong>Submitted At:</Text>
+              <div>{viewingJob.submittedAt ? new Date(viewingJob.submittedAt).toLocaleString() : '-'}</div>
+            </div>
+            {viewingJob.preApprovedAt && (
+              <div>
+                <Text strong>Pre-Approved At:</Text>
+                <div>{new Date(viewingJob.preApprovedAt).toLocaleString()}</div>
+              </div>
+            )}
+            {viewingJob.finalSubmittedAt && (
+              <div>
+                <Text strong>Final Submitted At:</Text>
+                <div>{new Date(viewingJob.finalSubmittedAt).toLocaleString()}</div>
+              </div>
+            )}
+          </Space>
+        )}
+      </Drawer>
     </div>
   );
 }

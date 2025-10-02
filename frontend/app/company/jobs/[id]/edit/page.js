@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Layout, Card, Steps, Form, Input, InputNumber, DatePicker, Select, Upload, Button, Space, Typography, message, Checkbox, Modal } from "antd";
+import { Layout, Card, Steps, Form, Input, InputNumber, DatePicker, Select, Upload, Button, Space, Typography, message, Checkbox, Modal, Alert } from "antd";
 import Navbar from "../../../../../components/Navbar";
 import Footer from "../../../../../components/Footer";
 import { API_BASE_URL } from "../../../../../config";
@@ -21,6 +21,7 @@ export default function EditJobListingPage() {
 
   const [generalDocs, setGeneralDocs] = useState([]);
   const [jobDocs, setJobDocs] = useState([]);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const [form1] = Form.useForm();
   const [form2] = Form.useForm();
@@ -108,29 +109,37 @@ export default function EditJobListingPage() {
 
   const saveDraft = async () => {
     try {
+      setErrorMessage(null);
       const token = localStorage.getItem("jf_token");
       if (!token) return message.info("Please sign in");
-      const vals = await collectPayload();
+
+      // Collect values without validation (draft can be incomplete)
+      const v1 = form1.getFieldsValue();
+      const v2 = form2.getFieldsValue();
+      const v3 = form3.getFieldsValue();
+      const v4 = form4.getFieldsValue();
+      const vals = { ...v1, ...v2, ...v3, ...v4 };
+
       const payload = {
         companyId: company?._id,
-        internshipStart: vals?.internshipStart ? vals.internshipStart.startOf('month').toISOString() : null,
-        internshipEnd: vals?.internshipEnd ? vals.internshipEnd.startOf('month').toISOString() : null,
+        internshipStart: vals?.internshipStart ? vals.internshipStart.startOf('month').toISOString() : undefined,
+        internshipEnd: vals?.internshipEnd ? vals.internshipEnd.startOf('month').toISOString() : undefined,
         position: vals?.position || 'intern',
-        profession: vals?.profession || '',
-        title: vals?.title || '',
-        description: vals?.description || '',
-        location: { city: vals?.city || '', state: vals?.state || '' },
-        salaryRange: { min: vals?.salaryMin || 0, max: vals?.salaryMax || 0 },
+        profession: vals?.profession || undefined,
+        title: vals?.title || undefined,
+        description: vals?.description || undefined,
+        location: vals?.city || vals?.state ? { city: vals?.city, state: vals?.state } : undefined,
+        salaryRange: vals?.salaryMin || vals?.salaryMax ? { min: vals?.salaryMin || 0, max: vals?.salaryMax || 0 } : undefined,
         quantity: vals?.quantity || 1,
-        picName: vals?.picName || '',
-        picContact: vals?.picContact || '',
+        picName: vals?.picName || undefined,
+        picContact: vals?.picContact || undefined,
         project: {
-          title: vals?.projectTitle || '',
-          description: vals?.projectDescription || '',
-          start: vals?.projectStart ? vals.projectStart.startOf('month').toISOString() : null,
-          end: vals?.projectEnd ? vals.projectEnd.startOf('month').toISOString() : null,
+          title: vals?.projectTitle || undefined,
+          description: vals?.projectDescription || undefined,
+          start: vals?.projectStart ? vals.projectStart.startOf('month').toISOString() : undefined,
+          end: vals?.projectEnd ? vals.projectEnd.startOf('month').toISOString() : undefined,
           locations: vals?.projectLocations || [],
-          roleDescription: vals?.roleDescription || '',
+          roleDescription: vals?.roleDescription || undefined,
           interests: [vals?.interest1, vals?.interest2, vals?.interest3].filter(Boolean),
         },
         onboarding: {
@@ -138,53 +147,83 @@ export default function EditJobListingPage() {
           jobSpecificDocs: jobDocs,
         },
         instantOnApproval: !!vals?.instantOnApproval,
-        publishAt: vals?.publishAt || null,
+        publishAt: vals?.publishAt || undefined,
         status: 0,
       };
       const res = await fetch(`${API_BASE_URL}/job-listings/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error("Failed to save draft");
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        const errorMsg = errorData.message || "Failed to save draft";
+        setErrorMessage(errorMsg);
+        throw new Error(errorMsg);
+      }
+
       message.success("Draft saved");
-    } catch (e) { message.error(e.message || "Failed to save"); }
+    } catch (e) {
+      message.error(e.message || "Failed to save");
+    }
   };
 
   const submitForApproval = async () => {
     try {
+      setErrorMessage(null);
       const token = localStorage.getItem("jf_token");
       if (!token) return message.info("Please sign in");
-      await form1.validateFields(); await form2.validateFields(); await form3.validateFields(); await form4.validateFields();
-      const vals = await collectPayload();
+
+      const v1 = await form1.validateFields();
+      const v2 = await form2.validateFields();
+      const v3 = await form3.validateFields();
+      const v4 = await form4.validateFields();
+
+      const vals = { ...v1, ...v2, ...v3, ...v4 };
+
       const payload = {
         companyId: company?._id,
         internshipStart: vals?.internshipStart ? vals.internshipStart.startOf('month').toISOString() : null,
         internshipEnd: vals?.internshipEnd ? vals.internshipEnd.startOf('month').toISOString() : null,
         position: vals?.position || 'intern',
-        profession: vals?.profession || '',
-        title: vals?.title || '',
-        description: vals?.description || '',
-        location: { city: vals?.city || '', state: vals?.state || '' },
+        profession: vals?.profession,
+        title: vals?.title,
+        description: vals?.description,
+        location: { city: vals?.city, state: vals?.state },
         salaryRange: { min: vals?.salaryMin || 0, max: vals?.salaryMax || 0 },
         quantity: vals?.quantity || 1,
-        picName: vals?.picName || '',
-        picContact: vals?.picContact || '',
+        picName: vals?.picName,
+        picContact: vals?.picContact,
         project: {
-          title: vals?.projectTitle || '',
-          description: vals?.projectDescription || '',
+          title: vals?.projectTitle,
+          description: vals?.projectDescription,
           start: vals?.projectStart ? vals.projectStart.startOf('month').toISOString() : null,
           end: vals?.projectEnd ? vals.projectEnd.startOf('month').toISOString() : null,
           locations: vals?.projectLocations || [],
-          roleDescription: vals?.roleDescription || '',
+          roleDescription: vals?.roleDescription,
           interests: [vals?.interest1, vals?.interest2, vals?.interest3].filter(Boolean),
         },
         onboarding: { generalDocs, jobSpecificDocs: jobDocs },
         instantOnApproval: !!vals?.instantOnApproval,
         publishAt: vals?.publishAt || null,
-        status: 1,
+        submitForPreApproval: true, // Submit for approval (starts with pre-approval)
       };
+
       const res = await fetch(`${API_BASE_URL}/job-listings/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error("Failed to submit");
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        const errorMsg = errorData.message || "Failed to submit";
+        setErrorMessage(errorMsg);
+        throw new Error(errorMsg);
+      }
+
       message.success("Submitted for approval");
-      router.replace("/company/profile");
-    } catch (e) { message.error(e.message || "Submission failed"); }
+      router.replace("/company/jobs");
+    } catch (e) {
+      if (e.errorFields) {
+        setErrorMessage("Please fill in all required fields before submitting");
+      } else {
+        message.error(e.message || "Submission failed");
+      }
+    }
   };
 
   const steps = [
@@ -275,7 +314,7 @@ export default function EditJobListingPage() {
       content: 'Any unsaved changes will be lost. Do you want to leave this page?',
       okText: 'Discard and leave',
       cancelText: 'Stay',
-      onOk: () => router.replace('/company/profile')
+      onOk: () => router.replace('/company/jobs')
     });
   };
 
@@ -284,19 +323,34 @@ export default function EditJobListingPage() {
       <Navbar />
       <Layout.Content style={{ maxWidth: 1200, margin: '24px auto', padding: '0 16px' }}>
         <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Title level={3} style={{ margin: 0 }}>Edit Job Listing</Title>
-            <Space>
-              <Button onClick={onCancelEdit}>Cancel</Button>
-              <Button onClick={saveDraft} loading={loading}>Save draft</Button>
-              <Button type="primary" onClick={submitForApproval} loading={loading}>Submit for approval</Button>
-            </Space>
-          </div>
+          <Title level={3} style={{ marginBottom: 16 }}>Edit Job Listing</Title>
+
+          {errorMessage && (
+            <Alert
+              message="Error"
+              description={errorMessage}
+              type="error"
+              closable
+              onClose={() => setErrorMessage(null)}
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
           <Steps current={current} items={steps.map(s=>({ title: s.title }))} style={{ marginBottom: 24 }} />
           <div style={{ paddingTop: 8 }}>{steps[current].content}</div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
             <Button disabled={current===0} onClick={prev}>Previous</Button>
-            <Button disabled={current===steps.length-1} onClick={next}>Next</Button>
+
+            {current === steps.length - 1 ? (
+              <Space>
+                <Button onClick={onCancelEdit}>Cancel</Button>
+                <Button onClick={saveDraft} loading={loading}>Save as Draft</Button>
+                <Button type="primary" onClick={submitForApproval} loading={loading}>Submit</Button>
+              </Space>
+            ) : (
+              <Button onClick={next}>Next</Button>
+            )}
           </div>
         </Card>
       </Layout.Content>

@@ -88,10 +88,37 @@ class AdminMonitoringService {
     };
     const rx = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
 
+    if (type === 'pending_pre_approval') {
+      const JobModel = this.app.service('job-listings').Model;
+      const CompanyModel = this.app.service('companies').Model;
+      const criteria = applyRange({ status: 4 }, 'submittedAt'); // PENDING_PRE_APPROVAL
+      if (rx) {
+        const companyIds = (await CompanyModel.find({ name: rx }, { _id: 1 }).lean()).map(c => c._id);
+        criteria.$or = [{ title: rx }, { companyId: { $in: companyIds } }];
+      }
+      const total = await JobModel.countDocuments(criteria);
+      const data = await JobModel.find(criteria).sort({ submittedAt: -1 }).skip($skip).limit($limit).lean();
+      return { total, data };
+    }
+
+    if (type === 'pending_final_approval') {
+      const JobModel = this.app.service('job-listings').Model;
+      const CompanyModel = this.app.service('companies').Model;
+      const criteria = applyRange({ status: 1 }, 'finalSubmittedAt'); // PENDING_APPROVAL (final stage)
+      if (rx) {
+        const companyIds = (await CompanyModel.find({ name: rx }, { _id: 1 }).lean()).map(c => c._id);
+        criteria.$or = [{ title: rx }, { companyId: { $in: companyIds } }];
+      }
+      const total = await JobModel.countDocuments(criteria);
+      const data = await JobModel.find(criteria).sort({ finalSubmittedAt: -1 }).skip($skip).limit($limit).lean();
+      return { total, data };
+    }
+
+    // Legacy support for 'pending_jobs' - defaults to pending_pre_approval
     if (type === 'pending_jobs') {
       const JobModel = this.app.service('job-listings').Model;
       const CompanyModel = this.app.service('companies').Model;
-      const criteria = applyRange({ status: 1 }, 'submittedAt');
+      const criteria = applyRange({ status: { $in: [1, 4] } }, 'submittedAt'); // Both pending states
       if (rx) {
         const companyIds = (await CompanyModel.find({ name: rx }, { _id: 1 }).lean()).map(c => c._id);
         criteria.$or = [{ title: rx }, { companyId: { $in: companyIds } }];
