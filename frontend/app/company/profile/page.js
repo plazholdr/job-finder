@@ -311,8 +311,18 @@ export default function CompanyProfilePage() {
             >
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
                 <div>
+                  <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 13, color: '#8c8c8c' }}>Registration Number:</Text>
+                  <Text style={{ fontSize: 14, color: '#262626' }}>{company?.registrationNumber || "—"}</Text>
+                </div>
+
+                <div>
                   <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 13, color: '#8c8c8c' }}>Industry:</Text>
                   <Text style={{ fontSize: 14, color: '#262626' }}>{company?.industry || "—"}</Text>
+                </div>
+
+                <div>
+                  <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 13, color: '#8c8c8c' }}>Company Size:</Text>
+                  <Text style={{ fontSize: 14, color: '#262626' }}>{company?.size || "—"}</Text>
                 </div>
 
                 <div>
@@ -342,6 +352,32 @@ export default function CompanyProfilePage() {
                   <Text style={{ fontSize: 14, color: '#262626' }}>
                     {company?.address?.fullAddress || "Address not set"}
                   </Text>
+                </div>
+              </Space>
+            </Card>
+
+            {/* Point of Contact */}
+            <Card
+              title={<span style={{ fontSize: 16, fontWeight: 600 }}>Point of Contact</span>}
+              style={{
+                borderRadius: 8,
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
+              }}
+            >
+              <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                <div>
+                  <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 13, color: '#8c8c8c' }}>Name:</Text>
+                  <Text style={{ fontSize: 14, color: '#262626' }}>{company?.picName || "—"}</Text>
+                </div>
+
+                <div>
+                  <MailOutlined style={{ color: '#8c8c8c', marginRight: 8 }} />
+                  <Text style={{ fontSize: 14, color: '#262626' }}>{company?.picEmail || "—"}</Text>
+                </div>
+
+                <div>
+                  <PhoneOutlined style={{ color: '#8c8c8c', marginRight: 8 }} />
+                  <Text style={{ fontSize: 14, color: '#262626' }}>{company?.picPhone || "—"}</Text>
                 </div>
               </Space>
             </Card>
