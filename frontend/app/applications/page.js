@@ -129,21 +129,27 @@ export default function MyApplicationsPage(){
     } catch (e) { if (e?.errorFields) return; message.error(e.message || 'Failed'); }
   }
 
+  function handleRowClick(record) {
+    // If hired (status 4), navigate to employment page with application ID
+    if (record.status === 4) {
+      window.location.href = `/employment?applicationId=${record._id}`;
+    }
+  }
+
   const columns = [
     { title: 'Company', key: 'company', render: (_, r) => r.company?.name || r.companyName || r.companyId },
     { title: 'Application date', dataIndex: 'createdAt', render: (d) => d ? new Date(d).toLocaleString() : '-' },
     { title: 'Application status', dataIndex: 'status', render: (s) => <Tag>{statusText(s)}</Tag> },
     { title: 'Last Update', key: 'last', render: (_, r) => r.updatedAt ? new Date(r.updatedAt).toLocaleString() : (r.history?.length ? new Date(r.history[r.history.length-1].at).toLocaleString() : '-') },
-    { title: 'Submitted CV', key: 'cv', render: (_, r) => r.pdfKey ? <Button size="small" onClick={()=>viewPdf(r)}>View PDF</Button> : '-' },
+    { title: 'Submitted CV', key: 'cv', render: (_, r) => r.pdfKey ? <Button size="small" onClick={(e)=>{e.stopPropagation(); viewPdf(r);}}>View PDF</Button> : '-' },
     { title: 'Action', key: 'action', render: (_, r) => {
       const canWithdraw = [0,1,2,3,4].includes(r.status);
       const canExtend = r.status === 0 && !r.extendedOnce;
 
-
-
       return (
-        <Space>
+        <Space onClick={(e) => e.stopPropagation()}>
           {r.status === 3 && <Button size="small" type="primary" onClick={()=>openOffer(r)}>View offer</Button>}
+          {r.status === 4 && <Button size="small" type="primary" onClick={()=>handleRowClick(r)}>View Employment</Button>}
           {canExtend && <Button size="small" onClick={()=>{ setCurrentId(r._id); setExtendOpen(true); }}>Extend validity</Button>}
           {canWithdraw && <Button danger size="small" style={{ }} onClick={()=>{ setCurrentId(r._id); setCurrentStatus(r.status); setWithdrawOpen(true); }}>Withdraw</Button>}
         </Space>
@@ -159,7 +165,17 @@ export default function MyApplicationsPage(){
           <Title level={2} style={{ margin: 0 }}>My Applications</Title>
           <Card>
             <Tabs activeKey={activeKey} onChange={setActiveKey} items={tabs} />
-            <Table rowKey="_id" columns={columns} dataSource={filtered} loading={loading} pagination={{ pageSize: 10 }} />
+            <Table
+              rowKey="_id"
+              columns={columns}
+              dataSource={filtered}
+              loading={loading}
+              pagination={{ pageSize: 10 }}
+              onRow={(record) => ({
+                onClick: () => handleRowClick(record),
+                style: record.status === 4 ? { cursor: 'pointer' } : {}
+              })}
+            />
           </Card>
         </Space>
       </Layout.Content>

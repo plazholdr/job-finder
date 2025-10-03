@@ -208,10 +208,10 @@ export default function CompanyProfilePage() {
     ];
 
     return (
-      <Row gutter={[24, 24]}>
+      <Row gutter={10} style={{ width: '100%' }}>
         {/* Left Sidebar */}
         <Col xs={24} lg={8}>
-          <Space direction="vertical" size={16} style={{ width: "100%" }}>
+          <Space direction="vertical" size="large" style={{ width: "100%" }}>
             {/* Profile Card */}
             <Card
               style={{
@@ -342,10 +342,10 @@ export default function CompanyProfilePage() {
 
   if (loading) {
     return (
-      <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
+      <Layout style={{ minHeight: '100vh' }}>
         <Navbar />
-        <Layout.Content style={{ maxWidth: 1200, margin: "32px auto", padding: "0 24px" }}>
-          <Row gutter={[24, 24]}>
+        <Layout.Content style={{ maxWidth: 1600, margin: "24px auto", padding: "0 24px", width: '100%' }}>
+          <Row gutter={10} style={{ width: '100%' }}>
             <Col xs={24} lg={8}>
               <Card loading style={{ minHeight: 300 }} />
             </Col>
@@ -360,9 +360,9 @@ export default function CompanyProfilePage() {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
+    <Layout style={{ minHeight: '100vh' }}>
       <Navbar />
-      <Layout.Content style={{ maxWidth: 1200, margin: "32px auto", padding: "0 24px" }}>
+      <Layout.Content style={{ maxWidth: 1600, margin: "24px auto", padding: "0 24px", width: '100%' }}>
         {!editing && <ViewLayout />}
         {editing && (
           <EditCompanyForm

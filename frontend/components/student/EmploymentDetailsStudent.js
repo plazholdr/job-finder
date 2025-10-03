@@ -133,11 +133,34 @@ export default function EmploymentDetailsStudent({ record, onUpdated }){
           <Title level={4} style={{ marginBottom: 8 }}>Application details</Title>
           <Descriptions bordered size="small" column={1}>
             <Descriptions.Item label="Application status">{typeof app?.status === 'number' ? <Tag>{['Applied','Shortlisted','Interview','Active offer','Hired','Rejected','Withdrawn','Not Attending'][app.status] || app.status}</Tag> : '-'}</Descriptions.Item>
+            <Descriptions.Item label="Submitted on">{app?.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : (app?.createdAt ? new Date(app.createdAt).toLocaleDateString() : '-')}</Descriptions.Item>
+            <Descriptions.Item label="Accepted on">{app?.acceptedAt ? new Date(app.acceptedAt).toLocaleDateString() : '-'}</Descriptions.Item>
+            <Descriptions.Item label="Candidate statement">{app?.candidateStatement || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Application PDF">{app?.pdfKey ? <Button size="small" onClick={()=>viewFile(app.pdfKey)}>View Application PDF</Button> : '-'}</Descriptions.Item>
             <Descriptions.Item label="Offer title">{app?.offer?.title || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Offer notes">{app?.offer?.notes || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Offer sent on">{app?.offer?.sentAt ? new Date(app.offer.sentAt).toLocaleDateString() : '-'}</Descriptions.Item>
             <Descriptions.Item label="Offer valid until">{app?.offer?.validUntil ? new Date(app.offer.validUntil).toLocaleDateString() : '-'}</Descriptions.Item>
-            <Descriptions.Item label="Letter of offer">{app?.offer?.letterKey ? <Button size="small" onClick={()=>viewFile(app.offer.letterKey)}>View</Button> : '-'}</Descriptions.Item>
+            <Descriptions.Item label="Letter of offer">{app?.offer?.letterKey ? <Button size="small" onClick={()=>viewFile(app.offer.letterKey)}>View Offer Letter</Button> : '-'}</Descriptions.Item>
           </Descriptions>
         </div>
+
+        {/* Personal Information from Application Form */}
+        {app?.form && (
+          <div>
+            <Title level={4} style={{ marginBottom: 8 }}>Personal Information (from application)</Title>
+            <Descriptions bordered size="small" column={1}>
+              {app.form.fullName && <Descriptions.Item label="Full Name">{app.form.fullName}</Descriptions.Item>}
+              {app.form.email && <Descriptions.Item label="Email">{app.form.email}</Descriptions.Item>}
+              {app.form.phone && <Descriptions.Item label="Phone">{app.form.phone}</Descriptions.Item>}
+              {app.form.icPassport && <Descriptions.Item label="IC/Passport">{app.form.icPassport}</Descriptions.Item>}
+              {app.form.university && <Descriptions.Item label="University">{app.form.university}</Descriptions.Item>}
+              {app.form.major && <Descriptions.Item label="Major">{app.form.major}</Descriptions.Item>}
+              {app.form.gpa && <Descriptions.Item label="GPA">{app.form.gpa}</Descriptions.Item>}
+              {app.form.graduationYear && <Descriptions.Item label="Graduation Year">{app.form.graduationYear}</Descriptions.Item>}
+            </Descriptions>
+          </div>
+        )}
 
         <div>
           <Title level={4} style={{ marginBottom: 8 }}>Job onboarding materials</Title>
