@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Layout, Card, List, Avatar, Typography, Space, Button, message } from 'antd';
-import Navbar from './Navbar';
-import Footer from './Footer';
+import { Card, List, Avatar, Typography, Button, Skeleton, Empty, App } from 'antd';
+import Link from 'next/link';
 import { API_BASE_URL } from '../config';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 // Component to handle signed URL for each company
-function CompanyListItem({ company }) {
+function CompanyListItem({ company, onUnlike }) {
   const [logoSignedUrl, setLogoSignedUrl] = useState(null);
 
   useEffect(() => {
@@ -38,11 +37,30 @@ function CompanyListItem({ company }) {
   }, [company.logo, company.logoUrl, company.logoKey]);
 
   return (
-    <List.Item actions={[<Button key="view" type="link" href={`/companies/${company._id}`}>View</Button>]}>
+    <List.Item
+      extra={<Button onClick={() => onUnlike(company._id, company.favoriteId)}>Unlike</Button>}
+    >
       <List.Item.Meta
-        avatar={<Avatar src={logoSignedUrl} shape="square">{company.name?.charAt(0)?.toUpperCase()}</Avatar>}
-        title={company.name}
-        description={<Text type="secondary">{company.tagline || company.description || ''}</Text>}
+        avatar={<Avatar src={logoSignedUrl} shape="square" size={64}>{company.name?.charAt(0)?.toUpperCase()}</Avatar>}
+        title={
+          <Link href={`/companies/${company._id}`} style={{ color: '#1677ff', fontSize: 16 }}>
+            {company.name}
+          </Link>
+        }
+        description={
+          <div>
+            {company.description && (
+              <Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: 8 }}>
+                {company.description}
+              </Paragraph>
+            )}
+            {company.industry && (
+              <Text type="secondary" style={{ fontSize: 14 }}>
+                Industry: {company.industry}
+              </Text>
+            )}
+          </div>
+        }
       />
     </List.Item>
   );
@@ -51,12 +69,17 @@ function CompanyListItem({ company }) {
 export default function LikedCompaniesClient(){
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { message } = App.useApp();
 
   async function load(){
     try {
       setLoading(true);
       const token = localStorage.getItem('jf_token');
-      if (!token) { window.location.href = '/login'; return; }
+      if (!token) {
+        message.info('Please sign in');
+        window.location.href = '/login';
+        return;
+      }
       const favRes = await fetch(`${API_BASE_URL}/favorites?$sort[createdAt]=-1`, { headers: { Authorization: `Bearer ${token}` } });
       const favJson = await favRes.json();
       const favs = Array.isArray(favJson) ? favJson : favJson.data || [];
@@ -70,30 +93,56 @@ export default function LikedCompaniesClient(){
         } catch { return null; }
       }));
       setItems(companies.filter(Boolean));
-    } catch (e) { message.error(e.message || 'Failed to load'); }
-    finally { setLoading(false); }
+    } catch (e) {
+      message.error(e.message || 'Failed to load liked companies');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUnlike(companyId, favoriteId) {
+    try {
+      const token = localStorage.getItem('jf_token');
+      if (!token) {
+        message.info('Please sign in');
+        return;
+      }
+
+      await fetch(`${API_BASE_URL}/favorites/${favoriteId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setItems(prev => prev.filter(it => it._id !== companyId));
+      message.success('Removed from favorites');
+    } catch (e) {
+      message.error('Failed to unlike. Please try again.');
+    }
   }
 
   useEffect(() => { load(); }, []);
 
+  if (loading) {
+    return <Card><Skeleton active /></Card>;
+  }
+
+  if (!items.length) {
+    return (
+      <Card>
+        <Empty description="No liked companies yet" />
+      </Card>
+    );
+  }
+
   return (
-    <Layout>
-      <Navbar />
-      <Layout.Content style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Title level={2} style={{ margin: 0 }}>Liked Companies</Title>
-          <Card>
-            <List
-              loading={loading}
-              dataSource={items}
-              rowKey={c => c._id}
-              renderItem={(c) => <CompanyListItem company={c} />}
-            />
-          </Card>
-        </Space>
-      </Layout.Content>
-      <Footer />
-    </Layout>
+    <Card>
+      <List
+        itemLayout="vertical"
+        dataSource={items}
+        rowKey={c => c._id}
+        renderItem={(c) => <CompanyListItem company={c} onUnlike={handleUnlike} />}
+      />
+    </Card>
   );
 }
 
