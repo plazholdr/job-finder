@@ -87,8 +87,47 @@ export default function Navbar() {
             const ar = await fetch(`${API_BASE_URL}/admin-dashboard/overview`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (ar.ok) {
               setRole('admin');
+              // Fetch admin user info
+              try {
+                const meRes = await fetch(`${API_BASE_URL}/users/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (meRes.ok) {
+                  const me = await meRes.json();
+                  const name = me?.fullName || me?.name || me?.email || 'Admin';
+                  setDisplayName(name);
+                }
+              } catch (_) {}
             } else {
               setRole('company');
+              // Fetch company info
+              try {
+                const meRes = await fetch(`${API_BASE_URL}/users/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (meRes.ok) {
+                  const me = await meRes.json();
+                  // Fetch company by owner
+                  const cRes = await fetch(`${API_BASE_URL}/companies?ownerUserId=${me._id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                  if (cRes.ok) {
+                    const cJson = await cRes.json();
+                    const companies = Array.isArray(cJson?.data) ? cJson.data : [];
+                    if (companies.length > 0) {
+                      const company = companies[0];
+                      setDisplayName(company.name || 'Company');
+                      const logoUrl = company.logoKey || company.logo || '';
+                      setAvatarUrl(logoUrl);
+
+                      // Generate signed URL for company logo
+                      if (logoUrl) {
+                        try {
+                          const signedRes = await fetch(`${API_BASE_URL}/signed-url?url=${encodeURIComponent(logoUrl)}`);
+                          if (signedRes.ok) {
+                            const signedData = await signedRes.json();
+                            setAvatarSignedUrl(signedData.signedUrl);
+                          }
+                        } catch (_) {}
+                      }
+                    }
+                  }
+                }
+              } catch (_) {}
             }
           } catch (_) { setRole('company'); }
         }
