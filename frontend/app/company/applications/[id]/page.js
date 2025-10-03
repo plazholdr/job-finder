@@ -131,13 +131,41 @@ export default function ApplicationDetailPage({ params }) {
   async function submitOffer() {
     try {
       const v = await offerForm.validateFields();
-      if (!uploadMeta?.key) { message.error('Please upload the offer letter'); return; }
+      if (!uploadMeta?.key) {
+        message.error('Please upload the offer letter');
+        return;
+      }
       await new Promise((resolve, reject) => {
-        Modal.confirm({ title: 'Send offer?', content: 'Confirm sending the offer to the candidate.', onOk: resolve, onCancel: () => reject(new Error('cancel')) });
+        Modal.confirm({
+          title: 'Send offer?',
+          content: 'Confirm sending the offer to the candidate.',
+          onOk: resolve,
+          onCancel: () => reject(new Error('cancel'))
+        });
       });
-      await patchAction({ action: 'sendOffer', title: v.title, notes: v.notes || '', validUntil: v.validUntil?.toDate?.() || v.validUntil, letterKey: uploadMeta.key });
-      message.success('Offer sent'); setOfferOpen(false); offerForm.resetFields(); setUploadMeta(null); load();
-    } catch (e) { if (e?.errorFields || e.message === 'cancel') return; message.error(e.message); }
+      await patchAction({
+        action: 'sendOffer',
+        title: v.title,
+        notes: v.notes || '',
+        validUntil: v.validUntil?.toDate?.() || v.validUntil,
+        letterKey: uploadMeta.key
+      });
+      message.success('Offer sent');
+      setOfferOpen(false);
+      offerForm.resetFields();
+      setUploadMeta(null);
+      load();
+    } catch (e) {
+      // If validation error, Ant Design will show the error in the form
+      if (e?.errorFields) {
+        message.error('Please fill in all required fields');
+        return;
+      }
+      // If user cancelled the confirmation
+      if (e.message === 'cancel') return;
+      // Other errors
+      message.error(e.message || 'Failed to send offer');
+    }
   }
 
   return (
