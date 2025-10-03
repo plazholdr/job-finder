@@ -42,6 +42,8 @@ export default function CompanyProfilePage() {
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+  const [logoUrl, setLogoUrl] = useState(null);
 
 
   const storageBase =
@@ -94,9 +96,33 @@ export default function CompanyProfilePage() {
     load();
   }, [load]);
 
-  const logoUrl = company?.logoKey
-    ? `${storageBase}/${company.logoKey}`
-    : company?.logo || null;
+  // Generate signed URL for logo display
+  useEffect(() => {
+    async function loadLogo() {
+      // Construct the full S3 URL from logoKey or use logo URL
+      const fullUrl = company?.logoKey
+        ? `${storageBase}/${company.logoKey}`
+        : company?.logo;
+
+      if (fullUrl) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/signed-url?url=${encodeURIComponent(fullUrl)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setLogoUrl(data.signedUrl);
+          } else {
+            setLogoUrl(fullUrl); // Fallback to original URL
+          }
+        } catch (e) {
+          console.error('Failed to get signed URL:', e);
+          setLogoUrl(fullUrl); // Fallback to original URL
+        }
+      } else {
+        setLogoUrl(null);
+      }
+    }
+    loadLogo();
+  }, [company?.logo, company?.logoKey, storageBase]);
 
   async function onUploadLogo(file) {
     try {
@@ -228,7 +254,15 @@ export default function CompanyProfilePage() {
               </div>
 
               <div style={{ position: "relative", display: "inline-block", marginBottom: 16, marginTop: 8 }}>
-                <Avatar size={100} src={logoUrl} style={{ border: '3px solid #f0f0f0' }}>
+                <Avatar
+                  size={100}
+                  src={!logoError && logoUrl ? logoUrl : undefined}
+                  style={{ border: '3px solid #f0f0f0' }}
+                  onError={() => {
+                    setLogoError(true);
+                    return true;
+                  }}
+                >
                   {company?.name?.charAt(0) || "C"}
                 </Avatar>
                 <Upload beforeUpload={onUploadLogo} maxCount={1} accept="image/*" showUploadList={false}>
