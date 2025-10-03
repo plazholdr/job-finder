@@ -38,30 +38,22 @@ function CompanyListItem({ company, onUnlike }) {
 
   return (
     <List.Item
+      key={company._id}
       extra={<Button onClick={() => onUnlike(company._id, company.favoriteId)}>Unlike</Button>}
     >
-      <List.Item.Meta
-        avatar={<Avatar src={logoSignedUrl} shape="square" size={64}>{company.name?.charAt(0)?.toUpperCase()}</Avatar>}
-        title={
-          <Link href={`/companies/${company._id}`} style={{ color: '#1677ff', fontSize: 16 }}>
+      <div>
+        <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
+          <Link href={`/companies/${company._id}`} style={{ color: '#1677ff' }}>
             {company.name}
           </Link>
-        }
-        description={
-          <div>
-            {company.description && (
-              <Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: 8 }}>
-                {company.description}
-              </Paragraph>
-            )}
-            {company.industry && (
-              <Text type="secondary" style={{ fontSize: 14 }}>
-                Industry: {company.industry}
-              </Text>
-            )}
-          </div>
-        }
-      />
+        </Title>
+        {company.description && (
+          <Paragraph ellipsis={{ rows: 2 }}>{company.description}</Paragraph>
+        )}
+        {company.industry && (
+          <Text type="secondary">Industry: {company.industry}</Text>
+        )}
+      </div>
     </List.Item>
   );
 }
