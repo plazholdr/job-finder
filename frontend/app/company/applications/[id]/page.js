@@ -31,6 +31,7 @@ export default function ApplicationDetailPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
+  const [offerConfirmOpen, setOfferConfirmOpen] = useState(false);
   const [rejectOfferedOpen, setRejectOfferedOpen] = useState(false);
   const [rejectForm] = Form.useForm();
   const [offerForm] = Form.useForm();
@@ -144,14 +145,22 @@ export default function ApplicationDetailPage({ params }) {
         message.error('Please upload the offer letter');
         return;
       }
-      await new Promise((resolve, reject) => {
-        Modal.confirm({
-          title: 'Send offer?',
-          content: 'Confirm sending the offer to the candidate.',
-          onOk: resolve,
-          onCancel: () => reject(new Error('cancel'))
-        });
-      });
+      // Show confirmation modal
+      setOfferConfirmOpen(true);
+    } catch (e) {
+      // If validation error, Ant Design will show the error in the form
+      if (e?.errorFields) {
+        message.error('Please fill in all required fields');
+        return;
+      }
+      // Other errors
+      message.error(e.message || 'Failed to send offer');
+    }
+  }
+
+  async function confirmSendOffer() {
+    try {
+      const v = offerForm.getFieldsValue();
       await patchAction({
         action: 'sendOffer',
         title: v.title,
@@ -160,19 +169,12 @@ export default function ApplicationDetailPage({ params }) {
         letterKey: uploadMeta.key
       });
       message.success('Offer sent');
+      setOfferConfirmOpen(false);
       setOfferOpen(false);
       offerForm.resetFields();
       setUploadMeta(null);
       load();
     } catch (e) {
-      // If validation error, Ant Design will show the error in the form
-      if (e?.errorFields) {
-        message.error('Please fill in all required fields');
-        return;
-      }
-      // If user cancelled the confirmation
-      if (e.message === 'cancel') return;
-      // Other errors
       message.error(e.message || 'Failed to send offer');
     }
   }
@@ -317,6 +319,18 @@ export default function ApplicationDetailPage({ params }) {
             {uploadMeta?.name && <Text type="secondary">Uploaded: {uploadMeta.name}</Text>}
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="Send offer?"
+        open={offerConfirmOpen}
+        onCancel={()=>setOfferConfirmOpen(false)}
+        onOk={confirmSendOffer}
+        okText="Confirm"
+      >
+        <Typography.Paragraph>
+          Confirm sending the offer to the candidate.
+        </Typography.Paragraph>
       </Modal>
 
       <Modal title="Reject Offered Position" open={rejectOfferedOpen} onCancel={()=>setRejectOfferedOpen(false)}
