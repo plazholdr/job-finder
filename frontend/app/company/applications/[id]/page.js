@@ -26,7 +26,7 @@ function SectionKV({ data }){
 }
 
 export default function ApplicationDetailPage({ params }) {
-  const { id } = params || {};
+  const [id, setId] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -37,6 +37,14 @@ export default function ApplicationDetailPage({ params }) {
   const [uploadMeta, setUploadMeta] = useState(null);
   const [letterUrl, setLetterUrl] = useState(null);
 
+  // Await params in useEffect
+  useEffect(() => {
+    (async () => {
+      const resolvedParams = await params;
+      setId(resolvedParams?.id);
+    })();
+  }, [params]);
+
   const statusTag = (s) => {
     const map = { 0:['New','blue'],1:['Shortlisted','cyan'],2:['Interview','purple'],3:['Pending Acceptance','gold'],4:['Hired','green'],5:['Rejected','red'],6:['Withdrawn','default'],7:['Not Attending','default'] };
     const m = map[s];
@@ -44,6 +52,7 @@ export default function ApplicationDetailPage({ params }) {
   };
 
   const load = useCallback(async () => {
+    if (!id) return;
     try {
       setLoading(true);
       const token = localStorage.getItem('jf_token');
