@@ -15,14 +15,67 @@ function SectionKV({ data }){
   if (!entries.length) return <span>-</span>;
   return (
     <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:8 }}>
-      {entries.map(([k,v]) => (
-        <>
+      {entries.map(([k,v], idx) => (
+        <div key={idx} style={{ display: 'contents' }}>
           <div style={{ fontWeight:600, color:'#555' }}>{k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase())}</div>
           <div style={{ whiteSpace:'pre-wrap' }}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</div>
-        </>
+        </div>
       ))}
     </div>
   );
+}
+
+function CourseInfo({ data }) {
+  if (!data) return <span>-</span>;
+
+  // Handle array of courses
+  if (Array.isArray(data)) {
+    if (data.length === 0) return <span>-</span>;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {data.map((course, idx) => (
+          <div key={idx} style={{ padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+              {course.courseName || course.name || `Course ${idx + 1}`}
+            </div>
+            {course.courseId && (
+              <div style={{ fontSize: 12, color: '#666' }}>
+                <strong>Course ID:</strong> {course.courseId}
+              </div>
+            )}
+            {course.courseDescription && (
+              <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                {course.courseDescription}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Handle single course object
+  if (typeof data === 'object') {
+    return (
+      <div style={{ padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>
+          {data.courseName || data.name || 'Course'}
+        </div>
+        {data.courseId && (
+          <div style={{ fontSize: 12, color: '#666' }}>
+            <strong>Course ID:</strong> {data.courseId}
+          </div>
+        )}
+        {data.courseDescription && (
+          <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+            {data.courseDescription}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return <span>-</span>;
 }
 
 export default function ApplicationDetailPage({ params }) {
@@ -248,7 +301,7 @@ export default function ApplicationDetailPage({ params }) {
                     <Descriptions.Item label="Application Validity">{data.validityUntil ? new Date(data.validityUntil).toLocaleDateString() : '-'}</Descriptions.Item>
                     <Descriptions.Item label="Personal Information"><SectionKV data={data.form?.personalInfo || data.personalInfo} /></Descriptions.Item>
                     <Descriptions.Item label="Internship Details"><SectionKV data={data.form?.internshipInfo || data.internshipInfo} /></Descriptions.Item>
-                    <Descriptions.Item label="Course Information"><SectionKV data={data.form?.courseInfo || data.courseInfo} /></Descriptions.Item>
+                    <Descriptions.Item label="Course Information"><CourseInfo data={data.form?.courseInfo || data.courseInfo} /></Descriptions.Item>
                     <Descriptions.Item label="Assignment Information"><SectionKV data={data.form?.assignmentInfo || data.assignmentInfo} /></Descriptions.Item>
                     {data.applicationDetails && (
                       <Descriptions.Item label="Application Details"><SectionKV data={data.applicationDetails} /></Descriptions.Item>
