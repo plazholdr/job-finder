@@ -6,6 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 import middleware from './middleware/index.js';
@@ -200,10 +201,33 @@ app.get('/health', (req, res) => {
 
 // Serve OpenAPI spec and simple docs
 app.get('/openapi.yaml', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'openapi.yaml'));
+  const openApiPath = path.join(__dirname, '..', 'openapi.yaml');
+  console.log('Serving OpenAPI from:', openApiPath);
+
+  // Check if file exists
+  if (!fs.existsSync(openApiPath)) {
+    console.error('OpenAPI file not found at:', openApiPath);
+    return res.status(404).json({ error: 'OpenAPI specification not found' });
+  }
+
+  res.sendFile(openApiPath);
 });
 
 app.get('/docs', (req, res) => {
+  const openApiPath = path.join(__dirname, '..', 'openapi.yaml');
+
+  if (!fs.existsSync(openApiPath)) {
+    return res.type('html').send(`<!doctype html>
+<html>
+<head><meta charset="utf-8"/><title>Job Finder API Docs</title></head>
+<body>
+  <h1>API Documentation</h1>
+  <p>OpenAPI specification file not found. Please check the server configuration.</p>
+  <p>Expected location: ${openApiPath}</p>
+</body>
+</html>`);
+  }
+
   res.type('html').send(`<!doctype html>
 <html>
 <head><meta charset="utf-8"/><title>Job Finder API Docs</title></head>
