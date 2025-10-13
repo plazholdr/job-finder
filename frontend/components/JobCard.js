@@ -1,21 +1,25 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { Card, Tag, Typography, Button, Space, App, Modal, Avatar } from 'antd';
-import { SaveOutlined, CheckOutlined, LikeOutlined, BankOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { Card, Tag, Typography, Button, Space, App, Modal, Divider, theme as antdTheme } from 'antd';
+import { HeartOutlined, HeartFilled, BookOutlined, BookFilled, EnvironmentOutlined, DollarOutlined, ClockCircleOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { apiAuth, getToken } from '../lib/api';
 import AuthPromptModal from './AuthPromptModal';
 import { API_BASE_URL } from '../config';
 
+const { Text } = Typography;
+
 export default function JobCard({ job, companyView = false }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const { message } = App.useApp();
+  const { token } = antdTheme.useToken();
   const [saved, setSaved] = useState(false);
   const [savedId, setSavedId] = useState(null);
   const [liked, setLiked] = useState(false);
   const [likedId, setLikedId] = useState(null);
   const [authModalConfig, setAuthModalConfig] = useState({});
   const [logoSignedUrl, setLogoSignedUrl] = useState(null);
+  const [logoError, setLogoError] = useState(false);
   const router = useRouter();
   const companyName = job.company?.name || job.companyName || 'Company';
 
@@ -190,147 +194,254 @@ export default function JobCard({ job, companyView = false }) {
     }
   }
 
+  // Calculate days ago
+  const daysAgo = (() => {
+    const posted = job.approvedAt || job.createdAt;
+    if (!posted) return 0;
+    const now = new Date();
+    const postedDate = new Date(posted);
+    const diff = Math.floor((now.getTime() - postedDate.getTime()) / (24 * 60 * 60 * 1000));
+    return diff;
+  })();
+
+  // Format salary
+  const formatSalary = () => {
+    if (!job.salaryRange || (!job.salaryRange.min && !job.salaryRange.max)) return 'Not specified';
+    const min = job.salaryRange.min ? `RM ${job.salaryRange.min.toLocaleString()}` : '';
+    const max = job.salaryRange.max ? `RM ${job.salaryRange.max.toLocaleString()}` : '';
+    if (min && max) return `${min} - ${max}`;
+    return min || max;
+  };
+
   return (
     <Card
       hoverable
-      title={job.title}
-      extra={<span>{companyName}</span>}
       onClick={handleCardClick}
-      style={{ cursor: 'pointer', position: 'relative' }}
+      style={{
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        border: `1px solid ${token.colorBorder}`,
+        backgroundColor: token.colorBgContainer
+      }}
+      styles={{ body: { padding: '24px' } }}
     >
-      {/* Status/expiry notice for company view */}
-      {companyView && (
-        <div style={{ marginBottom: 8 }}>
-          {/* Show status tag for all non-active statuses */}
-          {job.status !== 2 && (
-            <Tag color={statusColor(job.status)}>{statusLabel(job.status)}</Tag>
-          )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Header with logo and actions */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ display: 'flex', gap: 16, flex: 1 }}>
+            {/* Company Logo */}
+            {logoSignedUrl && !logoError ? (
+              <img
+                src={logoSignedUrl}
+                alt={companyName}
+                onError={() => setLogoError(true)}
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 8,
+                  objectFit: 'cover',
+                  border: `1px solid ${token.colorBorder}`
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 8,
+                  backgroundColor: token.colorBgLayout,
+                  border: `1px solid ${token.colorBorder}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 24,
+                  fontWeight: 600,
+                  color: token.colorTextTertiary,
+                  flexShrink: 0
+                }}
+              >
+                {companyName.charAt(0).toUpperCase()}
+              </div>
+            )}
 
-          {/* Show rejection reason if exists */}
-          {job.status === 0 && (job.preApprovalRejectionReason || job.rejectionReason) && (
-            <div style={{ padding: '8px 12px', border: '1px solid #ff4d4f', borderRadius: 6, background: '#fff1f0', marginTop: 8 }}>
-              <Typography.Text type="danger" strong>Rejection Reason:</Typography.Text>
-              <Typography.Paragraph style={{ margin: '4px 0 0 0' }}>
-                {job.preApprovalRejectionReason || job.rejectionReason}
-              </Typography.Paragraph>
-            </div>
-          )}
+            {/* Job Info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 600, color: token.colorText, margin: '0 0 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {job.title}
+              </h3>
+              <p style={{ fontSize: 16, color: token.colorTextSecondary, margin: '0 0 8px 0' }}>{companyName}</p>
 
-          {/* Expiry notice for active jobs */}
-          {job.status === 2 && daysLeft != null && daysLeft <= 7 && (
-            <div style={{ padding: '8px 12px', border: '1px dashed #d9d9d9', borderRadius: 6, background: '#fafafa' }}>
-              <Space wrap>
-                <Tag color="orange">Expiring in {Math.max(daysLeft, 0)} day{Math.max(daysLeft,0)===1?'':'s'}</Tag>
-                {job.renewal ? (
-                  <Tag color="blue">Renewal pending approval</Tag>
-                ) : (
-                  <Button size="small" type="primary" onClick={requestRenewal}>Request renewal</Button>
-                )}
-              </Space>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 14, color: token.colorTextSecondary }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <EnvironmentOutlined style={{ color: token.colorTextTertiary }} />
+                  {job.location?.city || job.location?.state ?
+                    [job.location?.city, job.location?.state].filter(Boolean).join(', ') :
+                    'Location not specified'}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <DollarOutlined style={{ color: token.colorTextTertiary }} />
+                  {formatSalary()}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <AppstoreOutlined style={{ color: token.colorTextTertiary }} />
+                  {job.company?.industry || 'Industry not specified'}
+                </span>
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Like and Save buttons */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button
+              type="text"
+              icon={liked ? <HeartFilled style={{ color: '#ff4d4f', fontSize: 20 }} /> : <HeartOutlined style={{ fontSize: 20 }} />}
+              onClick={handleLike}
+              style={{ padding: '4px 8px' }}
+            />
+            <Button
+              type="text"
+              icon={saved ? <BookFilled style={{ color: '#1890ff', fontSize: 20 }} /> : <BookOutlined style={{ fontSize: 20 }} />}
+              onClick={handleSave}
+              style={{ padding: '4px 8px' }}
+            />
+          </div>
         </div>
-      )}
 
-      {/* Quick meta */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        {job.approvedAt || job.createdAt ? (
-          <Tag>Posted {new Date(job.approvedAt || job.createdAt).toLocaleDateString()}</Tag>
-        ) : null}
-        {job?.project?.startDate && job?.project?.endDate ? (
-          <Tag color="purple">
-            {(() => {
-              const s = new Date(job.project.startDate); const e = new Date(job.project.endDate);
-              const months = Math.round(((e - s) / (1000*60*60*24*30)));
-              return `${months} month${months===1?'':'s'}`;
-            })()}
-          </Tag>
-        ) : null}
-      </div>
+        {/* Description */}
+        <p style={{ color: token.colorTextSecondary, fontSize: 14, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {job.description}
+        </p>
 
-      <Typography.Paragraph ellipsis={{ rows: 2 }}>{job.description}</Typography.Paragraph>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        {job.location?.city || job.location?.state ? (
-          <><Typography.Paragraph style={{ margin: 0, fontSize: '14px', color: '#666' }}><EnvironmentOutlined style={{marginRight: 5}}/>{[job.location?.city, job.location?.state].filter(Boolean).join(', ')}</Typography.Paragraph></>
-          // <Tag>{[job.location?.city, job.location?.state].filter(Boolean).join(', ')}</Tag>
-        ) : (
-          (job.locations || []).slice(0, 3).map((loc, i) => (<Tag key={i}>{loc}</Tag>))
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        {job.salaryRange && (job.salaryRange.min || job.salaryRange.max) && (
-          <Tag color="green">
-            {`RM ${job.salaryRange.min ?? 0}${job.salaryRange.max ? ' - RM ' + job.salaryRange.max : ''}`}
-          </Tag>
-        )}
+        {/* Skills/Tags */}
         {job.company?.industry && (
-          <Tag color="blue" style={{ padding: '0px 10px 0px 10px',borderRadius: 15 }}>{job.company.industry}</Tag>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <Tag style={{ margin: 0, padding: '4px 12px', fontSize: 12, borderRadius: 4 }}>
+              {job.company.industry}
+            </Tag>
+            {job?.project?.startDate && job?.project?.endDate && (
+              <Tag style={{ margin: 0, padding: '4px 12px', fontSize: 12, borderRadius: 4 }}>
+                {(() => {
+                  const s = new Date(job.project.startDate);
+                  const e = new Date(job.project.endDate);
+                  const months = Math.round(((e - s) / (1000*60*60*24*30)));
+                  return `${months} month${months===1?'':'s'} duration`;
+                })()}
+              </Tag>
+            )}
+          </div>
+        )}
+
+        <Divider style={{ margin: '8px 0' }} />
+
+        {/* Footer with date and actions */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: token.colorTextTertiary }}>
+            <ClockCircleOutlined style={{ fontSize: 14 }} />
+            <span>Posted {daysAgo === 0 ? 'today' : `${daysAgo} ${daysAgo === 1 ? 'day' : 'days'} ago`}</span>
+          </div>
+          <Space>
+            <Button size="large" onClick={(e) => { e.stopPropagation(); handleCardClick(); }}>
+              View Details
+            </Button>
+            <Button type="primary" size="large" onClick={(e) => { e.stopPropagation(); handleCardClick(); }}>
+              Apply Now
+            </Button>
+          </Space>
+        </div>
+
+        {/* Company view specific content */}
+        {companyView && (
+          <>
+            {/* Status/expiry notice */}
+            {job.status !== 2 && (
+              <div style={{ marginTop: 8 }}>
+                <Tag color={statusColor(job.status)}>{statusLabel(job.status)}</Tag>
+              </div>
+            )}
+
+            {/* Rejection reason */}
+            {job.status === 0 && (job.preApprovalRejectionReason || job.rejectionReason) && (
+              <div style={{
+                padding: '8px 12px',
+                border: '1px solid #ff4d4f',
+                borderRadius: 6,
+                background: token.colorErrorBg || '#fff1f0',
+                marginTop: 8
+              }}>
+                <Text type="danger" strong>Rejection Reason:</Text>
+                <Typography.Paragraph style={{ margin: '4px 0 0 0', color: token.colorText }}>
+                  {job.preApprovalRejectionReason || job.rejectionReason}
+                </Typography.Paragraph>
+              </div>
+            )}
+
+            {/* Expiry notice */}
+            {job.status === 2 && daysLeft != null && daysLeft <= 7 && (
+              <div style={{
+                padding: '8px 12px',
+                border: `1px dashed ${token.colorBorder}`,
+                borderRadius: 6,
+                background: token.colorBgLayout,
+                marginTop: 8
+              }}>
+                <Space wrap>
+                  <Tag color="orange">Expiring in {Math.max(daysLeft, 0)} day{Math.max(daysLeft,0)===1?'':'s'}</Tag>
+                  {job.renewal ? (
+                    <Tag color="blue">Renewal pending approval</Tag>
+                  ) : (
+                    <Button size="small" type="primary" onClick={requestRenewal}>Request renewal</Button>
+                  )}
+                </Space>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Company view action buttons */}
+        {companyView && job.status === 0 && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+            <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}/edit`); }}>
+              Continue editing
+            </Button>
+            <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>
+              View
+            </Button>
+          </div>
+        )}
+        {companyView && job.status === 1 && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+            {job.picUpdatedAt && <Tag color="blue">PIC updated</Tag>}
+            <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>
+              View
+            </Button>
+            <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}?editPIC=1`); }}>
+              Edit PIC
+            </Button>
+          </div>
+        )}
+        {companyView && job.status === 2 && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+            <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>View</Button>
+            <Button size="small" danger onClick={(e)=>{
+              e.preventDefault(); e.stopPropagation();
+              Modal.confirm({
+                title: 'Close this job?',
+                content: 'Once closed, it will be removed from public listings.',
+                okText: 'Yes, close job',
+                cancelText: 'Cancel',
+                onOk: async () => {
+                  try {
+                    if (!getToken()) { message.error('Sign in required'); return; }
+                    await apiAuth(`/job-listings/${job._id}`, { method: 'PATCH', body: { close: true } });
+                    message.success('Job closed');
+                    if (typeof window !== 'undefined') window.location.href = '/company/profile?tab=past';
+                  } catch (err) { message.error('Failed to close job'); }
+                }
+              });
+            }}>Close job</Button>
+          </div>
         )}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Space>
-          <Button size="small" type={saved ? 'primary' : 'default'} icon={saved ? <CheckOutlined /> : <SaveOutlined />} onClick={handleSave}>
-            {saved ? 'Saved' : 'Save'}
-          </Button>
-          <Button size="small" type={liked ? 'primary' : 'default'} onClick={handleLike} icon={<LikeOutlined />}>{liked ? 'Liked' : 'Like'}</Button>
-        </Space>
-
-        {/* Company Logo */}
-        <Avatar
-          size={48}
-          src={logoSignedUrl}
-          icon={<BankOutlined />}
-          style={{
-            backgroundColor: logoSignedUrl ? 'transparent' : '#f0f0f0',
-            color: '#999',
-            border: '1px solid #d9d9d9'
-          }}
-        />
-      </div>
-
-      {companyView && job.status === 0 && (
-        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}/edit`); }}>
-            Continue editing
-          </Button>
-          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>
-            View
-          </Button>
-        </div>
-      )}
-      {companyView && job.status === 1 && (
-        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-          {job.picUpdatedAt && <Tag color="blue">PIC updated</Tag>}
-          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>
-            View
-          </Button>
-          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}?editPIC=1`); }}>
-            Edit PIC
-          </Button>
-        </div>
-      )}
-      {companyView && job.status === 2 && (
-        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-          <Button size="small" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); router.push(`/company/jobs/${job._id}`); }}>View</Button>
-          <Button size="small" danger onClick={(e)=>{
-            e.preventDefault(); e.stopPropagation();
-            Modal.confirm({
-              title: 'Close this job?',
-              content: 'Once closed, it will be removed from public listings.',
-              okText: 'Yes, close job',
-              cancelText: 'Cancel',
-              onOk: async () => {
-                try {
-                  if (!getToken()) { message.error('Sign in required'); return; }
-                  await apiAuth(`/job-listings/${job._id}`, { method: 'PATCH', body: { close: true } });
-                  message.success('Job closed');
-                  if (typeof window !== 'undefined') window.location.href = '/company/profile?tab=past';
-                } catch (err) { message.error('Failed to close job'); }
-              }
-            });
-          }}>Close job</Button>
-        </div>
-      )}
 
       <AuthPromptModal
         open={authModalOpen}

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { Card, Space, Typography, Spin, Alert } from 'antd';
+import { Card, Space, Typography, Spin, Alert, theme as antdTheme } from 'antd';
 import { EnvironmentOutlined, BankOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { formatDate } from '../utils/formatters';
@@ -8,7 +8,80 @@ import { API_BASE_URL } from '../config';
 
 const { Text } = Typography;
 
+// Component to display a job logo with fallback
+function JobLogo({ job, size = 40 }) {
+  const { token } = antdTheme.useToken();
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [logoError, setLogoError] = useState(false);
+  const companyName = job.company?.name || 'Company';
+
+  useEffect(() => {
+    async function loadLogo() {
+      let url = job.company?.logo || job.company?.logoUrl;
+      if (!url && job.company?.logoKey) {
+        url = `${process.env.NEXT_PUBLIC_STORAGE_URL || 'https://ap-southeast-mys1.oss.ips1cloud.com/job-finder-bucket'}/${job.company.logoKey}`;
+      }
+
+      if (url) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/signed-url?url=${encodeURIComponent(url)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setLogoUrl(data.signedUrl);
+          } else {
+            setLogoUrl(url);
+          }
+        } catch (e) {
+          setLogoUrl(url);
+        }
+      }
+    }
+    loadLogo();
+  }, [job.company?.logo, job.company?.logoUrl, job.company?.logoKey]);
+
+  if (logoUrl && !logoError) {
+    return (
+      <img
+        src={logoUrl}
+        alt={companyName}
+        onError={() => setLogoError(true)}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 6,
+          objectFit: 'cover',
+          border: `1px solid ${token.colorBorder}`,
+          flexShrink: 0
+        }}
+      />
+    );
+  }
+
+  // Placeholder
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 6,
+        backgroundColor: token.colorBgLayout,
+        border: `1px solid ${token.colorBorder}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: size / 2.5,
+        fontWeight: 600,
+        color: token.colorTextTertiary,
+        flexShrink: 0
+      }}
+    >
+      {companyName.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
 export default function SimilarJobs({ currentJob }) {
+  const { token } = antdTheme.useToken();
   const [similarJobs, setSimilarJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -86,24 +159,21 @@ export default function SimilarJobs({ currentJob }) {
     }
   }, [currentJob]);
 
-  const getCompanyInitial = (companyName) => {
-    return companyName ? companyName.charAt(0).toUpperCase() : 'C';
-  };
 
-  const getRandomColor = (index) => {
-    const colors = ['#1890ff', '#ff4d4f', '#52c41a', '#faad14', '#722ed1', '#eb2f96'];
-    return colors[index % colors.length];
-  };
 
   if (loading) {
     return (
       <Card
         title="Similar Jobs"
-        style={{ marginBottom: 24 }}
+        style={{
+          marginBottom: 24,
+          backgroundColor: token.colorBgContainer,
+          border: `1px solid ${token.colorBorder}`
+        }}
       >
         <div style={{ textAlign: 'center', padding: 20 }}>
           <Spin size="large" />
-          <div style={{ marginTop: 8 }}>Loading similar jobs...</div>
+          <div style={{ marginTop: 8, color: token.colorText }}>Loading similar jobs...</div>
         </div>
       </Card>
     );
@@ -111,9 +181,14 @@ export default function SimilarJobs({ currentJob }) {
 
   if (error) {
     return (
-      <Card 
-        title="Similar Jobs" 
-        style={{ marginBottom: 24, boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', border: '1px solid #d9d9d9' }}
+      <Card
+        title="Similar Jobs"
+        style={{
+          marginBottom: 24,
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          backgroundColor: token.colorBgContainer,
+          border: `1px solid ${token.colorBorder}`
+        }}
       >
         <Alert message="Unable to load similar jobs" type="warning" />
       </Card>
@@ -121,16 +196,20 @@ export default function SimilarJobs({ currentJob }) {
   }
 
   return (
-    <Card 
+    <Card
       title={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Find Similar Jobs!</span>
           <Link href="/jobs">
-            <Text style={{ fontSize: 14, color: '#1890ff', cursor: 'pointer' }}>View all</Text>
+            <Text style={{ fontSize: 14, color: token.colorPrimary, cursor: 'pointer' }}>View all</Text>
           </Link>
         </div>
-      } 
-      style={{ marginBottom: 24 }}
+      }
+      style={{
+        marginBottom: 24,
+        backgroundColor: token.colorBgContainer,
+        border: `1px solid ${token.colorBorder}`
+      }}
     >
       {similarJobs.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 20 }}>
@@ -140,80 +219,69 @@ export default function SimilarJobs({ currentJob }) {
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           {similarJobs.slice(0, 3).map((job, index) => (
             <Link key={job._id} href={`/jobs/${job._id}`} style={{ textDecoration: 'none' }}>
-              <div style={{ 
-                padding: 16, 
-                border: '1px solid #f0f0f0', 
+              <div style={{
+                padding: 16,
+                border: `1px solid ${token.colorBorder}`,
                 borderRadius: 8,
-                backgroundColor: '#fafafa',
+                backgroundColor: token.colorBgLayout,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f5f5f5';
-                e.currentTarget.style.borderColor = '#d9d9d9';
+                e.currentTarget.style.backgroundColor = token.colorBgContainer;
+                e.currentTarget.style.borderColor = token.colorPrimary;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#fafafa';
-                e.currentTarget.style.borderColor = '#f0f0f0';
+                e.currentTarget.style.backgroundColor = token.colorBgLayout;
+                e.currentTarget.style.borderColor = token.colorBorder;
               }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{ 
-                    width: 40, 
-                    height: 40, 
-                    backgroundColor: getRandomColor(index), 
-                    borderRadius: 6,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: 16,
-                    fontWeight: 'bold',
-                    flexShrink: 0
-                  }}>
-                    {getCompanyInitial(job.company?.name)}
-                  </div>
+                  {/* Company Logo with Placeholder */}
+                  <JobLogo job={job} size={40} />
+
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <Text strong style={{ 
-                      fontSize: 14, 
-                      display: 'block', 
+                    <Text strong style={{
+                      fontSize: 14,
+                      display: 'block',
                       marginBottom: 4,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
+                      color: token.colorText
                     }}>
                       {job.title}
                     </Text>
-                    <Text style={{ fontSize: 12, color: '#1890ff', marginBottom: 8, display: 'block' }}>
+                    <Text style={{ fontSize: 12, color: token.colorPrimary, marginBottom: 8, display: 'block' }}>
                       {job.company?.name || 'Company'}
                     </Text>
-                    
+
                     {job.location && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <Text style={{ fontSize: 12, color: '#666' }}>
+                        <Text style={{ fontSize: 12, color: token.colorTextSecondary }}>
                           <EnvironmentOutlined style={{ marginRight: 4 }} />
                           {job.location.city}{job.location.state && `, ${job.location.state}`}
                         </Text>
                       </div>
                     )}
-                    
+
                     {job.quantityAvailable && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <Text style={{ fontSize: 12, color: '#666' }}>
+                        <Text style={{ fontSize: 12, color: token.colorTextSecondary }}>
                           <BankOutlined style={{ marginRight: 4 }} />
                           {job.quantityAvailable} position{job.quantityAvailable > 1 ? 's' : ''}
                         </Text>
                       </div>
                     )}
-                    
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ fontSize: 11, color: '#999' }}>
+                      <Text style={{ fontSize: 11, color: token.colorTextTertiary }}>
                         Posted {formatDate(job.createdAt)}
                       </Text>
-                      <Text style={{ 
-                        fontSize: 12, 
-                        color: '#1890ff', 
-                        backgroundColor: '#f0f8ff',
+                      <Text style={{
+                        fontSize: 12,
+                        color: token.colorPrimary,
+                        backgroundColor: token.colorPrimaryBg,
                         padding: '2px 8px',
                         borderRadius: 4,
                         fontWeight: 500

@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Row, Col, Input, Typography, Pagination, Card, Skeleton, Empty, Space, Button } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import Image from "next/image";
 import JobCard from "./JobCard";
 import FilterBar from "./FilterBar";
 import { getFilterConfig } from "./filterConfigs";
@@ -219,7 +220,14 @@ export default function JobsContent() {
         ) : (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "500px" }}>
             <Empty
-              description="No jobs found"
+              image={<Image src="/images/not_found.svg" alt="No jobs found" width={200} height={150} priority />}
+              imageStyle={{ height: 150 }}
+              description={
+                <div>
+                  <Text style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>No jobs found</Text>
+                  <Text type="secondary">Try adjusting your filters or search criteria</Text>
+                </div>
+              }
               style={{ margin: "48px 0" }}
             >
               <Button type="primary" onClick={handleClearAllFilters}>

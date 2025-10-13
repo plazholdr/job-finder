@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import Image from "next/image";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import Hero from "./Hero";
@@ -14,6 +15,8 @@ import { useFilters } from "../hooks/useFilters";
 import { Layout, Row, Col, Typography, Skeleton, Empty, Space, Select, Button, message, Segmented, InputNumber } from "antd";
 import { API_BASE_URL } from "../config";
 import { apiAuth, getToken } from "../lib/api";
+
+const { Text } = Typography;
 
 function buildQuery(base, { q, location, nature, city, salaryMin, salaryMax, sort }) {
   const isJobs = base.includes("job-listings");
@@ -549,7 +552,16 @@ export default function HomeContent({ jobs = [], companies = [] }) {
                   ))}
                 </Row>
               ) : (
-                <Empty description="No interns found" />
+                <Empty
+                  image={<Image src="/images/not_found.svg" alt="No interns found" width={200} height={150} priority />}
+                  imageStyle={{ height: 150 }}
+                  description={
+                    <div>
+                      <Text style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>No interns found</Text>
+                      <Text type="secondary">Try adjusting your filters or search criteria</Text>
+                    </div>
+                  }
+                />
               )}
             </section>
           </>
@@ -598,7 +610,17 @@ export default function HomeContent({ jobs = [], companies = [] }) {
                   ))}
                 </Row>
               ) : (
-                <Empty description={q || (studentFilters.industry?.length > 0) || (studentFilters.location?.length > 0) ? "No companies match your search" : "No companies found"} />
+                <Empty
+                  image={<Image src="/images/not_found.svg" alt="No companies found" width={200} height={150} priority />}
+                  description={
+                    <div>
+                      <Text style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>
+                        {q || (studentFilters.industry?.length > 0) || (studentFilters.location?.length > 0) ? "No companies match your search" : "No companies found"}
+                      </Text>
+                      <Text type="secondary">Try adjusting your filters or search criteria</Text>
+                    </div>
+                  }
+                />
               )}
             </section>
           </>
@@ -708,7 +730,15 @@ export default function HomeContent({ jobs = [], companies = [] }) {
                   ))}
                 </Row>
               ) : (
-                <Empty description="No jobs found" />
+                <Empty
+                  image={<Image src="/images/not_found.svg" alt="No jobs found" width={200} height={150} priority />}
+                  description={
+                    <div>
+                      <Text style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>No jobs found</Text>
+                      <Text type="secondary">Try adjusting your filters or search criteria</Text>
+                    </div>
+                  }
+                />
               )}
             </section>
             <section id="companies" style={{ marginBottom: 32 }}>
@@ -727,7 +757,15 @@ export default function HomeContent({ jobs = [], companies = [] }) {
                   ))}
                 </Row>
               ) : (
-                <Empty description="No companies found" />
+                <Empty
+                  image={<Image src="/images/not_found.svg" alt="No companies found" width={200} height={150} priority />}
+                  description={
+                    <div>
+                      <Text style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>No companies found</Text>
+                      <Text type="secondary">Try adjusting your filters or search criteria</Text>
+                    </div>
+                  }
+                />
               )}
             </section>
           </>

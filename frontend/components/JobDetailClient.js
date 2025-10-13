@@ -10,9 +10,7 @@ import {
   Card,
   Row,
   Col,
-  Space,
-  Alert,
-  Badge
+  Space
 } from "antd";
 import {
   CalendarOutlined,
@@ -20,9 +18,6 @@ import {
   DollarOutlined,
   TeamOutlined,
   ClockCircleOutlined,
-  UserOutlined,
-  PhoneOutlined,
-  MailOutlined,
   FileTextOutlined,
   BankOutlined
 } from "@ant-design/icons";
@@ -113,10 +108,10 @@ export default function JobDetailClient({ job }) {
             </Card>
 
             {/* Main Content Card - directly below header */}
-            <Card style={{ border: '0.5px solid lightgray' }}>
+            <Card style={{ border: '0.5px solid lightgray', minHeight: 600 }}>
               {/* Job Overview Section */}
               <div style={{ marginBottom: 40 }}>
-                <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, display: 'inline-block' }}>
+                <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, width: 'fit-content' }}>
                   Job Overview
                 </Title>
                 <Paragraph style={{ fontSize: 16, lineHeight: 1.8, color: '#333', marginBottom: 0 }}>
@@ -126,88 +121,92 @@ export default function JobDetailClient({ job }) {
 
 
             {/* Role Overview Section */}
-            {job.project && (
-              <div style={{ marginBottom: 40 }}>
-                <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, display: 'inline-block' }}>
-                  Role Overview
-                </Title>
+            <div style={{ marginBottom: 40 }}>
+              <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, width: 'fit-content' }}>
+                Role Overview
+              </Title>
 
-                {job.project.title && (
-                  <div style={{ marginBottom: 16 }}>
-                    <Text strong style={{ fontSize: 16 }}>Project: </Text>
-                    <Text style={{ fontSize: 16 }}>{job.project.title}</Text>
-                  </div>
-                )}
-
-                {job.project.description && (
-                  <Paragraph style={{ fontSize: 16, lineHeight: 1.8, color: '#333', marginBottom: 16 }}>
-                    {job.project.description}
-                  </Paragraph>
-                )}
-
-                {job.project.roleDescription && (
-                  <Paragraph style={{ fontSize: 16, lineHeight: 1.8, color: '#333', marginBottom: 16 }}>
-                    {job.project.roleDescription}
-                  </Paragraph>
-                )}
-
-                {/* Project Timeline */}
-                {(job.project.startDate || job.project.endDate) && (
-                  <div style={{ marginBottom: 16 }}>
-                    <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>Project Timeline:</Text>
-                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                      {job.project.startDate && (
-                        <span style={{ color: '#666' }}>
-                          <CalendarOutlined style={{ marginRight: 6 }} />
-                          Start: {formatDate(job.project.startDate)}
-                        </span>
-                      )}
-                      {job.project.endDate && (
-                        <span style={{ color: '#666' }}>
-                          <CalendarOutlined style={{ marginRight: 6 }} />
-                          End: {formatDate(job.project.endDate)}
-                        </span>
-                      )}
+              {job.project ? (
+                <>
+                  {job.project.title && (
+                    <div style={{ marginBottom: 16 }}>
+                      <Text strong style={{ fontSize: 16 }}>Project: </Text>
+                      <Text style={{ fontSize: 16 }}>{job.project.title}</Text>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Project Locations */}
-                {job.project.locations && job.project.locations.length > 0 && (
-                  <div style={{ marginBottom: 16 }}>
-                    <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>Project Locations:</Text>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {job.project.locations.map((location, index) => (
-                        <Tag key={index} style={{ padding: '4px 12px', fontSize: 14 }}>
-                          {location}
-                        </Tag>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  {job.project.description && (
+                    <Paragraph style={{ fontSize: 16, lineHeight: 1.8, color: '#333', marginBottom: 16 }}>
+                      {job.project.description}
+                    </Paragraph>
+                  )}
 
-                {/* Areas of Interest */}
-                {job.project.areasOfInterest && job.project.areasOfInterest.length > 0 && (
-                  <div style={{ marginBottom: 16 }}>
-                    <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>Areas of Interest:</Text>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {job.project.areasOfInterest.map((area, index) => (
-                        <Tag key={index} color="blue" style={{ padding: '4px 12px', fontSize: 14 }}>
-                          {area}
-                        </Tag>
-                      ))}
+                  {job.project.roleDescription && (
+                    <Paragraph style={{ fontSize: 16, lineHeight: 1.8, color: '#333', marginBottom: 16 }}>
+                      {job.project.roleDescription}
+                    </Paragraph>
+                  )}
+
+                  {/* Project Timeline */}
+                  {(job.project.startDate || job.project.endDate) && (
+                    <div style={{ marginBottom: 16 }}>
+                      <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>Project Timeline:</Text>
+                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                        {job.project.startDate && (
+                          <span style={{ color: '#666' }}>
+                            <CalendarOutlined style={{ marginRight: 6 }} />
+                            Start: {formatDate(job.project.startDate)}
+                          </span>
+                        )}
+                        {job.project.endDate && (
+                          <span style={{ color: '#666' }}>
+                            <CalendarOutlined style={{ marginRight: 6 }} />
+                            End: {formatDate(job.project.endDate)}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+
+                  {/* Project Locations */}
+                  {job.project.locations && job.project.locations.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>Project Locations:</Text>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {job.project.locations.map((location, index) => (
+                          <Tag key={index} style={{ padding: '4px 12px', fontSize: 14 }}>
+                            {location}
+                          </Tag>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Areas of Interest */}
+                  {job.project.areasOfInterest && job.project.areasOfInterest.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>Areas of Interest:</Text>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {job.project.areasOfInterest.map((area, index) => (
+                          <Tag key={index} color="blue" style={{ padding: '4px 12px', fontSize: 14 }}>
+                            {area}
+                          </Tag>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Text type="secondary" style={{ fontSize: 16 }}>No role overview information provided.</Text>
+              )}
+            </div>
 
             {/* Requirements Section */}
-            {job.requirements && job.requirements.length > 0 && (
-              <div style={{ marginBottom: 40 }}>
-                <Title level={3} style={{ color: '#1890ff', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid #1890ff', paddingBottom: 8, display: 'inline-block' }}>
-                  Requirements
-                </Title>
+            <div style={{ marginBottom: 40 }}>
+              <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, width: 'fit-content' }}>
+                Requirements
+              </Title>
+              {job.requirements && job.requirements.length > 0 ? (
                 <ul style={{ fontSize: 16, lineHeight: 1.8, color: '#333', paddingLeft: 20 }}>
                   {job.requirements.map((requirement, index) => (
                     <li key={index} style={{ marginBottom: 8 }}>
@@ -215,15 +214,17 @@ export default function JobDetailClient({ job }) {
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
+              ) : (
+                <Text type="secondary" style={{ fontSize: 16 }}>No specific requirements listed.</Text>
+              )}
+            </div>
 
             {/* Responsibilities Section */}
-            {job.responsibilities && job.responsibilities.length > 0 && (
-              <div style={{ marginBottom: 40 }}>
-                <Title level={3} style={{ color: '#1890ff', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid #1890ff', paddingBottom: 8, display: 'inline-block' }}>
-                  Responsibilities
-                </Title>
+            <div style={{ marginBottom: 40 }}>
+              <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, width: 'fit-content' }}>
+                Responsibilities
+              </Title>
+              {job.responsibilities && job.responsibilities.length > 0 ? (
                 <ul style={{ fontSize: 16, lineHeight: 1.8, color: '#333', paddingLeft: 20 }}>
                   {job.responsibilities.map((responsibility, index) => (
                     <li key={index} style={{ marginBottom: 8 }}>
@@ -231,12 +232,14 @@ export default function JobDetailClient({ job }) {
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
+              ) : (
+                <Text type="secondary" style={{ fontSize: 16 }}>No specific responsibilities listed.</Text>
+              )}
+            </div>
 
             {/* Job Information Section */}
             <div style={{ marginBottom: 40 }}>
-              <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, display: 'inline-block' }}>
+              <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, width: 'fit-content' }}>
                 More Info
               </Title>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
@@ -267,11 +270,11 @@ export default function JobDetailClient({ job }) {
             </div>
 
             {/* Onboarding Materials Section */}
-            {job.onboardingMaterials && job.onboardingMaterials.length > 0 && (
-              <div style={{ marginBottom: 40 }}>
-                <Title level={3} style={{ color: '#1890ff', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid #1890ff', paddingBottom: 8, display: 'inline-block' }}>
-                  Onboarding Materials
-                </Title>
+            <div style={{ marginBottom: 40 }}>
+              <Title level={3} style={{ color: 'black', marginBottom: 16, fontSize: 20, fontWeight: 600, borderBottom: '2px solid black', paddingBottom: 8, width: 'fit-content' }}>
+                Onboarding Materials
+              </Title>
+              {job.onboardingMaterials && job.onboardingMaterials.length > 0 ? (
                 <Space direction="vertical" style={{ width: '100%' }} size="middle">
                   {job.onboardingMaterials.map((material, index) => (
                     <div key={index} style={{
@@ -294,8 +297,10 @@ export default function JobDetailClient({ job }) {
                     </div>
                   ))}
                 </Space>
-              </div>
-            )}
+              ) : (
+                <Text type="secondary" style={{ fontSize: 16 }}>No onboarding materials available.</Text>
+              )}
+            </div>
             </Card>
           </Col>
 
@@ -303,65 +308,6 @@ export default function JobDetailClient({ job }) {
           <Col xs={24} lg={8}>
             <SimilarJobs currentJob={job} />
           </Col>
-        </Row>
-
-        {/* Main Content - Two Column Layout */}
-        <Row gutter={[32, 24]}>
-          {/* Left Column - Main Content */}
-          <Col xs={24} lg={16}>
-          </Col>
-
-          {/* Right Column - Contact & Status */}
-          <Col xs={24} lg={8}>
-            {/* Contact Information */}
-            {job.pic && (job.pic.name || job.pic.email || job.pic.phone) && (
-              <Card title="Contact Person" style={{ marginBottom: 24 }}>
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {job.pic.name && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <UserOutlined style={{ color: '#666' }} />
-                      <Text strong>{job.pic.name}</Text>
-                    </div>
-                  )}
-                  {job.pic.email && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <MailOutlined style={{ color: '#666' }} />
-                      <Text copyable>{job.pic.email}</Text>
-                    </div>
-                  )}
-                  {job.pic.phone && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <PhoneOutlined style={{ color: '#666' }} />
-                      <Text copyable>{job.pic.phone}</Text>
-                    </div>
-                  )}
-                </Space>
-              </Card>
-            )}
-
-            {/* Application Status Alert */}
-            {job.status === 3 && (
-              <Alert
-                message="Job Closed"
-                description="This job listing is no longer accepting applications."
-                type="warning"
-                showIcon
-                style={{ marginBottom: 24 }}
-              />
-            )}
-
-            {job.status === 1 && (
-              <Alert
-                message="Pending Approval"
-                description="This job listing is pending admin approval."
-                type="info"
-                showIcon
-                style={{ marginBottom: 24 }}
-              />
-            )}
-          </Col>
-
-
         </Row>
       </Layout.Content>
       <Footer />

@@ -2,9 +2,12 @@
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Row, Col, Input, Select, Slider, Space, Typography, Pagination, Card, Skeleton, Empty, Segmented } from "antd";
+import { Row, Col, Input, Select, Slider, Space, Typography, Pagination, Card, Skeleton, Empty, Segmented, theme as antdTheme } from "antd";
+import Image from "next/image";
 import CompanyCard from "./CompanyCard";
 import { API_BASE_URL } from "../config";
+
+const { Text } = Typography;
 
 const SORT_OPTIONS = [
   { label: "Latest", value: "latest" },
@@ -26,6 +29,7 @@ function buildCompaniesUrl({ q, industry, page, sort }) {
 }
 
 export default function CompaniesExplorer() {
+  const { token } = antdTheme.useToken();
   const sp = useSearchParams();
   const router = useRouter();
 
@@ -131,7 +135,11 @@ export default function CompaniesExplorer() {
 
   return (
     <>
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{
+        marginBottom: 16,
+        backgroundColor: token.colorBgContainer,
+        border: `1px solid ${token.colorBorder}`
+      }}>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
             <Space wrap>
@@ -176,7 +184,16 @@ export default function CompaniesExplorer() {
           </div>
         </>
       ) : (
-        <Empty description="No companies found" />
+        <Empty
+          image={<Image src="/images/not_found.svg" alt="No companies found" width={200} height={150} priority />}
+          imageStyle={{ height: 150 }}
+          description={
+            <div>
+              <Text style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>No companies found</Text>
+              <Text type="secondary">Try adjusting your filters or search criteria</Text>
+            </div>
+          }
+        />
       )}
     </>
   );

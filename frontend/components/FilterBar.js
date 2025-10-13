@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Button, Dropdown, Card, Space, Typography, Checkbox, DatePicker, InputNumber, message } from 'antd';
+import { Button, Dropdown, Card, Space, Typography, Checkbox, DatePicker, InputNumber, message, theme as antdTheme } from 'antd';
 
-const FilterBar = ({ 
-  filterConfig, 
-  selectedFilters, 
-  onFilterChange, 
-  onClearAll, 
+const FilterBar = ({
+  filterConfig,
+  selectedFilters,
+  onFilterChange,
+  onClearAll,
   onSaveProfile,
   showSaveProfile = false,
   showClearAll = true,
@@ -16,6 +16,7 @@ const FilterBar = ({
     activeTextColor: '#fff'
   }
 }) => {
+  const { token } = antdTheme.useToken();
   const [openFilter, setOpenFilter] = useState(null);
 
   // Check if any filters are active
@@ -57,20 +58,26 @@ const FilterBar = ({
     switch (type) {
       case 'checkbox':
         return (
-          <Card style={{ width: 300, maxHeight: 400, overflow: 'auto' }}>
+          <Card style={{
+            width: 300,
+            maxHeight: 400,
+            overflow: 'auto',
+            backgroundColor: token.colorBgContainer,
+            border: `1px solid ${token.colorBorder}`
+          }}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Typography.Text strong>{title}</Typography.Text>
+              <Typography.Text strong style={{ color: token.colorText }}>{title}</Typography.Text>
               {options.map(option => {
                 const optionValue = typeof option === 'string' ? option : option.value;
                 const optionLabel = typeof option === 'string' ? option : option.label;
-                
+
                 return (
                   <Checkbox
                     key={optionValue}
                     checked={selectedValues.includes(optionValue)}
                     onChange={(e) => handleFilterSelect(filterKey, optionValue, e.target.checked)}
                   >
-                    {optionLabel}
+                    <span style={{ color: token.colorText }}>{optionLabel}</span>
                   </Checkbox>
                 );
               })}
@@ -80,10 +87,14 @@ const FilterBar = ({
 
       case 'dateRange':
         return (
-          <Card style={{ width: 300 }}>
+          <Card style={{
+            width: 300,
+            backgroundColor: token.colorBgContainer,
+            border: `1px solid ${token.colorBorder}`
+          }}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Typography.Text strong>{title}</Typography.Text>
-              <DatePicker.RangePicker 
+              <Typography.Text strong style={{ color: token.colorText }}>{title}</Typography.Text>
+              <DatePicker.RangePicker
                 style={{ width: '100%' }}
                 onChange={(dates) => {
                   onFilterChange(filterKey, dates);
@@ -96,11 +107,15 @@ const FilterBar = ({
 
       case 'numberRange':
         return (
-          <Card style={{ width: 300 }}>
+          <Card style={{
+            width: 300,
+            backgroundColor: token.colorBgContainer,
+            border: `1px solid ${token.colorBorder}`
+          }}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Typography.Text strong>{title}</Typography.Text>
+              <Typography.Text strong style={{ color: token.colorText }}>{title}</Typography.Text>
               <Space>
-                <InputNumber 
+                <InputNumber
                   placeholder="Min"
                   value={selectedValues[0]}
                   onChange={(value) => {
@@ -108,8 +123,8 @@ const FilterBar = ({
                     onFilterChange(filterKey, newRange);
                   }}
                 />
-                <span>-</span>
-                <InputNumber 
+                <span style={{ color: token.colorText }}>-</span>
+                <InputNumber
                   placeholder="Max"
                   value={selectedValues[1]}
                   onChange={(value) => {
@@ -142,12 +157,12 @@ const FilterBar = ({
         trigger={['click']}
         popupRender={() => renderFilterContent(filter)}
       >
-        <Button 
+        <Button
           style={{
             borderRadius: '25px',
-            backgroundColor: isActive ? theme.activeColor : theme.inactiveColor,
-            color: isActive ? theme.activeTextColor : theme.textColor,
-            border: isActive ? `1px solid ${theme.activeColor}` : '1px solid #d9d9d9',
+            backgroundColor: isActive ? theme.activeColor : token.colorBgLayout,
+            color: isActive ? theme.activeTextColor : token.colorText,
+            border: isActive ? `1px solid ${theme.activeColor}` : `1px solid ${token.colorBorder}`,
             fontWeight: '500',
             transition: 'all 0.3s ease',
             width: width,
@@ -199,12 +214,12 @@ const FilterBar = ({
   };
 
   return (
-    <div style={{ 
-      background: '#fff',
-      padding: '20px', 
-      borderRadius: '12px', 
+    <div style={{
+      background: token.colorBgContainer,
+      padding: '20px',
+      borderRadius: '12px',
       marginBottom: '24px',
-      border: '1px solid #f0f0f0',
+      border: `1px solid ${token.colorBorder}`,
       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
     }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>

@@ -28,7 +28,13 @@ app.configure(configuration());
 
 // Enable security, CORS, compression and body parsing
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
+app.use(cors({
+  origin: true, // Allow all origins in development
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -44,17 +50,18 @@ app.configure(redis);
 // Configure authentication
 app.configure(authentication);
 
-// Configure middleware
-app.configure(middleware);
-
-// Configure services
-app.configure(services);
-
 // Add Express route for file upload (needed for multer compatibility)
+// Must be added BEFORE services to ensure proper middleware order
 import { upload, storageUtils } from './utils/storage.js';
-import { hooks as authHooks } from '@feathersjs/authentication';
 
-const { authenticate } = authHooks;
+// Handle preflight OPTIONS request for /upload
+app.options('/upload', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.sendStatus(200);
+});
 
 app.post('/upload',
   // Use multer middleware
@@ -66,6 +73,12 @@ app.post('/upload',
     { name: 'document', maxCount: 10 }
   ]),
   async (req, res) => {
+    // Ensure CORS headers are set
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
     // Simple JWT authentication check
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -106,6 +119,39 @@ app.post('/upload',
     }
   }
 );
+
+// GET endpoint to retrieve signed URL for a file key
+app.get('/upload/:key(*)', async (req, res) => {
+  try {
+    // Set CORS headers
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+
+    const key = req.params.key;
+    if (!key) {
+      return res.status(400).json({ error: 'File key is required' });
+    }
+
+    // Generate signed URL for the file
+    const signedUrl = await storageUtils.getSignedUrl(key, 3600); // 1 hour expiry
+    const publicUrl = storageUtils.getFileUrl(key);
+
+    res.json({
+      signedUrl,
+      publicUrl,
+      key
+    });
+  } catch (error) {
+    console.error('Get signed URL error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Configure middleware
+app.configure(middleware);
+
+// Configure services
+app.configure(services);
 
 // Add endpoint to generate signed URL from public URL
 app.get('/signed-url', async (req, res) => {
