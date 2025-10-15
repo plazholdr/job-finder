@@ -1159,7 +1159,8 @@ components:
           name: salaryMax
           schema: { type: number }
       responses:
-        '200': { description: Items: candidate user profiles }
+        '200':
+          description: "Items: candidate user profiles"
     patch:
       summary: Send invitations to selected candidates (Company JWT)
       tags: [Talent]
