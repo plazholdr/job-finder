@@ -6,6 +6,8 @@ info:
     OpenAPI for the Job Finder (FeathersJS) backend.
     Authentication uses JWT. Send `Authorization: Bearer <token>` for secured endpoints.
 servers:
+  - url: https://jobfinder.saino365.com/api
+    description: Production
   - url: http://localhost:3030
     description: Local dev
 security:
