@@ -400,6 +400,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Company'
+    patch:
+      summary: Update company (owner/admin)
+      tags: [Companies]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyPatch'
+      responses:
+        '200':
+          description: Updated company
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
 
   /search-profiles:
     get:
@@ -487,24 +504,6 @@ paths:
                 type: object
                 properties:
                   id: { type: string }
-
-    patch:
-      summary: Update company (owner/admin)
-      tags: [Companies]
-      parameters:
-        - $ref: '#/components/parameters/IdParam'
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CompanyPatch'
-      responses:
-        '200':
-          description: Updated company
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Company'
 
 
   /job-listings:
