@@ -1120,7 +1120,8 @@ components:
           schema: { type: string }
           required: true
       responses:
-        '200': { description: Items: [{ level, programme, faculty, count }] }
+        '200':
+          description: "Items: [{ level, programme, faculty, count }]"
 
   /programme-candidates:
     get:
