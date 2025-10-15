@@ -729,9 +729,6 @@ components:
         filters: { $ref: '#/components/schemas/SearchProfileFilters' }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-
-              properties:
-                industries: { type: array, items: { type: string } }
     UserPatch:
       type: object
       properties:
