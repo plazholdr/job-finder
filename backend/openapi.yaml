@@ -1107,7 +1107,8 @@ components:
           schema: { type: string }
           required: false
       responses:
-        '200': { description: Items: [{ name, count }] }
+        '200':
+          description: "Items: [{ name, count }]"
 
   /programmes:
     get:
