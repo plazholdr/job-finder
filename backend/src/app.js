@@ -232,7 +232,7 @@ app.get('/docs', (req, res) => {
 <html>
 <head><meta charset="utf-8"/><title>Job Finder API Docs</title></head>
 <body>
-  <redoc spec-url="/openapi.yaml"></redoc>
+  <redoc spec-url="/api/openapi.yaml"></redoc>
   <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
 </body>
 </html>`);
